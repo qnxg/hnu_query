@@ -11,8 +11,6 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # semantic-release 会用 github-actions[bot] 推送 tag；这里跳过，避免重复 publish
-    if: github.actor != 'github-actions[bot]'
     permissions:
       contents: read
     steps:
@@ -33,4 +31,3 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish
-
