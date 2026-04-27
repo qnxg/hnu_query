@@ -27,8 +27,8 @@ pub struct Course {
     pub area: String,
     /// 授课教师
     ///
-    /// 可能会有多位教师，用 `,` 分隔
-    pub teacher: String,
+    /// 可能会有多位教师，用 `,` 分隔，还有可能没有教师
+    pub teacher: Option<String>,
     /// 学分
     pub credit: f32,
     /// 额外备注信息
@@ -206,7 +206,8 @@ pub async fn get_class_table(
             course_type: item.kcxz,
             class_name: item.kt_mc,
             area: item.skxqmc,
-            teacher: item.jg0101mc,
+            // 教务系统可能会返回空格开头或结尾
+            teacher: item.jg0101mc.map(|s| s.trim().to_string()),
             credit: item.xf,
             extra: item.fzmc,
             people: item.xkrs,

@@ -24,7 +24,7 @@ pub struct CourseInfo {
     /// 课程名称
     pub kc_mc: String,
     /// 教师名称
-    pub jg0101mc: String,
+    pub jg0101mc: Option<String>,
     /// 教师工号（暂时不用）
     pub jsgh: String,
     pub kt_mc: String, // 上课班级
