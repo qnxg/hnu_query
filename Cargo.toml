@@ -1,6 +1,6 @@
 [package]
 name = "hnu_query"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 license = "AGPL-3.0-only"
 description = "A library for querying systems of Hunan University."
