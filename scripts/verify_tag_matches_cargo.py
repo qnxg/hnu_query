@@ -1,16 +1,18 @@
-import re
 import sys
+import tomllib
 from pathlib import Path
 
 
 def read_cargo_version(cargo_toml: Path) -> str:
-    text = cargo_toml.read_text(encoding="utf-8")
-    m = re.search(r'(?m)^version\s*=\s*"([^"]+)"\s*$', text)
-    if not m:
-        raise RuntimeError("cannot find `version = \"...\"` in Cargo.toml")
-    return m.group(1)
+    try:
+        data = tomllib.loads(cargo_toml.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        raise RuntimeError(f"invalid Cargo.toml: {exc}") from exc
 
-
+    version = data.get("package", {}).get("version")
+    if not isinstance(version, str):
+        raise RuntimeError("cannot find `[package].version` in Cargo.toml")
+    return version
 def normalize_tag(tag: str) -> str:
     tag = tag.strip()
     if tag.startswith("refs/tags/"):
