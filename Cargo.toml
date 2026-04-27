@@ -2,10 +2,9 @@
 name = "hnu_query"
 version = "0.0.1"
 edition = "2024"
-
-[lib]
-name = "hnu_query"
-path = "src/lib.rs"
+license = "AGPL-3.0-only"
+description = "A library for querying systems of Hunan University."
+repository = "https://github.com/qnxg/hnu_query"
 
 [dependencies]
 tokio = { version = "1.41.1", features = [
