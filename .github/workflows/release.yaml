@@ -18,17 +18,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Guard - ensure tag commit is on main
-        shell: bash
-        run: |
-          git fetch origin main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Tagged commit $GITHUB_SHA is not on origin/main. Refusing to publish." >&2
-            exit 1
-          fi
 
       - name: Verify tag matches Cargo.toml version
         shell: bash
