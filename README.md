@@ -7,6 +7,7 @@
 <p>
   <img alt="language" src="https://img.shields.io/badge/language-Rust-dea584" />
   <img alt="edition" src="https://img.shields.io/badge/edition-2024-1f425f" />
+  <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/qnxg/hnu_query/ci.yaml">
 </p>
 </div>
 
