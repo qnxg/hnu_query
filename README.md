@@ -8,6 +8,8 @@
   <img alt="language" src="https://img.shields.io/badge/language-Rust-dea584" />
   <img alt="edition" src="https://img.shields.io/badge/edition-2024-1f425f" />
   <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/qnxg/hnu_query/ci.yaml">
+  <img alt="language" src="https://img.shields.io/crates/v/hnu_query" />
+  <img alt="language" src="https://img.shields.io/docsrs/hnu_query" />
 </p>
 </div>
 
@@ -19,44 +21,43 @@
 
 ## 目前支持的功能
 
-* 可信电子凭证平台
-  * 获取本科生主修课程的可信电子凭证排名信息
+- 可信电子凭证平台
+  - 获取本科生主修课程的可信电子凭证排名信息
 
-* 体测系统
-  * 获取体测预约信息
-  * 获取体测成绩
-* 教务系统
-  * 获取课表
-  * 获取无课表课程
-  * 获取空教室
-  * 获取考试安排
-  * 获取课程成绩
-  * 获取课程成绩详情分数
-  * 获取排名
+- 体测系统
+  - 获取体测预约信息
+  - 获取体测成绩
+- 教务系统
+  - 获取课表
+  - 获取无课表课程
+  - 获取空教室
+  - 获取考试安排
+  - 获取课程成绩
+  - 获取课程成绩详情分数
+  - 获取排名
 
-* 大物实验平台
-  * 获取课程列表
-  * 获取实验安排
-  * 获取实验成绩
+- 大物实验平台
+  - 获取课程列表
+  - 获取实验安排
+  - 获取实验成绩
 
-* 校园网流量系统
-  * 获取校园网流量明细
-  * 获取校园网流量账单
-  * 获取校园网欠费金额
-  * 获取当月校园网流量的使用情况
-  * 获取校园网流量锁定状态
+- 校园网流量系统
+  - 获取校园网流量明细
+  - 获取校园网流量账单
+  - 获取校园网欠费金额
+  - 获取当月校园网流量的使用情况
+  - 获取校园网流量锁定状态
 
-* 个人门户
-  * 获取校园卡信息
-  * 获取校园卡消费历史
-  * 获取学校邮箱的未读邮件数
+- 个人门户
+  - 获取校园卡信息
+  - 获取校园卡消费历史
+  - 获取学校邮箱的未读邮件数
 
-* 学工系统
-  * 获取个人信息
+- 学工系统
+  - 获取个人信息
 
-* 其他
-  * 获取宿舍电量
-
+- 其他
+  - 获取宿舍电量
 
 ## 快速开始
 
@@ -64,7 +65,13 @@
 
 本项目本质上为 [Rust](https://rust-lang.org/) [library crate](https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html)，使用本项目需要你有一定的 Rust 基础。
 
-TODO 安装
+在 Cargo 项目下执行如下指令引入 `hnu_query` 依赖：
+
+```bash
+cargo add hnu_query
+```
+
+> 注意，由于该项目的性质，项目的版本更新可能会非常频繁，并且每个版本更新都比较重要。你可能需要频繁更新项目依赖版本。
 
 ```rust
 // 完整代码在 examples/demo.rs 中
@@ -95,11 +102,7 @@ Ok(
 ...
 ```
 
-更详细的使用说明请参考项目的文档：
-
-```bash
-cargo doc --open
-```
+更详细的使用说明请参考项目的文档：[hnu_query - docs.rs](https://docs.rs/hnu_query/latest/hnu_query/)
 
 和本项目 `docs` 目录下的文档。
 
@@ -111,7 +114,9 @@ cargo doc --open
 
 > 我们欢迎对 Rust 和软件开发感兴趣的同学和我们一同交流：
 >
-> TODO 群二维码
+> QQ群号：1065050378
+>
+> ![](https://api.file.caiwen.work/picture/2026/04/28/qrcode_1777347695985.jpg)
 
 ## License
 
