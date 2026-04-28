@@ -88,7 +88,7 @@ pub async fn raw_class_table_data(
     xq: u8,
 ) -> Result<Vec<CourseInfo>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
-    let mut res = client
+    let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
             CLASS_TABLE_URL,
@@ -110,7 +110,7 @@ pub async fn raw_class_table_data(
         Some(_) => {
             // 取 data 字段返回
             let res: Vec<CourseInfo> =
-                serde_json::from_value(res["data"].take()).parse_err(&res.to_string())?;
+                serde_json::from_value(res["data"].clone()).parse_err(&res.to_string())?;
 
             Ok(res)
         }
@@ -124,7 +124,7 @@ pub async fn raw_class_table_extra_data(
     xq: u8,
 ) -> Result<Vec<ExtraCourseInfo>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
-    let mut res = client
+    let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
             CLASS_TABLE_EXTRA,
@@ -146,7 +146,7 @@ pub async fn raw_class_table_extra_data(
         Some(_) => {
             // 取 data 字段返回
             let res: Vec<ExtraCourseInfo> =
-                serde_json::from_value(res["data"].take()).parse_err(&res.to_string())?;
+                serde_json::from_value(res["data"].clone()).parse_err(&res.to_string())?;
             Ok(res)
         }
     }

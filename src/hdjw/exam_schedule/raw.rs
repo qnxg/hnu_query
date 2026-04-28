@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     hdjw::{error::TokenExpired, login::HdjwToken, raw::HdjwResponseExtractor},
     utils::client,
 };
@@ -33,7 +33,7 @@ pub async fn raw_exam_schedule_data(
     xq: u8,
 ) -> Result<Vec<ExamScheduleItem>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
-    let raw_data = client
+    let res = client
         .get(format!(
             "{}&xnxqid={}-{}-{}",
             EXAM_SCHEDULE_URL,
@@ -49,10 +49,7 @@ pub async fn raw_exam_schedule_data(
         .unexpected_err()?
         .extract_data()
         .await?;
-    let res = raw_data
-        .get("data")
-        .ok_or(parse_err(&raw_data.to_string()))?;
     let res: Vec<ExamScheduleItem> =
-        serde_json::from_value(res.clone()).parse_err(&raw_data.to_string())?;
+        serde_json::from_value(res["data"].clone()).parse_err(&res.to_string())?;
     Ok(res)
 }
