@@ -65,7 +65,7 @@ pub async fn raw_grade_data(
     xq: u8,
 ) -> Result<Vec<GradeInfoRes>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
-    let mut raw_res = client
+    let raw_res = client
         .get(format!("{}&kksj={}-{}-{}", GRADE_URL, xn, xn + 1, xq))
         .headers(headers)
         .send()
@@ -75,9 +75,8 @@ pub async fn raw_grade_data(
         .unexpected_err()?
         .extract_data()
         .await?;
-    let raw_res_str = raw_res.to_string();
     let res: Vec<GradeInfoRes> =
-        serde_json::from_value(raw_res["data"].take()).parse_err(&raw_res_str)?;
+        serde_json::from_value(raw_res["data"].clone()).parse_err(&raw_res.to_string())?;
     Ok(res)
 }
 
