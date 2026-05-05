@@ -65,8 +65,7 @@ fn parse_course_info(input: &str) -> Option<CourseInfo> {
         .filter(|c| c.is_ascii_digit() || *c == '-')
         .collect::<String>();
     let class_time = class_time.split('-').collect::<Vec<&str>>();
-    let class_time = (class_time[0].parse::<u8>().unwrap()
-        ..=class_time[1].parse::<u8>().unwrap())
+    let class_time = (class_time[0].parse::<u8>().unwrap()..=class_time[1].parse::<u8>().unwrap())
         .map(|x| x.to_string())
         .collect::<Vec<String>>()
         .join(",");
@@ -111,12 +110,7 @@ async fn get_termcode(
     xn: u16,
     xq: u8,
 ) -> Result<u16, crate::Error<TokenExpired>> {
-    let url = format!(
-        "{}{}{}",
-        GRADUATE_HOST_URL,
-        yjsxt_token.id(),
-        BIND_TERM_URL
-    );
+    let url = format!("{}{}{}", GRADUATE_HOST_URL, yjsxt_token.id(), BIND_TERM_URL);
     let res = client
         .get(&url)
         .headers(yjsxt_token.headers().clone())
@@ -144,7 +138,10 @@ async fn get_termcode(
         .iter()
         .find(|t| t.termname == target_termname)
         .map(|t| t.termcode.parse::<u16>().unwrap())
-        .ok_or(parse_err_with_reason("", &format!("未找到对应学期: {target_termname}")))
+        .ok_or(parse_err_with_reason(
+            "",
+            &format!("未找到对应学期: {target_termname}"),
+        ))
 }
 
 pub async fn raw_class_table_data(
@@ -162,10 +159,7 @@ pub async fn raw_class_table_data(
     let res: Value = client
         .post(&url)
         .headers(yjsxt_token.headers().clone())
-        .form(&[
-            ("kblx", "xs"),
-            ("termcode", &term_code.to_string()),
-        ])
+        .form(&[("kblx", "xs"), ("termcode", &term_code.to_string())])
         .send()
         .await
         .network_err()?
@@ -233,8 +227,7 @@ pub async fn raw_class_table_data(
             let cell_text = item[&key]
                 .as_str()
                 .ok_or(parse_err(&serde_json::to_string(&item).unwrap_or_default()))?;
-            let course_info =
-                parse_course_info(cell_text).ok_or(parse_err(cell_text))?;
+            let course_info = parse_course_info(cell_text).ok_or(parse_err(cell_text))?;
 
             // 尝试与已有课程合并（连续节次）
             let mut merged = false;
@@ -250,8 +243,7 @@ pub async fn raw_class_table_data(
                         .filter_map(|s| s.parse().ok())
                         .collect();
                     if existing_sections.contains(&(jc - 1)) {
-                        existing.sections =
-                            format!("{},{}", existing.sections, section_id);
+                        existing.sections = format!("{},{}", existing.sections, section_id);
                         existing.end_time = end_times[&jc].to_string();
                         merged = true;
                         break;

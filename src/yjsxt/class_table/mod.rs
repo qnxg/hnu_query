@@ -88,8 +88,9 @@ mod tests {
     #[ignore]
     async fn test_get_class_table() {
         let yjsxt_token = get_yjsxt_token().await.unwrap();
-        let class_table =
-            get_class_table(&yjsxt_token, *TEST_XN, *TEST_XQ).await.unwrap();
+        let class_table = get_class_table(&yjsxt_token, *TEST_XN, *TEST_XQ)
+            .await
+            .unwrap();
         println!("{:#?}", class_table);
     }
 }
