@@ -16,6 +16,7 @@ pub mod pt;
 mod utils;
 pub mod wxpay;
 pub mod xgxt;
+pub mod yjsxt;
 pub use error::Error;
 pub mod cas;
 
