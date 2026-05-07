@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::GraduateCourseInfo;
 use crate::{
     error::{MapNetworkErr, MapParseErr, parse_err, parse_err_with_reason},
     utils::client,
@@ -13,31 +15,45 @@ const GRADUATE_HOST_URL: &str = "http://yjsxt.hnu.edu.cn/gmis/";
 const CLASS_TABLE_URL: &str = "/student/pygl/py_kbcx_ew";
 const BIND_TERM_URL: &str = "/student/default/bindterm";
 
+static START_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
+    HashMap::from([
+        (1, "8:00"),
+        (2, "8:55"),
+        (3, "10:00"),
+        (4, "10:55"),
+        (5, "14:30"),
+        (6, "15:15"),
+        (7, "16:10"),
+        (8, "16:55"),
+        (9, "19:00"),
+        (10, "19:55"),
+        (11, "20:50"),
+        (12, "21:35"),
+    ])
+});
+
+static END_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
+    HashMap::from([
+        (1, "8:45"),
+        (2, "9:40"),
+        (3, "10:45"),
+        (4, "11:40"),
+        (5, "15:15"),
+        (6, "16:00"),
+        (7, "16:55"),
+        (8, "17:40"),
+        (9, "19:45"),
+        (10, "20:40"),
+        (11, "21:35"),
+        (12, "22:20"),
+    ])
+});
+
 /// API 返回的学期信息
 #[derive(Deserialize, Debug)]
 struct TermInfo {
     termcode: String,
     termname: String,
-}
-
-/// 研究生课程原始信息
-#[derive(Debug)]
-pub struct GraduateCourseInfo {
-    pub course_id: String,
-    pub course_name: String,
-    pub teacher: String,
-    pub class_name: String,
-    pub place: String,
-    pub area: String,
-    pub day: u8,
-    pub sections: String,
-    pub weeks: String,
-    #[expect(dead_code)]
-    pub start_time: String,
-    pub end_time: String,
-    pub course_type: String,
-    pub credit: f32,
-    pub extra: Option<String>,
 }
 
 struct CourseInfo {
@@ -65,7 +81,7 @@ fn parse_course_info(input: &str) -> Option<CourseInfo> {
         .filter(|c| c.is_ascii_digit() || *c == '-')
         .collect::<String>();
     let class_time = class_time.split('-').collect::<Vec<&str>>();
-    let class_time = (class_time[0].parse::<u8>().unwrap()..=class_time[1].parse::<u8>().unwrap())
+    let class_time = (class_time[0].parse::<u8>().ok()?..=class_time[1].parse::<u8>().ok()?)
         .map(|x| x.to_string())
         .collect::<Vec<String>>()
         .join(",");
@@ -111,16 +127,13 @@ async fn get_termcode(
     xq: u8,
 ) -> Result<u16, crate::Error<TokenExpired>> {
     let url = format!("{}{}{}", GRADUATE_HOST_URL, yjsxt_token.id(), BIND_TERM_URL);
-    let res = client
+    let terms: Vec<TermInfo> = client
         .get(&url)
         .send()
         .await
         .network_err()?
         .extract_data(true)
         .await?;
-
-    let terms: Vec<TermInfo> =
-        serde_json::from_value(res).parse_err_with_reason("", "解析学期数据失败")?;
 
     let season_name = match xq {
         1 => "秋学期",
@@ -134,15 +147,13 @@ async fn get_termcode(
     terms
         .iter()
         .find(|t| t.termname == target_termname)
-        .map(|t| t.termcode.parse::<u16>().unwrap())
+        .and_then(|t| t.termcode.parse::<u16>().ok())
         .ok_or(parse_err_with_reason(
             "",
             &format!("未找到对应学期: {target_termname}"),
         ))
 }
 
-
-#[expect(clippy::too_many_lines)]
 pub async fn raw_class_table_data(
     yjsxt_token: &YjsxtToken,
     xn: u16,
@@ -167,40 +178,6 @@ pub async fn raw_class_table_data(
     let rows = res["rows"]
         .as_array()
         .ok_or(parse_err(&serde_json::to_string(&res).unwrap_or_default()))?;
-
-    let start_times: HashMap<u8, &str> = [
-        (1, "8:00"),
-        (2, "8:55"),
-        (3, "10:00"),
-        (4, "10:55"),
-        (5, "14:30"),
-        (6, "15:15"),
-        (7, "16:10"),
-        (8, "16:55"),
-        (9, "19:00"),
-        (10, "19:55"),
-        (11, "20:50"),
-        (12, "21:35"),
-    ]
-    .into_iter()
-    .collect();
-
-    let end_times: HashMap<u8, &str> = [
-        (1, "8:45"),
-        (2, "9:40"),
-        (3, "10:45"),
-        (4, "11:40"),
-        (5, "15:15"),
-        (6, "16:00"),
-        (7, "16:55"),
-        (8, "17:40"),
-        (9, "19:45"),
-        (10, "20:40"),
-        (11, "21:35"),
-        (12, "22:20"),
-    ]
-    .into_iter()
-    .collect();
 
     let mut courses: Vec<GraduateCourseInfo> = Vec::new();
 
@@ -240,7 +217,7 @@ pub async fn raw_class_table_data(
                         .collect();
                     if existing_sections.contains(&(jc - 1)) {
                         existing.sections = format!("{},{}", existing.sections, section_id);
-                        existing.end_time = end_times[&jc].to_string();
+                        existing.end_time = END_TIMES[&jc].to_string();
                         merged = true;
                         break;
                     }
@@ -266,8 +243,8 @@ pub async fn raw_class_table_data(
                     day,
                     sections: section_id.clone(),
                     weeks: course_info.class_time,
-                    start_time: start_times[&jc].to_string(),
-                    end_time: end_times[&jc].to_string(),
+                    start_time: START_TIMES[&jc].to_string(),
+                    end_time: END_TIMES[&jc].to_string(),
                     course_type: String::new(),
                     credit: 0.0,
                     extra: None,

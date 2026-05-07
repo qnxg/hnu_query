@@ -4,7 +4,25 @@ use crate::{
     hdjw::class_table::{Course, CourseSchedule},
     yjsxt::{error::TokenExpired, login::YjsxtToken},
 };
-use raw::GraduateCourseInfo;
+
+/// 研究生课程原始信息
+#[derive(Debug)]
+pub struct GraduateCourseInfo {
+    pub course_id: String,
+    pub course_name: String,
+    pub teacher: String,
+    pub class_name: String,
+    pub place: String,
+    pub area: String,
+    pub day: u8,
+    pub sections: String,
+    pub weeks: String,
+    pub start_time: String,
+    pub end_time: String,
+    pub course_type: String,
+    pub credit: f32,
+    pub extra: Option<String>,
+}
 
 fn parse_graduate_course_info(
     raw_data: Vec<GraduateCourseInfo>,

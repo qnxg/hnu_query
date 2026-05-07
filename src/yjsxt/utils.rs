@@ -1,6 +1,6 @@
 use aes::cipher::{BlockDecryptMut, KeyInit, block_padding::Pkcs7};
 use base64::engine::{Engine, general_purpose::STANDARD as base64};
-use serde_json::Value;
+use serde::de::DeserializeOwned;
 
 use crate::{error::MapUnexpectedErr, yjsxt::error::TokenExpired};
 
@@ -26,45 +26,36 @@ pub fn graduate_decrypt(data: &str) -> Result<String, crate::Error<TokenExpired>
 }
 
 pub trait YjsxtResponseExtractor {
-    fn extract_data(
+    async fn extract_data<T: DeserializeOwned>(
         self,
         decrypt: bool,
-    ) -> impl std::future::Future<Output = Result<Value, crate::Error<TokenExpired>>> + Send;
+    ) -> Result<T, crate::Error<TokenExpired>>;
 }
 
-#[expect(clippy::manual_async_fn)]
 impl YjsxtResponseExtractor for reqwest::Response {
-    fn extract_data(
+    async fn extract_data<T: DeserializeOwned>(
         self,
         decrypt: bool,
-    ) -> impl std::future::Future<Output = Result<Value, crate::Error<TokenExpired>>> + Send {
-        async move {
-            if self.status() == reqwest::StatusCode::FOUND {
-                return Err(crate::Error::Other(TokenExpired));
-            }
-            let body = self
-                .error_for_status()
-                .unexpected_err()?
-                .text()
-                .await
-                .map_err(|e| {
-                    crate::error::parse_err_with_reason::<TokenExpired>(
-                        "",
-                        &format!("读取响应体失败: {e}"),
-                    )
-                })?;
-            let body = if decrypt {
-                graduate_decrypt(&body)?
-            } else {
-                body
-            };
-            let json: Value = match serde_json::from_str(&body) {
-                Ok(json) => json,
-                Err(_) => {
-                    return Err(crate::error::parse_err::<TokenExpired>(&body));
-                }
-            };
-            Ok(json)
+    ) -> Result<T, crate::Error<TokenExpired>> {
+        if self.status() == reqwest::StatusCode::FOUND {
+            return Err(crate::Error::Other(TokenExpired));
         }
+        let body = self
+            .error_for_status()
+            .unexpected_err()?
+            .text()
+            .await
+            .map_err(|e| {
+                crate::error::parse_err_with_reason::<TokenExpired>(
+                    "",
+                    &format!("读取响应体失败: {e}"),
+                )
+            })?;
+        let body = if decrypt {
+            graduate_decrypt(&body)?
+        } else {
+            body
+        };
+        serde_json::from_str::<T>(&body).map_err(|_| crate::error::parse_err::<TokenExpired>(&body))
     }
 }
