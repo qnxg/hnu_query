@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err, parse_err_with_reason},
+    error::{MapNetworkErr, MapParseErr, parse_err, parse_err_with_reason},
     utils::client,
     yjsxt::{error::TokenExpired, login::YjsxtToken, utils::YjsxtResponseExtractor},
 };
@@ -116,8 +116,6 @@ async fn get_termcode(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
         .extract_data(true)
         .await?;
 
@@ -143,6 +141,8 @@ async fn get_termcode(
         ))
 }
 
+
+#[expect(clippy::too_many_lines)]
 pub async fn raw_class_table_data(
     yjsxt_token: &YjsxtToken,
     xn: u16,
@@ -161,8 +161,6 @@ pub async fn raw_class_table_data(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
         .extract_data(true)
         .await?;
 
@@ -280,4 +278,3 @@ pub async fn raw_class_table_data(
 
     Ok(courses)
 }
-

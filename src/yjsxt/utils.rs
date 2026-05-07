@@ -2,7 +2,7 @@ use aes::cipher::{BlockDecryptMut, KeyInit, block_padding::Pkcs7};
 use base64::engine::{Engine, general_purpose::STANDARD as base64};
 use serde_json::Value;
 
-use crate::yjsxt::error::TokenExpired;
+use crate::{error::MapUnexpectedErr, yjsxt::error::TokenExpired};
 
 const GRADUATE_KEY: &str = "southsoft12345!#";
 
@@ -39,12 +39,20 @@ impl YjsxtResponseExtractor for reqwest::Response {
         decrypt: bool,
     ) -> impl std::future::Future<Output = Result<Value, crate::Error<TokenExpired>>> + Send {
         async move {
-            let body = self.text().await.map_err(|e| {
-                crate::error::parse_err_with_reason::<TokenExpired>(
-                    "",
-                    &format!("读取响应体失败: {e}"),
-                )
-            })?;
+            if self.status() == reqwest::StatusCode::FOUND {
+                return Err(crate::Error::Other(TokenExpired));
+            }
+            let body = self
+                .error_for_status()
+                .unexpected_err()?
+                .text()
+                .await
+                .map_err(|e| {
+                    crate::error::parse_err_with_reason::<TokenExpired>(
+                        "",
+                        &format!("读取响应体失败: {e}"),
+                    )
+                })?;
             let body = if decrypt {
                 graduate_decrypt(&body)?
             } else {
@@ -53,14 +61,9 @@ impl YjsxtResponseExtractor for reqwest::Response {
             let json: Value = match serde_json::from_str(&body) {
                 Ok(json) => json,
                 Err(_) => {
-                    todo!("cookie 过期判定逻辑待研究")
+                    return Err(crate::error::parse_err::<TokenExpired>(&body));
                 }
             };
-            if let Some(Value::Number(flag1)) = json.get("flag1")
-                && flag1.as_i64() == Some(2)
-            {
-                todo!("cookie 过期判定逻辑待研究")
-            }
             Ok(json)
         }
     }
