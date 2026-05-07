@@ -113,7 +113,6 @@ async fn get_termcode(
     let url = format!("{}{}{}", GRADUATE_HOST_URL, yjsxt_token.id(), BIND_TERM_URL);
     let res = client
         .get(&url)
-        .headers(yjsxt_token.headers().clone())
         .send()
         .await
         .network_err()?
@@ -158,7 +157,6 @@ pub async fn raw_class_table_data(
     );
     let res: Value = client
         .post(&url)
-        .headers(yjsxt_token.headers().clone())
         .form(&[("kblx", "xs"), ("termcode", &term_code.to_string())])
         .send()
         .await
@@ -282,3 +280,4 @@ pub async fn raw_class_table_data(
 
     Ok(courses)
 }
+
