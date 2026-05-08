@@ -28,9 +28,7 @@ pub async fn raw_class_table_data(
         .extract_data(true)
         .await?;
 
-    let rows = res["rows"]
-        .as_array()
-        .ok_or(parse_err(&serde_json::to_string(&res).unwrap_or_default()))?;
+    let rows = res["rows"].as_array().ok_or(parse_err(&res.to_string()))?;
 
     Ok(rows.clone())
 }
