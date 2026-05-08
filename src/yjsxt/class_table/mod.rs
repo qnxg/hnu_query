@@ -293,6 +293,6 @@ mod tests {
             .await
             .unwrap();
         let class_table = get_class_table(&yjsxt_token, termcode).await.unwrap();
-        // println!("{:#?}", class_table);
+        println!("{:#?}", class_table);
     }
 }
