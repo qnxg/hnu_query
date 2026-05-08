@@ -4,8 +4,7 @@ use crate::{
     error::parse_err_with_reason,
     yjsxt::{error::TokenExpired, login::YjsxtToken},
 };
-
-pub use raw::raw_termcode;
+use raw::raw_termcode;
 
 /// 根据学年学期获取 termcode
 ///
@@ -29,7 +28,6 @@ pub async fn get_termcode(
         3 => "暑假学期",
         _ => return Err(parse_err_with_reason("", &format!("无效学期: {xq}"))),
     };
-
     let target_termname = format!("{}-{}{}", xn, xn + 1, season_name);
 
     let terms = raw_termcode(yjsxt_token).await?;
@@ -38,7 +36,7 @@ pub async fn get_termcode(
         .find(|t| t.termname == target_termname)
         .and_then(|t| t.termcode.parse::<u16>().ok())
         .ok_or(parse_err_with_reason(
-            "",
+            &format!("{:?}", terms),
             &format!("未找到对应学期: {target_termname}"),
         ))
 }
