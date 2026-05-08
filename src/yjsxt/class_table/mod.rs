@@ -74,8 +74,7 @@ fn parse_graduate_course_info(
 /// # Arguments
 ///
 /// * `yjsxt_token` - 研究生系统的令牌，可以通过 [YjsxtToken::acquire_by_cas_login] 获取
-/// * `xn` - 学年，如 `2025`
-/// * `xq` - 学期，如 `1`
+/// * `termcode` - 学期代码，可以通过 [get_termcode](super::get_termcode) 获取
 ///
 /// # Returns
 ///
@@ -86,10 +85,9 @@ fn parse_graduate_course_info(
 /// 如果提供的 `yjsxt_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [YjsxtToken]
 pub async fn get_class_table(
     yjsxt_token: &YjsxtToken,
-    xn: u16,
-    xq: u8,
+    termcode: u16,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = raw::raw_class_table_data(yjsxt_token, xn, xq).await?;
+    let raw_data = raw::raw_class_table_data(yjsxt_token, termcode).await?;
     parse_graduate_course_info(raw_data)
 }
 
@@ -106,9 +104,10 @@ mod tests {
     #[ignore]
     async fn test_get_class_table() {
         let yjsxt_token = get_yjsxt_token().await.unwrap();
-        let class_table = get_class_table(&yjsxt_token, *TEST_XN, *TEST_XQ)
+        let termcode = crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();
+        let class_table = get_class_table(&yjsxt_token, termcode).await.unwrap();
         println!("{:#?}", class_table);
     }
 }

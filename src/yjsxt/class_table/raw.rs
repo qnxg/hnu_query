@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use serde::Deserialize;
 use serde_json::Value;
 
 use super::GraduateCourseInfo;
 use crate::{
-    error::{MapNetworkErr, MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapNetworkErr, MapParseErr, parse_err},
     utils::client,
     yjsxt::{error::TokenExpired, login::YjsxtToken, utils::YjsxtResponseExtractor},
 };
 
 const GRADUATE_HOST_URL: &str = "http://yjsxt.hnu.edu.cn/gmis/";
 const CLASS_TABLE_URL: &str = "/student/pygl/py_kbcx_ew";
-const BIND_TERM_URL: &str = "/student/default/bindterm";
 
 static START_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
     HashMap::from([
@@ -48,13 +46,6 @@ static END_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
         (12, "22:20"),
     ])
 });
-
-/// API 返回的学期信息
-#[derive(Deserialize, Debug)]
-struct TermInfo {
-    termcode: String,
-    termname: String,
-}
 
 struct CourseInfo {
     course_id: String,
@@ -120,46 +111,10 @@ fn parse_course_info(input: &str) -> Option<CourseInfo> {
     })
 }
 
-/// 根据学年学期获取 termcode
-async fn get_termcode(
-    yjsxt_token: &YjsxtToken,
-    xn: u16,
-    xq: u8,
-) -> Result<u16, crate::Error<TokenExpired>> {
-    let url = format!("{}{}{}", GRADUATE_HOST_URL, yjsxt_token.id(), BIND_TERM_URL);
-    let terms: Vec<TermInfo> = client
-        .get(&url)
-        .send()
-        .await
-        .network_err()?
-        .extract_data(true)
-        .await?;
-
-    let season_name = match xq {
-        1 => "秋学期",
-        2 => "春学期",
-        3 => "暑假学期",
-        _ => return Err(parse_err_with_reason("", &format!("无效学期: {xq}"))),
-    };
-
-    let target_termname = format!("{}-{}{}", xn, xn + 1, season_name);
-
-    terms
-        .iter()
-        .find(|t| t.termname == target_termname)
-        .and_then(|t| t.termcode.parse::<u16>().ok())
-        .ok_or(parse_err_with_reason(
-            "",
-            &format!("未找到对应学期: {target_termname}"),
-        ))
-}
-
 pub async fn raw_class_table_data(
     yjsxt_token: &YjsxtToken,
-    xn: u16,
-    xq: u8,
+    termcode: u16,
 ) -> Result<Vec<GraduateCourseInfo>, crate::Error<TokenExpired>> {
-    let term_code = get_termcode(yjsxt_token, xn, xq).await?;
     let url = format!(
         "{}{}{}",
         GRADUATE_HOST_URL,
@@ -168,7 +123,7 @@ pub async fn raw_class_table_data(
     );
     let res: Value = client
         .post(&url)
-        .form(&[("kblx", "xs"), ("termcode", &term_code.to_string())])
+        .form(&[("kblx", "xs"), ("termcode", &termcode.to_string())])
         .send()
         .await
         .network_err()?
