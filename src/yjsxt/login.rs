@@ -97,7 +97,8 @@ impl YjsxtToken {
     ///
     /// # Preconditions
     ///
-    /// `headers` 参数应该是一个合法的可用作 [YjsxtToken] 的 [HeaderMap]，否则会导致未定义行为
+    /// - `headers` 参数应该是一个合法的可用作 [YjsxtToken] 的 [HeaderMap]，否则会导致未定义行为
+    /// - `id` 参数应该是一个合法的可用作 [YjsxtToken] 的 id，否则会导致未定义行为
     pub fn from_unchecked(headers: HeaderMap, id: String) -> Self {
         Self { headers, id }
     }
