@@ -53,7 +53,9 @@ pub struct PersonalInfo {
     /// TODO 目前这个字段只有数字字符串，后续需要进一步解析
     pub class: String,
     /// 宿舍信息
-    pub dormitory: Dormitory,
+    ///
+    /// 一些人没有宿舍信息，原因不明
+    pub dormitory: Option<Dormitory>,
     /// 政治面貌
     ///
     /// TODO 目前这个字段只有数字字符串，后续需要进一步解析
@@ -154,15 +156,17 @@ pub async fn get_person_info(
     let class = entries
         .remove("班级")
         .ok_or(parse_err_with_reason(&entries_str, "class"))?;
-    let dormitory = parse_dormitory(
-        entries
-            .remove("寝室楼")
-            .ok_or(parse_err_with_reason(&entries_str, "dormitory"))?,
-        entries
-            .remove("寝室号")
-            .ok_or(parse_err_with_reason(&entries_str, "room"))?,
-    );
-
+    let dormitory = entries
+        .remove("寝室楼")
+        .ok_or(parse_err_with_reason(&entries_str, "dormitory"))?;
+    let room = entries
+        .remove("寝室号")
+        .ok_or(parse_err_with_reason(&entries_str, "room"))?;
+    let dormitory = if dormitory.is_empty() || room.is_empty() {
+        None
+    } else {
+        Some(parse_dormitory(dormitory, room))
+    };
     let res = PersonalInfo {
         name,
         enter_year,
