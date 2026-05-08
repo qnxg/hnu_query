@@ -3,7 +3,7 @@ use serde::Deserialize;
 use crate::{
     error::MapNetworkErr,
     utils::client,
-    yjsxt::{error::TokenExpired, login::YjsxtToken, utils::YjsxtResponseExtractor},
+    yjsxt::{error::TokenExpired, login::YjsxtToken, raw::YjsxtResponseExtractor},
 };
 
 const GRADUATE_HOST_URL: &str = "http://yjsxt.hnu.edu.cn/gmis/";

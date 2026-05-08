@@ -1,8 +1,8 @@
 pub mod class_table;
 pub mod error;
 pub mod login;
+mod raw;
 pub mod term;
-mod utils;
 
 #[cfg(test)]
 mod test;
