@@ -70,6 +70,25 @@ impl YjsxtToken {
             .unexpected_err()?;
         Ok(Self { id })
     }
+    /// 从 id 创建 [YjsxtToken]
+    ///
+    /// # Parameters
+    ///
+    /// - `id`: 研究生系统令牌对应的 id，可以通过 [YjsxtToken::id] 获取
+    ///
+    /// # Returns
+    ///
+    /// 返回一个 [YjsxtToken] 实例
+    ///
+    /// # Preconditions
+    ///
+    /// `id` 参数应该是一个合法的可用作 [YjsxtToken] 的 id，否则会导致未定义行为
+    pub fn from_id_unchecked(id: &str) -> Self {
+        Self { id: id.to_string() }
+    }
+    /// 获取当前令牌的 id
+    ///
+    /// 可用于 [YjsxtToken::from_id_unchecked]
     pub fn id(&self) -> &str {
         &self.id
     }
