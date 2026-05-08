@@ -34,5 +34,8 @@ pub async fn raw_rank_data(
         .unexpected_err()?
         .extract_data()
         .await?;
-    Ok(res.get("data").ok_or(parse_err(&res.to_string()))?.clone())
+    match res.get("data") {
+        Some(data @ Value::Object(_)) => Ok(data.clone()),
+        _ => Err(parse_err(&res.to_string())),
+    }
 }
