@@ -151,7 +151,7 @@ fn build_graduate_course_info(
             }
             let cell_text = item[&key]
                 .as_str()
-                .ok_or(parse_err(&serde_json::to_string(&item).unwrap_or_default()))?;
+                .ok_or(parse_err(&item.to_string()))?;
             let course_info = parse_course_info(cell_text).ok_or(parse_err(cell_text))?;
 
             // 尝试与已有课程合并（连续节次）
@@ -293,6 +293,6 @@ mod tests {
             .await
             .unwrap();
         let class_table = get_class_table(&yjsxt_token, termcode).await.unwrap();
-        println!("{:#?}", class_table);
+        // println!("{:#?}", class_table);
     }
 }
