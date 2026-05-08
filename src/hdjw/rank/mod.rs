@@ -1,216 +1,104 @@
 mod raw;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    error::parse_err,
+    hdjw::{error::TokenExpired, login::HdjwToken, rank::raw::raw_rank_data},
+};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-/// 参与计算成绩排名的课程范围
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RankRange {
-    /// 通识必修
-    GeneralRequired,
-    /// 通识选修
-    GeneralElective,
-    /// 专业选修
-    MajorElective,
-    /// 专业基础
-    MajorBasic,
-    /// 专业核心
-    MajorCore,
-    /// 学类核心
-    ClusterCore,
-    /// 学门核心
-    GatewayCore,
-    /// 实践环节
-    Practice,
-    /// 创新创业
-    Innovation,
-    /// 国际化
-    International,
-    /// 马克思主义经典
+/// 排名具体信息
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RankDetail {
+    /// 算数平均成绩
+    pub arithmetic: String,
+    /// 算数平均成绩排名
     ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    MarxismClassic,
-    /// 科学与艺术经典
+    /// 格式为 `排名/总人数`，例如 `1/100`
+    pub arithmetic_rank: String,
+    /// 加权平均成绩
+    pub weighted: String,
+    /// 加权平均成绩排名
     ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    ScienceAndArtClassic,
-    /// 西方经典
+    /// 格式为 `排名/总人数`，例如 `1/100`
+    pub weighted_rank: String,
+    /// 平均学分绩点
+    pub gpa: String,
+    /// 平均学分绩点排名
     ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    WesternClassic,
-    /// 中国经典
-    ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    ChineseClassic,
-    /// 其他
-    ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    Other,
-    /// 未知字段，这个字段在教务系统中对应的编号为 `19`。
-    ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    Unknown19,
-    /// 未知字段，这个字段在教务系统中对应的编号为 `20`。
-    ///
-    /// WARNING：这个类型并没有在教务系统中明确列出，而是隐藏在全部课程中。
-    /// 我们推测是教务系统的这部分没有对湖大做本地适配，实际上这个类型不存在。
-    Unknown20,
-}
-
-impl RankRange {
-    /// 将 [RankRange] 转换为教务系统对应的字符串
-    pub(crate) fn to_str(self) -> &'static str {
-        match self {
-            RankRange::MajorCore => "16",
-            RankRange::Practice => "10",
-            RankRange::GeneralElective => "15",
-            RankRange::GeneralRequired => "11",
-            RankRange::ClusterCore => "12",
-            RankRange::GatewayCore => "08",
-            RankRange::MajorBasic => "03",
-            RankRange::Innovation => "17",
-            RankRange::International => "88",
-            RankRange::MajorElective => "05",
-            RankRange::MarxismClassic => "07",
-            RankRange::ScienceAndArtClassic => "09",
-            RankRange::WesternClassic => "13",
-            RankRange::ChineseClassic => "14",
-            RankRange::Other => "18",
-            RankRange::Unknown19 => "19",
-            RankRange::Unknown20 => "20",
-        }
-    }
-
-    /// 2020 版核心课方案
-    ///
-    /// 如下课程类型归类为 2020 版核心课方案：
-    ///
-    /// - 专业核心
-    /// - 学类核心
-    /// - 学门核心
-    ///
-    /// # Returns
-    ///
-    /// 返回一个包含所有2020版核心课程方案类型的列表
-    pub fn core_v2020_course() -> Vec<Self> {
-        vec![
-            RankRange::MajorCore,
-            RankRange::ClusterCore,
-            RankRange::GatewayCore,
-        ]
-    }
-
-    /// 2024 版核心课方案
-    ///
-    /// 如下课程类型归类为 2024 版核心课方案：
-    ///
-    /// - 专业基础
-    /// - 专业核心
-    ///
-    /// # Returns
-    ///
-    /// 返回一个包含所有2024版核心课程方案类型的列表
-    pub fn core_v2024_course() -> Vec<Self> {
-        vec![RankRange::MajorBasic, RankRange::MajorCore]
-    }
-
-    /// 全部课程
-    ///
-    /// # Returns
-    ///
-    /// 返回一个包含所有课程类型的列表
-    pub fn all_cousrse() -> Vec<Self> {
-        vec![
-            RankRange::GeneralRequired,
-            RankRange::GeneralElective,
-            RankRange::MajorElective,
-            RankRange::MajorBasic,
-            RankRange::MajorCore,
-            RankRange::ClusterCore,
-            RankRange::GatewayCore,
-            RankRange::Practice,
-            RankRange::Innovation,
-            RankRange::International,
-            RankRange::MarxismClassic,
-            RankRange::ScienceAndArtClassic,
-            RankRange::WesternClassic,
-            RankRange::ChineseClassic,
-            RankRange::Other,
-            RankRange::Unknown19,
-            RankRange::Unknown20,
-        ]
-    }
-
-    /// 必修课程
-    ///
-    /// 如下课程类型归类为必修课程：
-    ///
-    /// - 通识必修
-    /// - 专业基础
-    /// - 专业核心
-    /// - 学类核心
-    /// - 学门核心
-    /// - 实践环节
-    ///
-    /// # Returns
-    ///
-    /// 返回一个包含所有必修课程类型的列表
-    ///
-    /// # Notes
-    ///
-    /// 教务系统中并没有明确给出哪些课程类型属于必修课程，
-    /// 这里给出的列表只是我们根据经验得出的，仅供参考。
-    pub fn must_course() -> Vec<Self> {
-        vec![
-            RankRange::GeneralRequired,
-            RankRange::MajorBasic,
-            RankRange::MajorCore,
-            RankRange::ClusterCore,
-            RankRange::GatewayCore,
-            RankRange::Practice,
-        ]
-    }
-}
-
-/// 排名方式
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RankMethod {
-    /// 算术平均
-    ArithmeticAvg,
-    /// 加权平均
-    WeightedAvg,
-    /// 绩点
-    Gpa,
-}
-
-impl RankMethod {
-    /// 将 [RankMethod] 转换为教务系统对应的字符串
-    pub(crate) fn to_str(self) -> &'static str {
-        match self {
-            RankMethod::ArithmeticAvg => "4",
-            RankMethod::WeightedAvg => "2",
-            RankMethod::Gpa => "3",
-        }
-    }
+    /// 格式为 `排名/总人数`，例如 `1/100`
+    pub gpa_rank: String,
 }
 
 /// 排名
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Rank {
-    /// 排名
+    /// 全部课程的排名信息
     ///
-    /// 如果为 `None`，则表示没有获取到排名数据
-    pub rank: Option<String>,
-    /// 成绩分数
+    /// 为 `None` 说明暂无数据
+    pub all: Option<RankDetail>,
+    /// 必修课程的排名信息
     ///
-    /// 如果为 `None`，则表示没有获取到成绩分数数据
-    pub score: Option<String>,
+    /// 为 `None` 说明暂无数据
+    pub must: Option<RankDetail>,
+    /// 核心课程的排名信息
+    ///
+    /// 为 `None` 说明暂无数据
+    pub core: Option<RankDetail>,
+}
+
+/// 方案类别
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Range {
+    /// 主修
+    Major,
+    /// 辅修
+    Minor,
+}
+
+impl Range {
+    pub(crate) fn as_str(&self) -> &str {
+        match self {
+            Range::Major => "0",
+            Range::Minor => "1",
+        }
+    }
+}
+
+/// 数据来源
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DataSource {
+    /// 成绩总库
+    Total,
+    /// 执行方案
+    Execution,
+}
+
+impl DataSource {
+    pub(crate) fn as_str(&self) -> &str {
+        match self {
+            DataSource::Total => "1",
+            DataSource::Execution => "2",
+        }
+    }
+}
+
+/// 显示方式
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Display {
+    /// 最大成绩
+    Max,
+    /// 初修成绩
+    Initial,
+}
+
+impl Display {
+    pub(crate) fn as_str(&self) -> &str {
+        match self {
+            Display::Max => "0",
+            Display::Initial => "1",
+        }
+    }
 }
 
 /// 获取排名
@@ -219,7 +107,7 @@ pub struct Rank {
 ///
 /// - `hdjw_token`: 教务系统的令牌，可以通过 [HdjwToken::acquire_by_cas_login] 获取
 /// - `selection`: 学年学期，应提供一个二元组的切片，切片中每个二元组的格式为 `(学年, 学期)`
-/// - `range`: 课程范围
+/// - `data_source`: 数据来源
 /// - `rank_method`: 排名计算方式
 ///
 /// # Returns
@@ -232,40 +120,55 @@ pub struct Rank {
 pub async fn get_rank(
     hdjw_token: &HdjwToken,
     selection: &[(u16, u8)],
-    range: &[RankRange],
-    rank_method: RankMethod,
-) -> Result<Option<Rank>, crate::Error<TokenExpired>> {
+    range: Range,
+    data_source: DataSource,
+    display: Display,
+) -> Result<Rank, crate::Error<TokenExpired>> {
     let selection = selection
         .iter()
         .map(|(xn, xq)| format!("{}-{}-{}", xn, xn + 1, xq))
         .collect::<Vec<_>>()
         .join(",");
-    let range = range
-        .iter()
-        .map(|r| r.to_str())
-        .collect::<Vec<&str>>()
-        .join(",");
-    let Some(res) =
-        raw::raw_rank_data(hdjw_token, &selection, &range, rank_method.to_str()).await?
-    else {
-        return Ok(None);
-    };
-    let score = match rank_method {
-        RankMethod::ArithmeticAvg => res.get("avgzcj").and_then(|v| v.as_str()),
-        RankMethod::WeightedAvg => res.get("pjxfj").and_then(|v| v.as_str()),
-        RankMethod::Gpa => res.get("pjxfjd").and_then(|v| v.as_str()),
-    }
-    .map(|s| s.to_string());
-    let rank = res
-        .get("numrow")
-        .and_then(|v| {
-            v.as_str()
+    fn parse_rank_detail(value: &Value) -> Result<RankDetail, crate::Error<TokenExpired>> {
+        // 湖大的教务系统的字段返回类型难说，我们都试一下
+        fn parse_number(value: &Value) -> Option<String> {
+            value
+                .as_f64()
+                .map(|f| f.to_string())
+                .or(value.as_i64().map(|i| i.to_string()))
+                .or(value.as_str().map(|s| s.to_string()))
+        }
+        Ok(RankDetail {
+            arithmetic: parse_number(&value["avgzcj"]).ok_or(parse_err(&value.to_string()))?,
+            arithmetic_rank: value["avgzcjpm"]
+                .as_str()
                 .map(|s| s.to_string())
-                // 理论上这里的排名数据应该是数字，但是被湖大接口的类型搞怕了，字符串也接受
-                .or(v.as_i64().map(|i| i.to_string()))
+                .ok_or(parse_err(&value.to_string()))?,
+            weighted: parse_number(&value["pjxfj"]).ok_or(parse_err(&value.to_string()))?,
+            weighted_rank: value["pjxfjpm"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or(parse_err(&value.to_string()))?,
+            gpa: parse_number(&value["pjxfjd"]).ok_or(parse_err(&value.to_string()))?,
+            gpa_rank: value["pjxfjdpm"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or(parse_err(&value.to_string()))?,
         })
-        .map(|s| s.to_string());
-    Ok(Some(Rank { rank, score }))
+    }
+    let raw_data = raw_rank_data(
+        hdjw_token,
+        &selection,
+        range.as_str(),
+        data_source.as_str(),
+        display.as_str(),
+    )
+    .await?;
+    Ok(Rank {
+        all: raw_data.get("allPm").map(parse_rank_detail).transpose()?,
+        must: raw_data.get("bxkcPm").map(parse_rank_detail).transpose()?,
+        core: raw_data.get("hxkcPm").map(parse_rank_detail).transpose()?,
+    })
 }
 
 #[cfg(test)]
@@ -281,11 +184,15 @@ mod test {
     pub async fn test_get_rank() {
         let hdjw_token = get_hdjw_token().await.unwrap();
         let selection = vec![(*TEST_XN, *TEST_XQ)];
-        let range = RankRange::core_v2024_course();
-        let rank_method = RankMethod::WeightedAvg;
-        let rank = get_rank(&hdjw_token, &selection, &range, rank_method)
-            .await
-            .unwrap();
+        let rank = get_rank(
+            &hdjw_token,
+            &selection,
+            Range::Minor,
+            DataSource::Total,
+            Display::Max,
+        )
+        .await
+        .unwrap();
         println!("{:#?}", rank);
     }
 }

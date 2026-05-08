@@ -5,22 +5,27 @@ use crate::{
 };
 use serde_json::Value;
 
-// 该 URL 缺少学期、课程类型，排名方式的参数，需要后续再用 format 拼接
-const GRADE_RANK_URL: &str =
-    "http://hdjw.hnu.edu.cn/jsxsd/xscjsq/cjpmcx_list.do?&pageNum=1&pageSize=20&kclx=&kcly=1";
+const GRADE_RANK_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/xscjsq/cjpmcx_list.do";
 
 pub async fn raw_rank_data(
     hdjw_token: &HdjwToken,
     selection: &str,
     range: &str,
-    rank_method: &str,
-) -> Result<Option<Value>, crate::Error<TokenExpired>> {
+    data_source: &str,
+    display: &str,
+) -> Result<Value, crate::Error<TokenExpired>> {
+    let form_data = [
+        ("xnxq01id", selection),
+        ("kkxz1", ""),
+        ("pmfs1", ""),
+        ("kclx1", range),       // 方案类别
+        ("kcly1", data_source), // 数据来源
+        ("xsfs1", display),     // 显示方式
+    ];
     let headers = hdjw_token.headers().clone();
     let res = client
-        .get(format!(
-            "{}&xnxq={}&kkxz={}&pmfs={}",
-            GRADE_RANK_URL, selection, range, rank_method
-        ))
+        .post(GRADE_RANK_URL)
+        .form(&form_data)
         .headers(headers)
         .send()
         .await
@@ -29,8 +34,8 @@ pub async fn raw_rank_data(
         .unexpected_err()?
         .extract_data()
         .await?;
-    let Some(data) = res["data"].as_array() else {
-        return Err(parse_err(&res.to_string()));
-    };
-    Ok(data.first().cloned())
+    match res.get("data") {
+        Some(data @ Value::Object(_)) => Ok(data.clone()),
+        _ => Err(parse_err(&res.to_string())),
+    }
 }
