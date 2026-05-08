@@ -27,7 +27,7 @@ pub struct Grade {
     /// 课程性质2，如`通识必修`、`专业核心`等
     pub course_type2: String,
     /// 该门课程获得的绩点
-    pub gpa: f32,
+    pub gpa: Option<f32>,
     /// 该门课程获得的分数
     pub score: u8,
     /// 成绩标识

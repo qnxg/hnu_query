@@ -50,7 +50,9 @@ pub struct GradeInfoRes {
     /// 用于课程成绩详情查询，部分成绩没有该字段
     pub jx0404id: Option<String>,
     /// 绩点
-    pub jd: f32,
+    ///
+    /// 有的课程没有这个数据
+    pub jd: Option<f32>,
     // 考试性质（暂时不用）
     // pub ksxz: String,
     /// 主修还是辅修
