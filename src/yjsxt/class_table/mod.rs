@@ -1,6 +1,12 @@
 mod raw;
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+use serde_json::Value;
+
 use crate::{
+    error::{MapParseErr, parse_err},
     hdjw::class_table::{Course, CourseSchedule},
     yjsxt::{error::TokenExpired, login::YjsxtToken},
 };
@@ -22,6 +28,184 @@ pub struct GraduateCourseInfo {
     pub course_type: String,
     pub credit: f32,
     pub extra: Option<String>,
+}
+
+static START_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
+    HashMap::from([
+        (1, "8:00"),
+        (2, "8:55"),
+        (3, "10:00"),
+        (4, "10:55"),
+        (5, "14:30"),
+        (6, "15:15"),
+        (7, "16:10"),
+        (8, "16:55"),
+        (9, "19:00"),
+        (10, "19:55"),
+        (11, "20:50"),
+        (12, "21:35"),
+    ])
+});
+
+static END_TIMES: LazyLock<HashMap<u8, &str>> = LazyLock::new(|| {
+    HashMap::from([
+        (1, "8:45"),
+        (2, "9:40"),
+        (3, "10:45"),
+        (4, "11:40"),
+        (5, "15:15"),
+        (6, "16:00"),
+        (7, "16:55"),
+        (8, "17:40"),
+        (9, "19:45"),
+        (10, "20:40"),
+        (11, "21:35"),
+        (12, "22:20"),
+    ])
+});
+
+struct CourseInfo {
+    course_id: String,
+    course_name: String,
+    class_name: String,
+    class_time: String,
+    teacher: String,
+    classroom: String,
+}
+
+fn parse_course_info(input: &str) -> Option<CourseInfo> {
+    let parts: Vec<&str> = input.split("<br/>").filter(|s| !s.is_empty()).collect();
+
+    let course_id = parts[0].replace("课程编号:", "").trim().to_string();
+    let course_name = parts[1].replace("课程名称:", "").trim().to_string();
+    let class_name = parts[2].replace("班级:", "").trim().to_string();
+    let class_time = parts
+        .iter()
+        .find(|s| s.contains("上课时间:"))
+        .map(|s| s.replace("上课时间:", "").trim().to_string())?;
+    // 原格式: [9-16周] 连续周 → 生成 "9,10,11,...,16"
+    let class_time = class_time
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == '-')
+        .collect::<String>();
+    let class_time = class_time.split('-').collect::<Vec<&str>>();
+    let class_time = (class_time[0].parse::<u8>().ok()?..=class_time[1].parse::<u8>().ok()?)
+        .map(|x| x.to_string())
+        .collect::<Vec<String>>()
+        .join(",");
+    let teacher_and_classroom = parts
+        .iter()
+        .find(|s| s.contains('[') && !s.starts_with("上课时间:"))
+        .map(|s| s.trim())
+        .unwrap_or("[]");
+
+    let teacher_end = teacher_and_classroom.chars().position(|c| c == '[');
+    let (teacher, classroom) = match teacher_end {
+        Some(end) => {
+            let t: String = teacher_and_classroom.chars().take(end).collect();
+            let classroom_start = end + 1;
+            let classroom_end = teacher_and_classroom
+                .chars()
+                .position(|c| c == ']')
+                .unwrap_or(teacher_and_classroom.len());
+            let c: String = teacher_and_classroom
+                .chars()
+                .skip(classroom_start)
+                .take(classroom_end - classroom_start)
+                .collect();
+            (t, c)
+        }
+        None => (String::new(), String::new()),
+    };
+
+    Some(CourseInfo {
+        course_id,
+        course_name,
+        class_name,
+        class_time,
+        teacher,
+        classroom,
+    })
+}
+
+fn build_graduate_course_info(
+    rows: &[Value],
+) -> Result<Vec<GraduateCourseInfo>, crate::Error<TokenExpired>> {
+    let mut courses: Vec<GraduateCourseInfo> = Vec::new();
+
+    for item in rows {
+        if item["mc"] == Value::String("无节次".to_string()) {
+            continue;
+        }
+        let jc = item["mc"]
+            .as_str()
+            .ok_or(parse_err(&serde_json::to_string(&item).unwrap_or_default()))?
+            .parse::<u8>()
+            .parse_err_with_reason("", "解析节次失败")?;
+        let section_id = format!("{:0>2}", jc);
+
+        for day in 1..=7u8 {
+            let key = format!("z{day}");
+            if item[&key] == Value::Null {
+                continue;
+            }
+            let cell_text = item[&key]
+                .as_str()
+                .ok_or(parse_err(&serde_json::to_string(&item).unwrap_or_default()))?;
+            let course_info = parse_course_info(cell_text).ok_or(parse_err(cell_text))?;
+
+            // 尝试与已有课程合并（连续节次）
+            let mut merged = false;
+            for existing in courses.iter_mut() {
+                if existing.course_name == course_info.course_name
+                    && existing.weeks == course_info.class_time
+                    && existing.teacher == course_info.teacher
+                    && existing.day == day
+                {
+                    let existing_sections: Vec<u8> = existing
+                        .sections
+                        .split(',')
+                        .filter_map(|s| s.parse().ok())
+                        .collect();
+                    if existing_sections.contains(&(jc - 1)) {
+                        existing.sections = format!("{},{}", existing.sections, section_id);
+                        existing.end_time = END_TIMES[&jc].to_string();
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+
+            if !merged {
+                let mut course_id = course_info.course_id.clone();
+                let count = courses
+                    .iter()
+                    .filter(|c| c.course_id.starts_with(&course_info.course_id))
+                    .count();
+                if count > 0 {
+                    course_id = format!("{}_{}", course_id, count + 1);
+                }
+                courses.push(GraduateCourseInfo {
+                    course_id,
+                    course_name: course_info.course_name,
+                    teacher: course_info.teacher,
+                    class_name: course_info.class_name,
+                    place: course_info.classroom,
+                    area: String::new(),
+                    day,
+                    sections: section_id.clone(),
+                    weeks: course_info.class_time,
+                    start_time: START_TIMES[&jc].to_string(),
+                    end_time: END_TIMES[&jc].to_string(),
+                    course_type: String::new(),
+                    credit: 0.0,
+                    extra: None,
+                });
+            }
+        }
+    }
+
+    Ok(courses)
 }
 
 fn parse_graduate_course_info(
@@ -87,8 +271,9 @@ pub async fn get_class_table(
     yjsxt_token: &YjsxtToken,
     termcode: u16,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = raw::raw_class_table_data(yjsxt_token, termcode).await?;
-    parse_graduate_course_info(raw_data)
+    let raw_rows = raw::raw_class_table_data(yjsxt_token, termcode).await?;
+    let graduate_courses = build_graduate_course_info(&raw_rows)?;
+    parse_graduate_course_info(graduate_courses)
 }
 
 #[cfg(test)]
