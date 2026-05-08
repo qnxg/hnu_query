@@ -48,6 +48,7 @@ pub struct Rank {
 }
 
 /// 方案类别
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Range {
     /// 主修
     Major,
@@ -65,6 +66,7 @@ impl Range {
 }
 
 /// 数据来源
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DataSource {
     /// 成绩总库
     Total,
@@ -82,6 +84,7 @@ impl DataSource {
 }
 
 /// 显示方式
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Display {
     /// 最大成绩
     Max,
