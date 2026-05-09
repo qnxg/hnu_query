@@ -106,9 +106,11 @@ impl Display {
 /// # Arguments
 ///
 /// - `hdjw_token`: 教务系统的令牌，可以通过 [HdjwToken::acquire_by_cas_login] 获取
-/// - `selection`: 学年学期，应提供一个二元组的切片，切片中每个二元组的格式为 `(学年, 学期)`
+/// - `selection`: 学年学期，应提供一个二元组的切片，切片中每个二元组的格式为 `(学年, 学期)`，
+///   如果为空，则表示获取所有学年学期的排名
+/// - `range`: 主修还是辅修
 /// - `data_source`: 数据来源
-/// - `rank_method`: 排名计算方式
+/// - `display`: 取最大成绩还是初修成绩
 ///
 /// # Returns
 ///
@@ -187,7 +189,7 @@ mod test {
         let rank = get_rank(
             &hdjw_token,
             &selection,
-            Range::Minor,
+            Range::Major,
             DataSource::Total,
             Display::Max,
         )
