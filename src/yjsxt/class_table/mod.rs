@@ -62,21 +62,21 @@ fn parse_course_info(
         .ok_or(parse_err(cell_text))?
         .replace("课程编号:", "")
         .chars()
-        .filter(|c| c.is_whitespace())
+        .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let course_name = parts
         .get(1)
         .ok_or(parse_err(cell_text))?
         .replace("课程名称:", "")
         .chars()
-        .filter(|c| c.is_whitespace())
+        .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let class_name = parts
         .get(2)
         .ok_or(parse_err(cell_text))?
         .replace("班级:", "")
         .chars()
-        .filter(|c| c.is_whitespace())
+        .filter(|c| !c.is_whitespace())
         .collect::<String>();
 
     // 上课时间: [9-16周] 连续周
@@ -121,7 +121,7 @@ fn parse_course_info(
             "解析授课老师和上课地点失败",
         ));
     };
-    let [teacher, classroom] = teacher_and_classroom.try_into().map_err(|_| {
+    let [_, teacher, classroom] = teacher_and_classroom.try_into().map_err(|_| {
         parse_err_with_reason(&teacher_and_classroom_str, "解析授课老师和上课地点失败")
     })?;
 
