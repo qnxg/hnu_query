@@ -1,15 +1,13 @@
 mod raw;
 
-use std::collections::{HashMap, HashSet};
-
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
 use crate::{
     error::{parse_err, parse_err_with_reason},
     yjsxt::{error::TokenExpired, login::YjsxtToken},
 };
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 
 /// 研究生课程信息
 #[derive(Serialize, Deserialize, Debug, Clone)]

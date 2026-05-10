@@ -1,10 +1,9 @@
-use serde_json::Value;
-
 use crate::{
     error::{MapNetworkErr, parse_err},
     utils::client,
     yjsxt::{error::TokenExpired, login::YjsxtToken, raw::YjsxtResponseExtractor},
 };
+use serde_json::Value;
 
 const GRADUATE_HOST_URL: &str = "http://yjsxt.hnu.edu.cn/gmis/";
 const CLASS_TABLE_URL: &str = "/student/pygl/py_kbcx_ew";
