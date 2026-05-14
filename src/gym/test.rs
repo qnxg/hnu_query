@@ -6,7 +6,7 @@ use crate::{
 use std::convert::Infallible;
 
 pub async fn get_gym_token_by_cas_login() -> Result<GymToken, crate::Error<AccountIssue>> {
-    let mut cas_token = CasToken::new(TEST_STU_ID, TEST_PASSWORD);
+    let mut cas_token = CasToken::new_test(TEST_STU_ID, TEST_PASSWORD);
     GymToken::acquire_by_cas_login(&mut cas_token).await
 }
 
