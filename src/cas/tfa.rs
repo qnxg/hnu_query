@@ -32,6 +32,7 @@ pub enum SMSResult {
     Other(String),
 }
 
+/// 双因素认证的结果
 #[derive(Debug, Clone)]
 pub enum VerifyResult {
     /// 验证通过
