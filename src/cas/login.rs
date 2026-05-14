@@ -1,5 +1,5 @@
 use crate::{
-    cas::utils,
+    cas::{tfa::TFAToken, utils},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, request::cookie_parser},
 };
@@ -25,9 +25,6 @@ pub struct CasToken {
     stu_id: String,
     /// 密码
     password: String,
-    /// 是否为测试用令牌
-    #[cfg(test)]
-    is_test: bool,
 }
 
 /// 用户账号问题导致登录失败的错误
@@ -44,6 +41,9 @@ pub enum AccountIssue {
     /// 账号因多次输错密码被锁定
     #[error("账号因多次输错密码被锁定")]
     AccountLocked,
+    /// 需要双因子认证，输入手机号后获取验证码
+    #[error("需要双因子认证")]
+    TFARequired(TFAToken),
 }
 
 struct LoginParams {
@@ -77,8 +77,6 @@ impl CasToken {
             cookie: None,
             stu_id: stu_id.to_string(),
             password: password.to_string(),
-            #[cfg(test)]
-            is_test: false,
         }
     }
     /// 获取登录参数
@@ -188,6 +186,76 @@ impl CasToken {
         &mut self,
         service_url: &str,
     ) -> Result<String, crate::Error<AccountIssue>> {
+        #[cfg(not(test))]
+        {
+            self.get_ticket_url_inner(service_url).await
+        }
+        // 处理测试情况下的双因素认证
+        #[cfg(test)]
+        {
+            use crate::cas::tfa::VerifyResult;
+            use std::io::Write;
+
+            loop {
+                let result = self.get_ticket_url_inner(service_url).await;
+                match result {
+                    Ok(v) => {
+                        self.sync_test_cache();
+                        return Ok(v);
+                    }
+                    Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token))) => {
+                        let mut tfa_token = tfa_token;
+                        // 测试时，要求手动输入验证码
+                        loop {
+                            print!("需要双因子认证({}), 是否继续(y/n): ", tfa_token.phone());
+                            std::io::stdout().flush().unwrap();
+                            let mut input = String::new();
+                            std::io::stdin().read_line(&mut input).unwrap();
+                            if input.trim().to_lowercase() == "y" {
+                                break;
+                            } else if input.trim().to_lowercase() == "n" {
+                                panic!("测试停止");
+                            }
+                        }
+
+                        loop {
+                            let res = tfa_token.send_sms().await?;
+                            println!("发送验证码结果: {:?}", res);
+                            print!("请输入验证码（输入 -1 重新发送验证码）: ");
+                            std::io::stdout().flush().unwrap();
+                            let mut input = String::new();
+                            std::io::stdin().read_line(&mut input).unwrap();
+                            let input = input.trim().parse::<i32>().unwrap();
+                            if input == -1 {
+                                continue;
+                            }
+                            let verify_result = tfa_token.verify(&input.to_string()).await?;
+                            match verify_result {
+                                VerifyResult::Success(cas_token) => {
+                                    self.cookie = cas_token.cookie().map(|v| v.to_string());
+                                    // 跳出最外层 loop，然后就会再次循环，相当于重试了
+                                    break;
+                                }
+                                VerifyResult::CodeError(new_tfa_token) => {
+                                    println!("验证码错误，请重新输入");
+                                    tfa_token = new_tfa_token;
+                                }
+                                VerifyResult::Expired => {
+                                    panic!("双因子认证令牌过期");
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+    }
+    /// 真正的获取 ticket_url 的逻辑
+    async fn get_ticket_url_inner(
+        &mut self,
+        service_url: &str,
+    ) -> Result<String, crate::Error<AccountIssue>> {
         let login_params = match self.get_login_params(service_url).await? {
             GetLoginParamsRes::Skip(ticket_url) => {
                 return Ok(ticket_url);
@@ -232,6 +300,15 @@ impl CasToken {
         if login_result.contains("用户名或密码错误") {
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
+        if login_result.contains("双因子认证") {
+            let tfa_token = TFAToken::new(
+                &login_result,
+                &cookies.join("; "),
+                &self.stu_id,
+                &self.password,
+            )?;
+            return Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token)));
+        }
         let location = location
             .ok_or(format!("无法获取 cas 响应的 location: {}", login_result))
             .unexpected_err()?
@@ -242,8 +319,6 @@ impl CasToken {
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
         }
-        #[cfg(test)]
-        self.sync_test_cache();
         self.cookie = Some(cookies.join("; "));
         Ok(location)
     }
@@ -348,8 +423,6 @@ impl CasToken {
             cookie: Some(cookie.to_string()),
             stu_id: stu_id.to_string(),
             password: password.to_string(),
-            #[cfg(test)]
-            is_test: false,
         }
     }
     /// 获取当前令牌对应的 Cookie，可用于 [CasToken::from_cookie_unchecked]
@@ -407,16 +480,11 @@ impl CasToken {
             },
             stu_id: stu_id.to_string(),
             password: password.to_string(),
-            #[cfg(test)]
-            is_test: true,
         }
     }
 
     #[cfg(test)]
     pub(crate) fn sync_test_cache(&self) {
-        if !self.is_test {
-            return;
-        }
         use std::io::Write;
         let cache_name = format!(
             "{:x}",
