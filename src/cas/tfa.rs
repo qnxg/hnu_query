@@ -39,7 +39,7 @@ pub enum VerifyResult {
     /// 验证码错误
     CodeError(TFAToken),
     /// 双因子认证令牌过期，
-    /// 此时需要再次调用 [CasToken::get_ticket_url] 尝试获取新的双因子认证令牌
+    /// 此时需要再次调用相应的获取令牌的函数，如 `acquire_by_cas_login` 来尝试获取令牌
     Expired,
 }
 
@@ -117,7 +117,7 @@ impl TFAToken {
     /// # Returns
     ///
     /// 验证通过则返回新的 [CasToken]，
-    /// 新的 [CasToken] 应该可以做到调用 [CasToken::get_ticket_url] 直接跳过登录过程
+    /// 使用新的 [CasToken] 再去申请其他系统的令牌，理论上不会再要求进行双因素认证了。
     ///
     /// 如果验证失败，则会继续返回 [AccountIssue::TFARequired] 错误，需要对新获得的
     /// [TFAToken] 再次调用 [TFAToken::send_sms] 和 [TFAToken::verify]
