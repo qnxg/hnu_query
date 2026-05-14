@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<title>统一身份认证平台</title>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" href="assets/plugins/bootstrap/css/bootstrap.min.css">
+	<link rel="stylesheet" href="assets/css/reloginstyle.css">
+	<link rel="stylesheet" href="assets/fonts/font-awesome-4.4.0/css/font-awesome.css">
+	<script type='text/javascript' src="js/jquery/jquery-1.11.1-min.js"></script>
+	<link rel="stylesheet" href="assets/css/style.css?v=0.8128859176722146">
+	<link rel="stylesheet" href="css/tac.css">
+	<script type="text/javascript" src="js/jquery/jquery.i18n.properties-1.0.9.js"></script>
+	<script type="text/javascript" src="js/i18n.js"></script>
+	<script type='text/javascript' src='js/qrcode/qrcode.js'></script>
+	<script type="text/javascript" src="js/layer/layer.js"></script>
+	<script type='text/javascript' src="js/login/security.js"></script>
+	<script type="text/javascript" src="js/login/syzlogin.js?v=0.004070091815348009"></script>
+
+	<script src="js/login/tac.min.js"></script>
+
+	<style>
+		div,
+		form,
+		img,
+		ul,
+		ol,
+		li,
+		dl,
+		dt,
+		dd,
+		table,
+		td,
+		tr,
+		th,
+		p,
+		span {
+			font-size: 14px;
+		}
+
+		ul>li {
+			list-style: none;
+		}
+
+		input,
+		button {
+			outline: none;
+			border: none;
+		}
+
+		body {
+			background: #ffffff url("assets/images/login_bgnew.jpg") no-repeat center center;
+			background-size: 100% 100%;
+			min-height: 100vh;
+			position: relative;
+		}
+
+		/*头部*/
+		.header {
+			background: none;
+		}
+
+		.header .logo {
+			padding: 18px 0;
+			margin-left: 83px;
+		}
+
+		.header .logo img {
+			height: 55px;
+			display: inline-block;
+			vertical-align: middle;
+		}
+
+		.header .logo span {
+			color: #ffffff;
+			display: inline-block;
+			vertical-align: middle;
+			margin-left: 24px;
+			font-size: 28px;
+		}
+
+		/*内容*/
+		.zfcontent {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: #F0F1F2;
+			border-radius: 10px;
+			padding: 30px;
+			box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+
+		}
+
+		.form-box {
+			padding: 30px;
+			background: #FFFFFF;
+			border-radius: 9px;
+			width: 420px;
+		}
+
+		.form-header {
+			padding-top: 10px;
+			text-align: center;
+			position: relative;
+		}
+
+		.form-header img {
+			height: 18px;
+			display: inline-block;
+			vertical-align: middle;
+		}
+
+		.form-header img:nth-last-child(2) {
+			cursor: pointer;
+		}
+
+		.form-header span {
+			display: inline-block;
+			vertical-align: middle;
+			color: #57A0F4;
+			font-size: 22px;
+			line-height: 22px;
+		}
+
+		.form-header-tips {
+			color: #7C7C7C;
+			position: absolute;
+			background: #ffffff;
+			padding: 15px;
+			border-radius: 10px;
+			text-align: left;
+			top: 50%;
+			right: -64px;
+			transform: translate(100%, -50%);
+			box-shadow: 0 3px 16px rgba(0, 0, 0, 0.16);
+			display: none;
+		}
+
+		.form-header-tips:before {
+			content: "";
+			display: block;
+			position: absolute;
+			top: 50%;
+			left: -18px;
+			transform: translateY(-50%);
+			border-right: 13px solid #ffffff;
+			border-top: 10px solid transparent;
+			border-left: 5px solid transparent;
+			border-bottom: 10px solid transparent;
+		}
+
+		.form-tab {
+			margin-top: 34px;
+			border-bottom: 1px solid #C9C9C9;
+			padding: 0 20px 12px;
+		}
+
+		.form-tab ul {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.form-tab ul li {
+			color: #7C7C7C;
+			position: relative;
+			padding: 0 5px;
+			line-height: 20px;
+			cursor: pointer;
+		}
+
+		.form-tab ul li.active:after {
+			content: "";
+			display: block;
+			position: absolute;
+			bottom: -12px;
+			left: 0;
+			width: 100%;
+			height: 2px;
+			background: #57A0F4;
+		}
+
+		.form-content form {
+			display: none;
+		}
+
+		.form-content .un-bind p {
+			color: red;
+			text-align: center;
+			padding: 40px 0;
+		}
+
+		.form-content .un-bind a {
+			display: block;
+			background: #57A0F4;
+			width: 100%;
+			color: #ffffff;
+			line-height: 45px;
+			height: 45px;
+			border-radius: 4px;
+			text-align: center;
+		}
+
+		.form-content .un-bind a:hover {
+			text-decoration: none;
+		}
+
+		.form-content .form-input {
+			display: flex;
+			align-items: center;
+			margin: 20px 0;
+		}
+
+		.form-content .form-input span {
+			color: #ABB3B9;
+		}
+
+		.form-content .form-input input {
+			flex-grow: 1;
+			border-radius: 4px;
+			border: 1px solid #E0E0E0;
+			line-height: 45px;
+			padding: 0 12px;
+			margin-left: 8px;
+		}
+
+		.form-content .form-input input:focus {
+			border: 1px solid #57A0F4;
+		}
+
+		.form-content .form-input-all input {
+			width: 100%;
+			margin-left: 0;
+		}
+
+		.form-input.form-input-send input {
+			margin-left: 0;
+		}
+
+		.form-input-send button {
+			padding: 0 8px;
+			margin-left: 15px;
+			height: 45px;
+			border-radius: 4px;
+			background: #57A0F4;
+			color: #ffffff;
+			cursor: pointer;
+		}
+
+		.form-button {
+			margin: 60px 0 30px;
+			position: relative;
+		}
+
+		.error-tips {
+			position: absolute;
+			top: -50%;
+			transform: translateY(-50%);
+			color: red;
+		}
+
+		.form-button button {
+			background: #57A0F4;
+			width: 100%;
+			color: #ffffff;
+			line-height: 45px;
+			height: 45px;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+
+		.footer {
+			position: absolute;
+			width: 100%;
+			bottom: 44px;
+			color: #ffffff;
+			text-align: center;
+			padding: 0 5px
+		}
+
+		.dis-button {
+			cursor: not-allowed !important;
+			opacity: 0.9;
+		}
+
+		::-webkit-input-placeholder {
+			/* WebKit, Blink, Edge */
+			color: #ABB3B9 !important;
+		}
+
+		:-moz-placeholder {
+			/* Mozilla Firefox 4 to 18 */
+			color: #ABB3B9 !important;
+		}
+
+		::-moz-placeholder {
+			/* Mozilla Firefox 19+ */
+			color: #ABB3B9 !important;
+		}
+
+		:-ms-input-placeholder {
+			/* Internet Explorer 10-11 */
+			color: #ABB3B9 !important;
+		}
+
+		@media (max-width: 768px) {
+			.header .logo {
+				margin: 0;
+				text-align: center;
+			}
+
+			.header .logo span {
+				display: none;
+			}
+
+			.zfcontent {
+				width: 90%;
+				padding: 15px;
+			}
+
+			.zfcontent .form-box {
+				width: auto;
+				padding: 15px;
+			}
+
+			.form-tab {
+				padding: 0 0 12px;
+			}
+
+			.form-tab ul li {
+				padding: 0;
+			}
+
+			.form-header-tips {
+				display: none;
+				top: 0;
+				transform: translate(-50%, -100%);
+				right: auto;
+				left: 50%;
+			}
+
+			.form-header-tips:before {
+				bottom: -18px;
+				left: auto;
+				top: auto;
+				right: 20%;
+				transform: translateY(0);
+				border-right: 7px solid transparent;
+				border-top: 9px solid #fff;
+				border-left: 7px solid transparent;
+				border-bottom: 9px solid transparent;
+			}
+		}
+
+		@media (max-width: 400px) {
+			.form-content .form-input input {
+				width: 75%;
+			}
+
+			.form-input-send button {
+				width: 24%;
+				margin-left: 5px;
+			}
+		}
+
+		@media (max-width: 320px) {
+			.zfcontent {
+				width: 95%;
+				padding: 10px;
+			}
+
+			.zfcontent .form-box {
+				width: auto;
+				padding: 10px;
+			}
+
+			.form-button {
+				margin: 40px 0 20px;
+				position: relative;
+			}
+		}
+
+		#qcodepc .qrcode-bg {
+			width: 190px;
+			height: 190px;
+			position: absolute;
+			top: 36%;
+			left: 50%;
+			margin-left: -95px;
+			background-color: #000;
+			opacity: 0.65;
+		}
+
+		#qcodepc>p {
+			font-size: 22px;
+			line-height: 22px;
+			color: #7C7C7C;
+			text-align: center;
+		}
+
+		#qcodepc>span {
+			color: #7C7C7C;
+			font-size: 14px;
+			width: 100%;
+			text-align: center;
+			display: block;
+			line-height: 20px;
+			margin-top: 23px;
+		}
+
+		#qcodepc .refresh-text {
+			position: absolute;
+			line-height: 250px;
+			top: 28%;
+			left: 46%;
+			z-index: 9;
+		}
+
+		#qcodepc .refresh-text .fa {
+			font-size: 20px;
+			color: #fff;
+			vertical-align: middle;
+		}
+
+		#qcodepc .refresh-text a {
+			color: #fff;
+			vertical-align: middle;
+			font-size: 16px;
+		}
+	</style>
+</head>
+
+<body>
+	<!DOCTYPE html>
+
+	<script type="text/javascript">
+		//判断操作系统和浏览器类型，需要判断的页面加上detectOS()；
+		function detectOS() {
+			var sUserAgent = navigator.userAgent;
+			var isWin = (navigator.platform == "Win32") || (navigator.platform == "Windows");
+			if (isWin) {
+				if (navigator.userAgent.indexOf("MSIE 6.0") > 0
+					|| navigator.userAgent.indexOf("MSIE 7.0") > 0
+					|| navigator.userAgent.indexOf("MSIE 8.0") > 0) { //IE6、7、8、9
+					window.location.href = "https://cas.hnu.edu.cn/system/browser.zf";
+				}
+			}
+		}
+		detectOS();
+	</script>
+	<html>
+
+	<head>
+		<meta charset="utf-8" />
+	</head>
+
+	<body></body>
+
+	</html>
+	<div class="header">
+		<div class="logo">
+			<img src="assets/images/zflogo.png" alt="">
+			<span>统一身份认证平台</span>
+		</div>
+	</div>
+	<div class="zfcontent">
+		<div class="form-box">
+			<div class="form-header">
+				<img src="assets/images/icon-jy.png" alt="">
+				<span>
+
+					双因子认证
+
+				</span>
+			</div>
+			<div class="form-tab">
+				<ul id="reloginType">
+
+
+					<li data-type="reloginPhone">手机验证</li>
+
+
+
+
+				</ul>
+				<input type="hidden" id="account" value="202402050201" />
+				<input type="hidden" id="loginService" value="https://cas.hnu.edu.cn" />
+				<input type="hidden" id="casService" value="https://cas.hnu.edu.cn/cas" />
+			</div>
+			<div class="form-content">
+				<input id="relogin" name="relogin" tabindex="1" value="syzLogin" readonly="readonly" type="text"
+					autocomplete="off" style="display: none" />
+
+
+				<!--手机验证-->
+				<form id="fm2" data-type="reloginPhone" action="/cas/login?v=0.3044243512747711" method="post">
+
+
+
+
+
+
+
+					<!--已绑定手机号-->
+
+					<div class="form-input form-input-all">
+						<input id="phone" name="username" tabindex="1" readonly="readonly" type="text" value="114514"
+							size="25" autocomplete="off" />
+					</div>
+					<div class="form-input form-input-send">
+						<input id="recode" name="recode" tabindex="1" type="text" placeholder="" size="25"
+							autocomplete="off" />
+						<button class="verfiy-button" id="sendsms" type="button">获取动态口令</button>
+					</div>
+					<div class="form-button">
+						<p class="error-tips" id="smserrormsg"></p>
+						<button type="button" id="smsdl">登录</button>
+					</div>
+					<input type="hidden" name="reloginType" value="reloginPhone" />
+					<input type="hidden" name="execution"
+						value="3a24971d-2944-4622-818b-77426fe38209_ZXlKaGJHY2lPaUpJVXpVeE1pSjkuYkN0VVVFUXpiVkZvZHk4MmNtWnBhazlIUVd4T2RrODFVbTVOV2pWNU9VSlNRMmRuTjFRemFUUkhjazB4VTNaelQxaHpNMEpHZG5aWldFaGhOVEV4YUV3dk1TczNhbEZUT0ZoS1REUjBlVE54TW5wclpFSmFiMkZOVEhOb1prUkxkazQxV0VabFZ6TXJaREU1TWpKaGFuQjFTbnBpY1ZGdVZFWXZUekZ4T1dsa2NFaGpSRWhDVDJ0NWFVVlBRbEp6Ym5kd1dXNXhlak5LYm5WUFZFUlRhekJ4YkhONFYzSk5WRWc1WVZCaGFrSk9hazVxVm5KTFkyVTJNbTF2TXpsbWRYTjVhSGMxTXk5WFQySTNSVU5oYkVsQmFXTXdMMFJLYVVOU1JEWnlPWHBRV1VreWFtMU9hak5uWjIxdWFHVk9MMDVWVVdoWU1qSlFOakJqTkVGWWREQlZlREpwZEhkVlYzWkJiblUzZGpSV0wybFRaRWRzTnpCSGEzZ3pVRkJLUTFCVVlYSktaRFJUVkZCUFV6Unlja1JVWVdkMWRGZzRPWGhKVG1kRFVqRk5PVlJzV1djdlVHSnVaMlZhU1VsclJsWjFaRU1yUVhoME0zazBibFpsUjBKVWJXcEVVVVZ5UkhweVpGVkNXVmxSU1dFdlZuWTJhQzltUVVoWWQwUTJUbloyVHk5UGRtbHdXbGN5VlhwdldFcHRZVlp5TDJoM1JIbEhNalJhVUdVNFZuUXpkMVZ4TkZkb2NuZG1ja2s0ZEZCUVNXMHpTWGxCYm5aVVlVbHRXV3BvV0VKbk5VWjNPVXAzWms1NmJYaGlUbWRpVW1ORFMxVnZURFIzYXpSM2VWTktjbXh5YW5FMGJHTm5SMjF5VVhSbFVFRTFNMnBYUmxSUVJHUXpUVXgyWlhkbVMwUjVZMHhpTUdkVVdXWmlhbk5wVXpKV1UwTTFlbWxoV2k5UFFXTlRXblZHWXpSWVFYazVUbTFoUWl0c0syWnZSa1Y0ZFVWbVZtdGlhMUZIV0d4dFZpODFTMk5NVGxBdlF6RkxhRTA1VkhCbGFUZzVNbXhZVW1JME4yTnpORkE0TldZNVZtUTJTRXczWWxweVVYaG5RMjE2UVRKamFUSklLM2hZTVVsa1QyRTFNVnB4YWxSMWRqSnRiV0ZhUkZSeGVWZFNZVnB0VUhRNVpEVXpkMFZWTlc1VGFuTnlaVVk1V0VwVlVURnpkbTUwWWxsSGVGTXpWbGRGVTFka2R6VkxkVFoxZFdFNGQyUTRjbHAxYXpGTGJYQm9RbUZxVmpNMVJ6RlBNVWhhUVhkNU1rcFROMEV4YkhaS09VVk1kME5MV1hwaVVHUndXR0pSU2sxbGR6UTFWbXBtY1ZWeGMxRm5RMFpFU1VkRVVYWTFRblkyVEZBd04ycERZbTE2ZWxCVWMwWXJTWFF4VjNsWVQxWlNkVGhwUWxOdE5YRjJVa05hVVVwTVVtTkRhbXRRYTBVd1VESkZSRTVhTW5Cc1pGQXlZbkJxZDJwUVJGSlFNRVJQWXpNMksxTjRORFpXTkhSWVkycGFOMk5VYVZKWk1rbHZibGRRY1M5d1R5dDNTWHB1Y1dKMWRIbHdSR2RZVjFnMU9EZG9TV1JEWTA1b2MwNVdjRlY2TW1SclFtOVNNMDRyVlZSalV6VnNaVzA0Wm04d1VETkVlWFZtVjBGM1FWUkxlVUZhUjJOMUwyMTNaRGRRZFc0clVsVlJVR05rSzBkWWJEUnRSSE5RZFd4WlJHNVlMelpFVmtwVFNXcDZSalpWT1hSTmJIVkdabGgxY1RsTFNscHdiWEJ1ZGpsdFRXRlFNeXRtV1ZZM1NpdHlhelkzYkhWeEszTlhkRkl3UjFreVNHZHlUa042WWxCT1RWWkZOVFJhYTA0ME1HbFlRWHBtYUZWTGRFVjNSR1pTYkV4SFJrdFRURXhIU2lzeFVUSk5ha3RRYWxoWGJYcEdSbnA2UmpCbVFVSmpUSEExU1N0TGJGQXdZbWxOTXpnMGJVaGtMM05ZZVZaek1EUnhRa1ZwVDBWcVNFOHdNM1JuZVhKVWJEaFhVRVp0VjNkQ1VrVmxNR2xyTURFeFREQm1kbU5ST0VkR2JUVlRkV3BGU0hWM2FVSk1PVUl3YWpKMlRtYzRSR1JxYUhoYVlrdEVTQ3RxUmtOTWFXTldXVVpoUzB0a1Z6SnBUbEl5VFVsb1ZpOVlkRWxKYmxsVVUyUjJUREZRYWtScFRUQnhjMk4zTjJkcU5GVkVXVnBaSzBSRWNtUXJabFZxY1ZOcGEySm1PRUZQY0d0QlZYSnNXbVl6T0RoSFREQm1TSFpaZFcxMk0zbDRhVFozUnpKSlRWbGxSbXBYUm00emJYcFFRV2ROTlRKUlZWUkhXRXg0WjNWdE1UY3hSSE5RTldJNGMya3JRMk5CVkdFeFNHeE9UbTFhTjJFeVVFdDZOWEpDY0ZKQ1RFcEdTVGc1Y3l0UmRVNDBMMHhSTkVNMmFrVnBjbWhyZDBreVVWSmxNRFJHWTNGWVVUZEplWEJyTUZvMlVtSnFZWFZ5ZEV4dFpUVlVXVXgwVVRWRGMyZE1XVkpXVkRaR2VteFpkMHhIWWpGbmNtRXZXWGRTVGxSdFJITm9NelpRTmxwa2VFSkdjVWRwZEVSbFJGVmtURE4xSzB0WE5ESkxNbkprT0VsNVZXZDRORmxOZEU1elVVczVhSE5PT1ZWeE5qSlBPRGRtU1VocVNVVjRTbUl4VkRRdlNXUkxRemwyU1U1M1YzUkhRakprUWs5SFZUZ3pjWEpMWW5aa1dERlhTSFZyUWxONE9GQjZSRGh4TjBRck0yWXJkRmRXU2toc056RlFXREI2ZUZwR01XZEVVR3RZUWxGVFNqZEJOakkxYkdseFoxUTRWVWhKTUZKTldISmhlbFJuVGpWUmFHUldRV2xGWjI1ck1ucHRXR055VlhsRE9FSm1WR0pTY3pKUU1YSlpiSFpOVFZwalZraFBhR3RLVW5JemRFSnlTSEIzVTNCR1dWbFRSRXBXZVRsd2VXdHliV1JvUjFwR1kzUjVZVzVpVUZsSVRucGtSMVF6TW5sa01HaDJUVGRVTWpOVVlpdGpURWR6VDJ3d1lucHNWWEptTkdvd1RIcFVXRFJzUzBoeE1taEZiRVZuWXk5aGJFUldWR1JMU2pKQ2NqSXdSWFZaUkZWeVRVWlhNRlZXY0VSTloybG1RVFo1YUdoTE9YQmFkR2xDVDFJeWFsTjFZMHhIUW01T2RrUnJTRTFLWTJ4cmMxVlJhRWhWZDJKaVJrZEJNRnA1VGtodGRFTm1UV1JwU1VaNGNXRXpTRk55ZFRKVFpURmxLMlJTZERCamJuUlZXR2xGWlVJM1NVUktZWEZMYWtrNVJYQlRORlpuYzFGdlVubzNObEZsVFRWdWVVNUJhMGRsU0V0M1RVSjJVVEowZHpac1VXWm1NR3BZUmxnME5ISmtNRWd3U2t4S1ZFeDJObmxrY1VwTlYybEZVbU5TTlc5WE9ESmhPV3BVY0VKcWIxZEtRblEwWVZSRVNUZEdTWHBwT1hWMU9UZHZVRFF6TTNFeU1rMXlRMnBGVW01UFMzcFNWVzFJS3pWSlJVeHhOVlZKTW5BclYyTlROek4xTDJNNU1uSmxXa1Z6U2psc1ZUZGhkbTlVWmtoUlZtNVJaekp6WVhaNllUbGtTa0U0Y1hkUFlYSm1SbXQwYUhNM1RuWkRSbVJEV0ZwMlVXZEVha0pHUm01aFVHRkxRMEZSTW1vNWFGZE5iMU52YUdWT1VreGlOREZqYTA5NFNIZzBSMmhUTmxwelNsWk5kRlpGV0M4MVFtVjRUR1poYWl0eFVucE5RbVpzUnpOTFNsSTBRMnh0YnpCVE0zVXdhR012ZW1oeWJDOHdPRTF2VEZZd1dIcHhTMHBhYmpoSGNHcGpkMXA2UW1sTVEwdE9iSFZITUZnMVZFc3hRMDFpU0RsVU9YTm1SbVpLZVVoTFRuaHJNMlpaWjBaR1RWQlVNMFpYYlROWGVqbElXRkZNZFVNNVluWjVTVU41U1dKMFJUaGFkVVpqY1Roc1ltSTVOMHd6WlZSbWRuVlJkbVkyY1VOYWNHRlRVVUVyVVhSR00zWkxiazVHUm1nM2NXNU5RbGt2YzNoUFppOXNRM1l6UkRZMGJYbDZOa04zVEdSeE1XMVRUVWh1YzJoMlZFNTBjMGxRVUUxRFIwdzNhVk42WkZOUGIwOUtjRGxvU0Vrd0syWk5jMDFOZVZZNFZVcGxiMWRRUTBoMFlWTldUVWgyT1VJcllrSjFVakJvTjBsNVZtVXJjbWMyTlVwQlkycHBRbE5KV0UwMllUbFZhRko2VURscFMyVnZPWFpOYUVad2VFaHpUMFZ6VUN0WVdtaFVSV1owVDBvNWJEUTVPRE5YTldGaVVXa3dhME5hV1ZFMWExVlpWWE5DWm1vclRqVmpMMmxDV1VsS09FVkhRMU5YWmtzMmRVUmlXR3RZUkRSb2FHcFVjM1k1VVVKTmMwTXlWazVCZGxac1kyODBhVTlvVGpRNUswcEZTV1ZaZVhGNFJ6RjBVbGxaWW1OTGIybFhVbWRKVTBsNlNFUkpkM0ZLTURaa1FVdFRNRGxNU0ZsRVNYaEVLMlZPUzFSVWEwVXdiV0ZQTkdaclJVcHlTekJzTVZWV2RHMU5aRkpOZGxwdGJXeFJOVlkxU0RWVlMzVjNWMDF2TjBkcFdUTTRUbmhQTVdGb2N6UjVRM0l5TW5nMmNqZ3ZRVkpNUTJ4dFZtVjVURFV4Wms1eFJIbHNRMGxqZUVkYVFUTnJTM1F6ZDFCM2FWTjNZM05WVTBSeVYwVjJTSGhQUkhReWJtRlNNWHBFT1ZGalpXWndTVFJZVmpaR1UwdDJNRXhMYWxGbU9WSTFiV2t2WldodlRuRmpZVU40VW1waWRFRmpabnBoY25sMldteE1NblU0V0ZoTFUxZHVRMXBPVVRCQ1owcGhTM2h2YVVNd1duSlJUbkZYUlZKMGFtNWxVR0psYldSM09EWjRiVU5yUmsxSGMzZDVkRzU2Vkd4V2JrWldhRVl6UzFBcmIxbzNRME50TUdsUlpubEtWRVZaUkRsaGNsVkdLMVZqU2xGTmJreEdjbVZqVG5Jd1RXcE1lRXBsVUc1RlQybHVlRXRZVHpoTVIyeEdTWHBuWkRnd2NGQXZaMHh3Y0hWUk5tNTJUMDlRWldObWMweFJVa0pIWkRNclIzcE5Oa1Z2TWpkMGNGTlJXbFkxWlN0c1NWbFVNVTVSYTNCUVJHaE9jbGRETXpOR09VMUZNVGhYWXpoblVWZG9RVlpuYW01RmFYaFVRVk50VmtsbVVXSkNNbWxoVlRKeVNXVXhVR0p5TTFOYWMwUnhOamRrUWpWSFIyRkRXV0V3VTNSSFNGTlZjalJ1WVVSdmRqWkJWbkZKVW1FMVpXaFdjR0l4VjJOU2FqSTViWEk1WkdNNVlreHFlbXB4VDFnelZXVk5WVzFDVlZacFRuTkdjR0YwZFVnd1YwZFBTRnBtVTBGNVZtbHBVV00xYVhSTFZESm1lVVV6VFRkTWNFUnhkMjVoZEZsNlJuQXlhRVF5YlZsR016UXJiRGQ2Y1RaaGRUUXdZV1JNU3pGNVQxQjRPVGswUkV0bk5tTlNTbkZqZWxacmJuaERjbmhRZDBKd1NGaFhlWGwwUWxReVVGVkdkbXRFTWpNeVR6SmljbXhoVEU5d1EzUk5WbTFXYjNWa2NrMUdhVVkyVTJsQlJEQjNNM1k0UkhaWllVSkpaRUp1TW01RGQxVTJVV2w0UkVKRE4zRk9jRUoxZUhkRFkxaG5kVkJ1VjBsWVVsb3JXRlpDZEhjMFMxcEdNRGxDYTI5NlQzRkRhbXBxWkV4dFNreENPR2hsYVhnMmRtSjZNR1JCVURrNVVrdzVkV2hhZGsxa1VuVmhZV0pPYldGRGFVSnRiSEZNU0RCUmVYRlJZVVpHUjA1UVdVNXBSa1JyWmxoeE56TnhPVFZQTkhKbmJGa3dWbEZPUkVwR2FqUkZOMHRPVGxZMFdIY3pXVWRKVkdWRllWUnVhekpYUnpJeFZGSnpiMDUwVlhaVWJWRnZOak13WVZSV1JFSnVWMDlsYXpSMlpVcFhPVEV3TmxOM2RITlNRM1UyYzJObE1rWkNjMnRVWW5Zd2NYSnJVVzlzU1VsclRsTmlNRGswWkhwSVNrdERUQzlaVGtoMmFETmpOSGxWWTFwV00xSkVRVmxMVUZGb1ZEaHBNVmxZVDFGclREaEZaaXRWY0V3cmJuQnFhbXBOVlVwT2VGbDNNR053U0VScVdrTjBNV2sxV2xacVptUlVUR3RUWW5CcGFqWXhkRmxEU1VWamNpOTJRVVJYV21keVRFeGtXR3cyU0dWeWVXeG1NVzlUZWpWMGNWWlliamhqVVd0RlJreGxRbnBpZFVGTVJuSm1OSFp4ZUdoVVVFcHRaVmh5Y1dSeWNWZG5kbWRwVjFKYU4wRjRlSE50V1VwR2MycGxjblZUVVRBeVIzRlJTV1V4U2t0M1JIVnhTRE5FS3poTGIyczNaVEJFUVN0SGNRLlFyS05qSVRjZ01hcGNUbkM0XzFKSFdrTEE3VzVVRzJ2OWJKQTZMYl9CVXFDckZ3aGxjdWprWF9WWk1wWHZrRlV1bDkwejd0WGhYN3kwZHNTdHRzU0N3" />
+					<input type="hidden" name="_eventId" value="submit" />
+
+
+				</form>
+
+
+
+
+			</div>
+		</div>
+	</div>
+	<div class="footer">版权所有© Copyright 1999-2022 正方软件股份有限公司 浙ICP备11024936号-1</div>
+</body>
+
+</html>
