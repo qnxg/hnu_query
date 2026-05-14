@@ -221,10 +221,15 @@ impl CasToken {
             .collect(); // 错误已在前面被处理，一定会有_pv0
         let mut cookies = cookie_parser(login.headers().get_all(SET_COOKIE));
         cookies.extend(addition);
-        let location = login
-            .headers()
-            .get(LOCATION)
-            .ok_or(crate::Error::Other(AccountIssue::PasswordError))?
+        // 先获取 location，不然后面的 .text() 会消耗掉 login
+        let location = login.headers().get(LOCATION).cloned();
+        let login_result = login.text().await.unexpected_err()?;
+        if login_result.contains("用户名或密码错误") {
+            return Err(crate::Error::Other(AccountIssue::PasswordError));
+        }
+        let location = location
+            .ok_or(format!("无法获取 cas 响应的 location: {}", login_result))
+            .unexpected_err()?
             .to_str()
             .unexpected_err()?
             .to_string();
