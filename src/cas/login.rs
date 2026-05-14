@@ -25,6 +25,9 @@ pub struct CasToken {
     stu_id: String,
     /// 密码
     password: String,
+    /// 是否为测试用令牌
+    #[cfg(test)]
+    is_test: bool,
 }
 
 /// 用户账号问题导致登录失败的错误
@@ -74,6 +77,8 @@ impl CasToken {
             cookie: None,
             stu_id: stu_id.to_string(),
             password: password.to_string(),
+            #[cfg(test)]
+            is_test: false,
         }
     }
     /// 获取登录参数
@@ -232,6 +237,8 @@ impl CasToken {
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
         }
+        #[cfg(test)]
+        self.sync_test_cache();
         self.cookie = Some(cookies.join("; "));
         Ok(location)
     }
@@ -336,6 +343,8 @@ impl CasToken {
             cookie: Some(cookie.to_string()),
             stu_id: stu_id.to_string(),
             password: password.to_string(),
+            #[cfg(test)]
+            is_test: false,
         }
     }
     /// 获取当前令牌对应的 Cookie，可用于 [CasToken::from_cookie_unchecked]
@@ -361,5 +370,60 @@ impl CasToken {
     /// 返回当前令牌对应的密码
     pub fn password(&self) -> &str {
         &self.password
+    }
+    /// 创建一个测试用的 [CasToken]
+    ///
+    /// 和 [CasToken::new] 不同的是，如果设置了 `TEST_CAS_CACHE`（详见 `docs/test.md`）
+    /// 这个函数会尝试从工作目录下的 `cache` 文件夹中
+    /// 寻找对应学号和密码的缓存文件，并自动设置令牌的 cookie 字段。
+    /// 从该函数返回的令牌在 cookie 更新时，也会同步更新缓存文件。
+    ///
+    /// 如果没有设置，那么和调用 [CasToken::new] 一样
+    #[cfg(test)]
+    pub(crate) fn new_test(stu_id: &str, password: &str) -> Self {
+        if !*crate::test::TEST_CAS_CACHE {
+            return Self::new(stu_id, password);
+        }
+        use std::io::Read;
+        let cache_name = format!("{:x}", md5::compute(format!("{}{}", stu_id, password)));
+        let mut cache_file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(format!("cache/{}", cache_name))
+            .unwrap();
+        let mut cookies = String::new();
+        cache_file.read_to_string(&mut cookies).unwrap();
+        Self {
+            cookie: if cookies.is_empty() {
+                None
+            } else {
+                Some(cookies)
+            },
+            stu_id: stu_id.to_string(),
+            password: password.to_string(),
+            #[cfg(test)]
+            is_test: true,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn sync_test_cache(&self) {
+        if !self.is_test {
+            return;
+        }
+        use std::io::Write;
+        let cache_name = format!(
+            "{:x}",
+            md5::compute(format!("{}{}", self.stu_id, self.password))
+        );
+        let mut cache_file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(format!("cache/{}", cache_name))
+            .unwrap();
+        cache_file
+            .write_all(self.cookie().unwrap_or_default().as_bytes())
+            .unwrap();
     }
 }

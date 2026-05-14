@@ -20,3 +20,8 @@ pub static TEST_MONTH: LazyLock<u8> =
 
 pub static TEST_DAY: LazyLock<u8> =
     LazyLock::new(|| std::env::var("TEST_DAY").unwrap().parse().unwrap());
+
+pub static TEST_CAS_CACHE: LazyLock<bool> = LazyLock::new(|| {
+    let v = std::env::var("TEST_CAS_CACHE").unwrap();
+    v == "true" || v == "1"
+});

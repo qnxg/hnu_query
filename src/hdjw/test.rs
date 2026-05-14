@@ -28,6 +28,6 @@ pub static TEST_HDJW_TIME: LazyLock<Vec<u8>> = LazyLock::new(|| {
 });
 
 pub async fn get_hdjw_token() -> Result<HdjwToken, crate::Error<AccountIssue>> {
-    let mut cas_token = CasToken::new(TEST_STU_ID, TEST_PASSWORD);
+    let mut cas_token = CasToken::new_test(TEST_STU_ID, TEST_PASSWORD);
     HdjwToken::acquire_by_cas_login(&mut cas_token).await
 }
