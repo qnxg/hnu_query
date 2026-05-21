@@ -6,10 +6,6 @@ pub static TEST_STU_ID: &str = env!("TEST_STU_ID");
 
 pub static TEST_PASSWORD: &str = env!("TEST_PASSWORD");
 
-pub static TEST_AI_API_KEY: &str = env!("TEST_AI_API_KEY");
-
-pub static TEST_AI_MODEL: &str = env!("TEST_AI_MODEL");
-
 pub static TEST_XN: LazyLock<u16> =
     LazyLock::new(|| std::env::var("TEST_XN").unwrap().parse().unwrap());
 
