@@ -1,11 +1,11 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
-    test::{TEST_PASSWORD, TEST_STU_ID},
+    cas::{self},
     xgxt::login::XgxtToken,
 };
 
-pub async fn get_xgxt_token() -> Result<XgxtToken, crate::Error<AccountIssue>> {
-    let mut cas_token = CasToken::new_test(TEST_STU_ID, TEST_PASSWORD);
-    let xgxt_token = XgxtToken::acquire_by_cas_login(&mut cas_token).await?;
-    Ok(xgxt_token)
+pub async fn get_xgxt_token() -> XgxtToken {
+    let mut cas_token = cas::test::get_cas_token().await.unwrap();
+    XgxtToken::acquire_by_cas_login(&mut cas_token)
+        .await
+        .unwrap()
 }

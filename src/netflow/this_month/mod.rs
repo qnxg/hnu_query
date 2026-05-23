@@ -101,7 +101,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_this_month_info() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let this_month_info = get_this_month_info(&token).await.unwrap();
         println!("{:#?}", this_month_info);
     }

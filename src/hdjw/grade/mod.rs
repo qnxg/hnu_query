@@ -207,7 +207,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_grade() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let grade = get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await.unwrap();
         println!("{:#?}", grade);
     }
@@ -215,7 +215,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_grade_detail() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let grade_detail = get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID)
             .await
             .unwrap();

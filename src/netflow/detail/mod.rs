@@ -127,7 +127,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_month_detail() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let res = get_month_detail(&token, *TEST_YEAR, *TEST_MONTH)
             .await
             .unwrap();
@@ -137,7 +137,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_day_detail() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let day_detail = get_day_detail(&token, *TEST_YEAR, *TEST_MONTH, *TEST_DAY)
             .await
             .unwrap();

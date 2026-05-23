@@ -275,7 +275,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_classtable() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let classtable = get_class_table(&hdjw_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();
@@ -285,7 +285,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_class_table_extra() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let extra_courses = get_class_table_extra(&hdjw_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();

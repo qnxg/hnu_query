@@ -1,7 +1,6 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{self},
     hdjw::login::HdjwToken,
-    test::{TEST_PASSWORD, TEST_STU_ID},
 };
 use std::sync::LazyLock;
 
@@ -27,7 +26,9 @@ pub static TEST_HDJW_TIME: LazyLock<Vec<u8>> = LazyLock::new(|| {
         .collect()
 });
 
-pub async fn get_hdjw_token() -> Result<HdjwToken, crate::Error<AccountIssue>> {
-    let mut cas_token = CasToken::new_test(TEST_STU_ID, TEST_PASSWORD);
-    HdjwToken::acquire_by_cas_login(&mut cas_token).await
+pub async fn get_hdjw_token() -> HdjwToken {
+    let mut cas_token = cas::test::get_cas_token().await.unwrap();
+    HdjwToken::acquire_by_cas_login(&mut cas_token)
+        .await
+        .unwrap()
 }

@@ -137,7 +137,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_empty_classroom() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let empty_classroom = get_empty_classroom(
             &hdjw_token,
             TEST_HDJW_BUILDING_ID,

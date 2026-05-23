@@ -27,7 +27,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_overdue_payment() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let overdue_payment = get_overdue_payment(&token).await.unwrap();
         println!("{:#?}", overdue_payment);
     }
