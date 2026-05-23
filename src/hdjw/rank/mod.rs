@@ -184,7 +184,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     pub async fn test_get_rank() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let selection = vec![(*TEST_XN, *TEST_XQ)];
         let rank = get_rank(
             &hdjw_token,

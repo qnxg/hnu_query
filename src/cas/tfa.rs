@@ -145,7 +145,6 @@ impl TFAToken {
             let cas_token = CasToken::from_cookie_unchecked(
                 &format!("{}; {}", self.cookie, cookies),
                 &self.stu_id,
-                &self.password,
             );
             Ok(VerifyResult::Success(cas_token))
         } else {

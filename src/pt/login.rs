@@ -1,5 +1,5 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
@@ -22,7 +22,7 @@ impl PtToken {
     ///
     /// # Parameters
     ///
-    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::new] 创建
+    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
     /// # Returns
     ///
@@ -30,10 +30,10 @@ impl PtToken {
     ///
     /// # Errors
     ///
-    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &mut CasToken,
-    ) -> Result<Self, crate::Error<AccountIssue>> {
+    ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(PT_URL).await?;
         let res = client
             .get(ticket_url)
@@ -81,7 +81,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_pt() {
-        let pt_token = get_pt_token().await.unwrap();
+        let pt_token = get_pt_token().await;
         println!("{:#?}", pt_token);
     }
 }

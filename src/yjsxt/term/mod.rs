@@ -52,7 +52,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_termcode() {
-        let yjsxt_token = get_yjsxt_token().await.unwrap();
+        let yjsxt_token = get_yjsxt_token().await;
         let termcode = get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();

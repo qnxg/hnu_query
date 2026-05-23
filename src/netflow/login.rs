@@ -1,5 +1,5 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
@@ -19,7 +19,7 @@ impl NetflowToken {
     ///
     /// # Parameters
     ///
-    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::new] 创建
+    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
     /// # Returns
     ///
@@ -27,10 +27,10 @@ impl NetflowToken {
     ///
     /// # Errors
     ///
-    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &mut CasToken,
-    ) -> Result<Self, crate::Error<AccountIssue>> {
+    ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, cookies) = cas_token.get_sticket(NETFLOW_URL).await?;
         // 发送请求
         let res = client
@@ -89,7 +89,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_netflow() {
-        let netflow_token = get_netflow_token().await.unwrap();
+        let netflow_token = get_netflow_token().await;
         println!("{:#?}", netflow_token);
     }
 }

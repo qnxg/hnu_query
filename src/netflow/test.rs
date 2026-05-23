@@ -1,11 +1,11 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{self},
     netflow::login::NetflowToken,
-    test::{TEST_PASSWORD, TEST_STU_ID},
 };
 
-pub async fn get_netflow_token() -> Result<NetflowToken, crate::Error<AccountIssue>> {
-    let mut cas_token = CasToken::new_test(TEST_STU_ID, TEST_PASSWORD);
-    let netflow_token = NetflowToken::acquire_by_cas_login(&mut cas_token).await?;
-    Ok(netflow_token)
+pub async fn get_netflow_token() -> NetflowToken {
+    let mut cas_token = cas::test::get_cas_token().await.unwrap();
+    NetflowToken::acquire_by_cas_login(&mut cas_token)
+        .await
+        .unwrap()
 }

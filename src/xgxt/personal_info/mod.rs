@@ -197,7 +197,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_person_info() {
-        let xgxt_token = get_xgxt_token().await.unwrap();
+        let xgxt_token = get_xgxt_token().await;
         let personal_info = get_person_info(&xgxt_token).await.unwrap();
         println!("{:#?}", personal_info);
     }

@@ -50,7 +50,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_unlock_status() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let unlock_status = get_unlock_status(&token).await.unwrap();
         println!("{:#?}", unlock_status);
     }

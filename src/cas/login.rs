@@ -1,5 +1,5 @@
 use crate::{
-    cas::{tfa::TFAToken, utils},
+    cas::{error::TokenExpired, tfa::TFAToken, utils},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, request::cookie_parser},
 };
@@ -19,12 +19,8 @@ const SERVICE_URL: &str =
 /// 统一身份认证系统的令牌
 #[derive(Debug, Clone)]
 pub struct CasToken {
-    /// 为 None 表示没有相关的 Cookie
-    cookie: Option<String>,
-    /// 学号
+    cookie: String,
     stu_id: String,
-    /// 密码
-    password: String,
 }
 
 /// 用户账号问题导致登录失败的错误
@@ -46,80 +42,75 @@ pub enum AccountIssue {
     TFARequired(TFAToken),
 }
 
-struct LoginParams {
-    modulus: String,
-    exponent: String,
-    execution: String,
-    event_id: String,
-    cookies: Vec<String>,
-}
-
-enum GetLoginParamsRes {
-    // 成功获取到登录参数
-    Success(LoginParams),
-    // 已经登录成立了自动跳转
-    Skip(String),
-}
-
 impl CasToken {
-    /// 创建一个空白令牌
+    /// 获取当前令牌对应的 Cookie，可用于 [CasToken::from_cookie_unchecked]
+    ///
+    /// # Returns
+    ///
+    /// 返回当前令牌对应的 Cookie
+    pub fn cookie(&self) -> &str {
+        &self.cookie
+    }
+    /// 获取当前令牌对应的学号，可用于 [CasToken::from_cookie_unchecked]
+    ///
+    /// # Returns
+    ///
+    /// 返回当前令牌对应的学号
+    pub fn stu_id(&self) -> &str {
+        &self.stu_id
+    }
+    /// 从 Cookie 创建令牌
     ///
     /// # Parameters
     ///
-    /// - `stu_id`: 学号
-    /// - `password`: 个人门户密码
+    /// - `cookie`: 一个合法的可用作 [CasToken] 的 Cookie 字符串
+    /// - `stu_id`: 该 `cookie` 对应的学号
     ///
     /// # Returns
     ///
     /// 返回一个 [CasToken] 实例
-    pub fn new(stu_id: &str, password: &str) -> Self {
+    ///
+    /// # Preconditions
+    ///
+    /// - `cookie` 参数应该是一个合法的可用作 [CasToken] 的 Cookie 字符串，否则会导致未定义行为
+    /// - `stu_id` 参数应该和 `cookie` 对应，否则会导致未定义行为
+    pub fn from_cookie_unchecked(cookie: &str, stu_id: &str) -> Self {
         Self {
-            cookie: None,
+            cookie: cookie.to_string(),
             stu_id: stu_id.to_string(),
-            password: password.to_string(),
         }
     }
-    /// 获取登录参数
+    /// 通过学号和密码登录统一身份认证系统，获取 [CasToken]
     ///
-    /// 有可能当前的 [CasToken] 中的 Cookie 存在且有效，那么这一步可以直接跳过再次输入账号
-    /// 密码的过程，直接拿到 `ticket_url`
-    async fn get_login_params(
-        &self,
-        service_url: &str,
-    ) -> Result<GetLoginParamsRes, crate::Error<AccountIssue>> {
-        let mut login_req = client.get(service_url);
-        if let Some(cookie) = &self.cookie {
-            login_req = login_req.header(COOKIE, cookie);
-        }
-        let login_res = match login_req.send().await.network_err()?.error_for_status() {
-            Ok(res) => res,
-            // 这种情况可能是 CasToken 的 cookie 失效了
-            Err(_) => client
-                .get(service_url)
-                .send()
-                .await
-                .network_err()?
-                .error_for_status()
-                .unexpected_err()?,
-        };
-        // 302 的话说明之前的 CasToken 中的 cookie 命中
-        // 无需登录了，直接返回
-        if login_res.status() == StatusCode::FOUND {
-            let ticket_url = login_res
-                .headers()
-                .get("location")
-                .ok_or("没有在 location 中找到 ticket_url")
-                .unexpected_err()?
-                .to_str()
-                .unexpected_err()?;
-            return Ok(GetLoginParamsRes::Skip(ticket_url.to_string()));
-        }
-        if login_res.status() != StatusCode::OK {
+    /// # Parameters
+    ///
+    /// - `stu_id`: 学号
+    /// - `password`: 密码
+    ///
+    /// # Returns
+    ///
+    /// 返回一个 [CasToken] 实例
+    ///
+    /// # Errors
+    ///
+    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    pub async fn acquire_by_login(
+        stu_id: &str,
+        password: &str,
+    ) -> Result<Self, crate::Error<AccountIssue>> {
+        let res = client
+            .get(SERVICE_URL)
+            .send()
+            .await
+            .network_err()?
+            .error_for_status()
+            .unexpected_err()?;
+        if res.status() != StatusCode::OK {
             return Err("响应的状态码异常，应为OK").unexpected_err();
         }
-        let mut cookies = cookie_parser(login_res.headers().get_all(SET_COOKIE));
+        let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
         // 拿到登录表单的execution和_eventId
-        let login_text = login_res.text().await.unexpected_err()?;
+        let login_text = res.text().await.unexpected_err()?;
         static EXECUTION_RE: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r#"name="execution" value="(.*?)""#).unwrap());
         static EVENT_ID_RE: LazyLock<Regex> =
@@ -155,130 +146,20 @@ impl CasToken {
             .as_str()
             .ok_or(parse_err(&pubkey_str))?
             .to_string();
-        let login_params = LoginParams {
-            modulus,
-            exponent,
-            execution,
-            event_id,
-            cookies,
-        };
-        Ok(GetLoginParamsRes::Success(login_params))
-    }
-    /// 通过统一身份认证系统登录对应的平台，获取回调链接（即 `ticket_url`）
-    ///
-    /// # Parameters
-    ///
-    /// - `service_url`: 登录服务地址
-    ///
-    /// # Returns
-    ///
-    /// 返回回调链接 `ticket_url`
-    ///
-    /// # Errors
-    ///
-    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
-    ///
-    /// # Notes
-    ///
-    /// 如果函数调用成功，且之前 [CasToken] 中的 Cookie 不存在或已失效，
-    /// 那么该函数会刷新 [CasToken] 对应的 Cookie
-    pub(crate) async fn get_ticket_url(
-        &mut self,
-        service_url: &str,
-    ) -> Result<String, crate::Error<AccountIssue>> {
-        #[cfg(not(test))]
-        {
-            self.get_ticket_url_inner(service_url).await
-        }
-        // 处理测试情况下的双因素认证
-        #[cfg(test)]
-        {
-            use crate::cas::tfa::VerifyResult;
-            use std::io::Write;
-
-            loop {
-                let result = self.get_ticket_url_inner(service_url).await;
-                match result {
-                    Ok(v) => {
-                        self.sync_test_cache();
-                        return Ok(v);
-                    }
-                    Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token))) => {
-                        let mut tfa_token = tfa_token;
-                        // 测试时，要求手动输入验证码
-                        loop {
-                            print!("需要双因子认证({}), 是否继续(y/n): ", tfa_token.phone());
-                            std::io::stdout().flush().unwrap();
-                            let mut input = String::new();
-                            std::io::stdin().read_line(&mut input).unwrap();
-                            if input.trim().to_lowercase() == "y" {
-                                break;
-                            } else if input.trim().to_lowercase() == "n" {
-                                panic!("测试停止");
-                            }
-                        }
-
-                        loop {
-                            let res = tfa_token.send_sms().await?;
-                            println!("发送验证码结果: {:?}", res);
-                            print!("请输入验证码（输入 -1 重新发送验证码）: ");
-                            std::io::stdout().flush().unwrap();
-                            let mut input = String::new();
-                            std::io::stdin().read_line(&mut input).unwrap();
-                            let input = input.trim().parse::<i32>().unwrap();
-                            if input == -1 {
-                                continue;
-                            }
-                            let verify_result = tfa_token.verify(&input.to_string()).await?;
-                            match verify_result {
-                                VerifyResult::Success(cas_token) => {
-                                    self.cookie = cas_token.cookie().map(|v| v.to_string());
-                                    // 跳出最外层 loop，然后就会再次循环，相当于重试了
-                                    break;
-                                }
-                                VerifyResult::CodeError(new_tfa_token) => {
-                                    println!("验证码错误，请重新输入");
-                                    tfa_token = new_tfa_token;
-                                }
-                                VerifyResult::Expired => {
-                                    panic!("双因子认证令牌过期");
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => return Err(e),
-                }
-            }
-        }
-    }
-    /// 真正的获取 ticket_url 的逻辑
-    async fn get_ticket_url_inner(
-        &mut self,
-        service_url: &str,
-    ) -> Result<String, crate::Error<AccountIssue>> {
-        let login_params = match self.get_login_params(service_url).await? {
-            GetLoginParamsRes::Skip(ticket_url) => {
-                return Ok(ticket_url);
-            }
-            GetLoginParamsRes::Success(v) => v,
-        };
-        let password = utils::rsa_encrypt(
-            &self.password,
-            &login_params.exponent,
-            &login_params.modulus,
-        );
+        // 加密密码
+        let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus);
         // Post登录表单
         let login = client
-            .post(service_url)
+            .post(SERVICE_URL)
             // .header(CONTENT_TYPE, "application/x-www-form-urlencoded")   //
             // 这个header会自动加上，不用手动加
-            .header(COOKIE, &login_params.cookies.join("; "))
+            .header(COOKIE, &cookies.join("; "))
             .form(&[
                 ("authcode", ""),
-                ("username", &self.stu_id),
-                ("password", &password),
-                ("execution", &login_params.execution),
-                ("_eventId", &login_params.event_id),
+                ("username", stu_id),
+                ("password", &encrypted_password),
+                ("execution", &execution),
+                ("_eventId", &event_id),
             ])
             .send()
             .await
@@ -287,8 +168,7 @@ impl CasToken {
             return Err(crate::Error::Other(AccountIssue::AccountLocked));
         }
         // login_params里面的pv0在后面的请求也会有用(netflow)
-        let addition: Vec<String> = login_params
-            .cookies
+        let addition: Vec<String> = cookies
             .into_iter()
             .filter(|cookie| cookie.starts_with("_pv0="))
             .collect(); // 错误已在前面被处理，一定会有_pv0
@@ -301,12 +181,7 @@ impl CasToken {
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
         if login_result.contains("双因子认证") {
-            let tfa_token = TFAToken::new(
-                &login_result,
-                &cookies.join("; "),
-                &self.stu_id,
-                &self.password,
-            )?;
+            let tfa_token = TFAToken::new(&login_result, &cookies.join("; "), stu_id, password)?;
             return Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token)));
         }
         let location = location
@@ -319,8 +194,58 @@ impl CasToken {
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
         }
-        self.cookie = Some(cookies.join("; "));
-        Ok(location)
+        Ok(Self {
+            cookie: cookies.join("; "),
+            stu_id: stu_id.to_string(),
+        })
+    }
+}
+
+impl CasToken {
+    /// 通过统一身份认证系统登录对应的平台，获取回调链接（即 `ticket_url`）
+    ///
+    /// # Parameters
+    ///
+    /// - `service_url`: 登录服务地址
+    ///
+    /// # Returns
+    ///
+    /// 返回回调链接 `ticket_url`
+    ///
+    /// # Errors
+    ///
+    /// 可能由于当前 [CasToken] 过期，此时会返回 [TokenExpired] 错误
+    pub(crate) async fn get_ticket_url(
+        &self,
+        service_url: &str,
+    ) -> Result<String, crate::Error<TokenExpired>> {
+        let Ok(res) = client
+            .get(service_url)
+            .header(COOKIE, &self.cookie)
+            .send()
+            .await
+            .network_err()?
+            // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
+            // 后续可能还要再验证一下有没有必要这么保守
+            .error_for_status()
+        else {
+            return Err(crate::Error::Other(TokenExpired));
+        };
+        if res.status() == StatusCode::OK {
+            return Err(crate::Error::Other(TokenExpired));
+        }
+        if res.status() != StatusCode::FOUND {
+            return Err(format!("获取ticket_url时失败，HTTP代码 {}", res.status()))
+                .unexpected_err();
+        }
+        let ticket_url = res
+            .headers()
+            .get(LOCATION)
+            .ok_or("没有在 location 中找到 ticket_url")
+            .unexpected_err()?
+            .to_str()
+            .unexpected_err()?;
+        Ok(ticket_url.to_string())
     }
     /// 登录形如 <http://cas.hnu.edu.cn/application/sso.zf?login=B5712DC2FA281C96E053026B3E0A80A6>
     /// 这样的链接的服务
@@ -344,13 +269,11 @@ impl CasToken {
     pub(crate) async fn get_sticket(
         &mut self,
         service_url: &str,
-    ) -> Result<(String, String), crate::Error<AccountIssue>> {
-        // 先请求一下，刷新一下 CasToken 对应的 Cookie
-        self.get_ticket_url(SERVICE_URL).await?;
+    ) -> Result<(String, String), crate::Error<TokenExpired>> {
         // 后面可能会进行多次重定向才能拿到 s_ticket，由于目前 client
         // 关闭了跟随重定向，所以我们手动模拟
         let mut now_url = service_url.to_string();
-        let mut cookies = self.cookie.clone().unwrap_or_default();
+        let mut cookies = self.cookie.clone();
         let mut s_ticket = None;
         // 分析的是大概重定向 4 次就可以拿到 s_ticket，为了保险起见多循环几次（中间拿到 s_ticket
         // 就会 break）
@@ -370,16 +293,23 @@ impl CasToken {
                 break;
             }
             let res = client
-                .get(now_url)
+                .get(&now_url)
                 .header(COOKIE, &cookies)
                 .send()
                 .await
                 .network_err()?
                 .error_for_status()
                 .unexpected_err()?;
+            if res.status() == StatusCode::OK {
+                return Err(crate::Error::Other(TokenExpired));
+            }
             if res.status() != StatusCode::FOUND {
-                return Err(format!("获取s_ticket时失败，HTTP代码 {}", res.status()))
-                    .unexpected_err();
+                return Err(format!(
+                    "获取s_ticket时失败，HTTP代码: {}, url: {}",
+                    res.status(),
+                    now_url
+                ))
+                .unexpected_err();
             }
             now_url = res
                 .headers()
@@ -395,108 +325,10 @@ impl CasToken {
                 cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ")
             );
         }
-        let res = s_ticket
-            .map(|v| (v.to_string(), cookies))
+        let s_ticket = s_ticket
             .ok_or("获取s_ticket失败，未找到s_ticket")
-            .unexpected_err()?;
-        Ok(res)
-    }
-    /// 从 Cookie 创建令牌
-    ///
-    /// # Parameters
-    ///
-    /// - `cookie`: 一个合法的可用作 [CasToken] 的 Cookie 字符串
-    /// - `stu_id`: 该 `cookie` 对应的学号
-    /// - `password`: 该 `cookie` 对应的个人门户密码
-    ///
-    /// # Returns
-    ///
-    /// 返回一个 [CasToken] 实例
-    ///
-    /// # Preconditions
-    ///
-    /// `cookie` 参数应该是一个合法的可用作 [CasToken] 的 Cookie 字符串，否则会导致未定义行为
-    ///
-    /// 同时，`stu_id` 和 `password` 参数应该和 `cookie` 对应，否则会导致未定义行为
-    pub fn from_cookie_unchecked(cookie: &str, stu_id: &str, password: &str) -> Self {
-        Self {
-            cookie: Some(cookie.to_string()),
-            stu_id: stu_id.to_string(),
-            password: password.to_string(),
-        }
-    }
-    /// 获取当前令牌对应的 Cookie，可用于 [CasToken::from_cookie_unchecked]
-    ///
-    /// # Returns
-    ///
-    /// 返回当前令牌对应的 Cookie，为 None 表示没有相关的 Cookie
-    pub fn cookie(&self) -> Option<&str> {
-        self.cookie.as_deref()
-    }
-    /// 获取令牌对应的学号
-    ///
-    /// # Returns
-    ///
-    /// 返回当前令牌对应的学号
-    pub fn stu_id(&self) -> &str {
-        &self.stu_id
-    }
-    /// 获取令牌对应的密码
-    ///
-    /// # Returns
-    ///
-    /// 返回当前令牌对应的密码
-    pub fn password(&self) -> &str {
-        &self.password
-    }
-    /// 创建一个测试用的 [CasToken]
-    ///
-    /// 和 [CasToken::new] 不同的是，如果设置了 `TEST_CAS_CACHE`（详见 `docs/test.md`）
-    /// 这个函数会尝试从工作目录下的 `cache` 文件夹中
-    /// 寻找对应学号和密码的缓存文件，并自动设置令牌的 cookie 字段。
-    /// 从该函数返回的令牌在 cookie 更新时，也会同步更新缓存文件。
-    ///
-    /// 如果没有设置，那么和调用 [CasToken::new] 一样
-    #[cfg(test)]
-    pub(crate) fn new_test(stu_id: &str, password: &str) -> Self {
-        if !*crate::test::TEST_CAS_CACHE {
-            return Self::new(stu_id, password);
-        }
-        use std::io::Read;
-        let cache_name = format!("{:x}", md5::compute(format!("{}{}", stu_id, password)));
-        let mut cache_file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(format!("cache/{}", cache_name))
-            .unwrap();
-        let mut cookies = String::new();
-        cache_file.read_to_string(&mut cookies).unwrap();
-        Self {
-            cookie: if cookies.is_empty() {
-                None
-            } else {
-                Some(cookies)
-            },
-            stu_id: stu_id.to_string(),
-            password: password.to_string(),
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn sync_test_cache(&self) {
-        use std::io::Write;
-        let cache_name = format!(
-            "{:x}",
-            md5::compute(format!("{}{}", self.stu_id, self.password))
-        );
-        let mut cache_file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(format!("cache/{}", cache_name))
-            .unwrap();
-        cache_file
-            .write_all(self.cookie().unwrap_or_default().as_bytes())
-            .unwrap();
+            .unexpected_err()?
+            .to_string();
+        Ok((s_ticket, cookies))
     }
 }

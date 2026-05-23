@@ -72,7 +72,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_order() {
-        let token = get_netflow_token().await.unwrap();
+        let token = get_netflow_token().await;
         let order = get_order(&token).await.unwrap();
         println!("{:#?}", order);
     }

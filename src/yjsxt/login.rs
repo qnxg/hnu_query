@@ -1,5 +1,5 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{self, login::CasToken},
     error::{MapNetworkErr, MapUnexpectedErr, parse_err},
     utils::client,
 };
@@ -19,7 +19,7 @@ impl YjsxtToken {
     ///
     /// # Parameters
     ///
-    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::new] 创建
+    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
     /// # Returns
     ///
@@ -27,10 +27,10 @@ impl YjsxtToken {
     ///
     /// # Errors
     ///
-    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &mut CasToken,
-    ) -> Result<Self, crate::Error<AccountIssue>> {
+    ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(YJSXT_FROM_CAS_URL).await?;
         let res = client
             .get(&ticket_url)
@@ -101,7 +101,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     pub async fn test_get_yjsxt_token() {
-        let yjsxt_token = get_yjsxt_token().await.unwrap();
+        let yjsxt_token = get_yjsxt_token().await;
         println!("{:#?}", yjsxt_token);
     }
 }
