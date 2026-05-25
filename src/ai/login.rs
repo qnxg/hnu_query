@@ -67,10 +67,10 @@ impl AiToken {
     ///
     /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
     pub async fn acquire_by_cas_login(
-        cas_token: &mut CasToken,
+        cas_token: &CasToken,
     ) -> Result<Self, crate::Error<AccountIssue>> {
         let mut current_url = INITIAL_AUTH_URL.to_string();
-        let mut all_cookies = cas_token.cookie().unwrap_or_default().to_string();
+        let mut all_cookies = cas_token.cookie().to_string();
         let mut cas_authenticated = false;
 
         // Phase 1: 跟随 302/303 链，到达 maas callback
@@ -104,28 +104,13 @@ impl AiToken {
             } else if current_url.contains("maas.nscc-cs.cn") {
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
-                // 重定向链中遇到 CAS 登录页，通过统一身份认证登录，用返回的 ticket URL 继续
-                // 将 all_cookies 中积累的 OAuth2 session cookie 合并到 CasToken，确保
-                // get_ticket_url 内部请求能带上 CAS 的 OAuth2 授权会话上下文
-                let merged = format!(
-                    "{}; {}",
-                    cas_token.cookie().unwrap_or_default(),
-                    all_cookies
-                );
-                *cas_token = CasToken::from_cookie_unchecked(
-                    &merged,
-                    cas_token.stu_id(),
-                    cas_token.password(),
-                );
-                let ticket_url = cas_token.get_ticket_url(&current_url).await?;
-                // 将刷新后的 CAS cookie 追加到 all_cookies，保留重定向链中积累的其他 cookie
-                let fresh_cas = cas_token.cookie().unwrap_or_default().to_string();
-                if !fresh_cas.is_empty() {
-                    if !all_cookies.is_empty() {
-                        all_cookies.push_str("; ");
-                    }
-                    all_cookies.push_str(&fresh_cas);
-                }
+                // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie + OAuth2
+                // session cookie 去请求 ticket URL
+                let merged = format!("{}; {}", cas_token.cookie(), all_cookies);
+                let temp_token =
+                    CasToken::from_cookie_unchecked(&merged, cas_token.stu_id());
+                let ticket_url =
+                    temp_token.get_ticket_url(&current_url).await.unexpected_err()?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
