@@ -57,7 +57,7 @@ impl AiToken {
     ///
     /// # Parameters
     ///
-    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::new] 创建。
+    /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建。
     ///
     /// # Returns
     ///
