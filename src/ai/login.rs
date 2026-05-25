@@ -107,10 +107,11 @@ impl AiToken {
                 // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie + OAuth2
                 // session cookie 去请求 ticket URL
                 let merged = format!("{}; {}", cas_token.cookie(), all_cookies);
-                let temp_token =
-                    CasToken::from_cookie_unchecked(&merged, cas_token.stu_id());
-                let ticket_url =
-                    temp_token.get_ticket_url(&current_url).await.unexpected_err()?;
+                let temp_token = CasToken::from_cookie_unchecked(&merged, cas_token.stu_id());
+                let ticket_url = temp_token
+                    .get_ticket_url(&current_url)
+                    .await
+                    .unexpected_err()?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
