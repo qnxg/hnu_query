@@ -96,7 +96,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn test_get_exam_schedule() {
-        let hdjw_token = get_hdjw_token().await.unwrap();
+        let hdjw_token = get_hdjw_token().await;
         let exam_schedule = get_exam_schedule(&hdjw_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();

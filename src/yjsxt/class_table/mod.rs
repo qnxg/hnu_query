@@ -238,7 +238,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_class_table() {
-        let yjsxt_token = get_yjsxt_token().await.unwrap();
+        let yjsxt_token = get_yjsxt_token().await;
         let termcode = crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ)
             .await
             .unwrap();

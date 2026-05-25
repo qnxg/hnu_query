@@ -151,7 +151,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_card_info() {
-        let token = get_pt_token().await.unwrap();
+        let token = get_pt_token().await;
         let res = get_card_info(&token).await.unwrap();
         println!("{:#?}", res);
     }
@@ -159,7 +159,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_card_history() {
-        let token = get_pt_token().await.unwrap();
+        let token = get_pt_token().await;
         let card_history = get_card_history(
             &token,
             *TEST_YEAR,

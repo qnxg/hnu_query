@@ -119,7 +119,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     pub async fn test_get_grade_rank() {
-        let ca_token = get_ca_token().await.unwrap();
+        let ca_token = get_ca_token().await;
         let grade_rank = get_grade_rank(&ca_token).await.unwrap();
         println!("{:#?}", grade_rank);
     }
