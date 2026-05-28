@@ -29,7 +29,7 @@ pub struct Grade {
     /// 该门课程获得的绩点
     pub gpa: Option<f32>,
     /// 该门课程获得的分数
-    pub score: u8,
+    pub score: f64,
     /// 成绩标识
     ///
     /// 如果成绩正常则为 `None`，否则为类似 `缓考`、`重修` 等标识
