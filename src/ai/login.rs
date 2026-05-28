@@ -23,20 +23,23 @@ pub struct AiToken {
 }
 
 /// 将相对路径的 Location 解析为绝对 URL
-fn resolve_location(current_url: &str, location: &str) -> String {
+fn resolve_location(current_url: &str, location: &str) -> Result<String, String> {
     if location.starts_with("http://") || location.starts_with("https://") {
-        return location.to_string();
+        return Ok(location.to_string());
+    }
+    if !location.starts_with('/') {
+        return Err(format!("Location 不是绝对路径且没有前导 /: {}", location));
     }
     let after_proto = match current_url.find("://") {
         Some(pos) => &current_url[pos + 3..],
-        None => return format!("{}{}", current_url.trim_end_matches('/'), location),
+        None => return Ok(format!("{}{}", current_url.trim_end_matches('/'), location)),
     };
     match after_proto.find('/') {
         Some(path_start) => {
             let origin_end = current_url.len() - after_proto.len() + path_start;
-            format!("{}{}", &current_url[..origin_end], location)
+            Ok(format!("{}{}", &current_url[..origin_end], location))
         }
-        None => format!("{}{}", current_url.trim_end_matches('/'), location),
+        None => Ok(format!("{}{}", current_url.trim_end_matches('/'), location)),
     }
 }
 
@@ -100,14 +103,13 @@ impl AiToken {
                     .unexpected_err()?
                     .to_str()
                     .unexpected_err()?;
-                current_url = resolve_location(&current_url, location);
+                current_url = resolve_location(&current_url, location).unexpected_err()?;
             } else if current_url.contains("maas.nscc-cs.cn") {
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
                 // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie + OAuth2
                 // session cookie 去请求 ticket URL
-                let merged = format!("{}; {}", cas_token.cookie(), all_cookies);
-                let temp_token = CasToken::from_cookie_unchecked(&merged, cas_token.stu_id());
+                let temp_token = CasToken::from_cookie_unchecked(&all_cookies, cas_token.stu_id());
                 let ticket_url = temp_token
                     .get_ticket_url(&current_url)
                     .await
@@ -121,6 +123,14 @@ impl AiToken {
                 ))
                 .unexpected_err();
             }
+        }
+
+        if extract_code(&current_url).is_none() {
+            return Err(format!(
+                "重定向次数超过限制，无法完成登录，当前URL: {}",
+                current_url
+            ))
+            .unexpected_err();
         }
 
         // Phase 2: 从 callback URL 提取 code，POST 到 oauth-login 换 token

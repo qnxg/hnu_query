@@ -27,7 +27,7 @@ pub async fn raw_token_list(token: &AiToken) -> Result<Value, crate::Error<Infal
     Ok(res)
 }
 
-pub async fn raw_token_key(token: &AiToken, id: &str) -> Result<Value, crate::Error<Infallible>> {
+pub async fn raw_token_key(token: &AiToken, id: u64) -> Result<Value, crate::Error<Infallible>> {
     let headers = token.headers().clone();
     let json_str = client
         .get(format!("{}/{}/key", TOKENS_URL, id))
@@ -44,10 +44,7 @@ pub async fn raw_token_key(token: &AiToken, id: &str) -> Result<Value, crate::Er
     Ok(res)
 }
 
-pub async fn raw_delete_token(
-    token: &AiToken,
-    id: &str,
-) -> Result<Value, crate::Error<Infallible>> {
+pub async fn raw_delete_token(token: &AiToken, id: u64) -> Result<Value, crate::Error<Infallible>> {
     let headers = token.headers().clone();
     let json_str = client
         .delete(format!("{}/{}", TOKENS_URL, id))

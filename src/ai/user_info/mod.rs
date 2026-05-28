@@ -15,11 +15,11 @@ use std::convert::Infallible;
 /// # Returns
 ///
 /// 返回 `data.total_granted` 的值（剩余 token）
-pub async fn get_user_total_granted(token: &AiToken) -> Result<i32, crate::Error<Infallible>> {
+pub async fn get_user_total_granted(token: &AiToken) -> Result<i64, crate::Error<Infallible>> {
     let raw_data = raw_user_info_data(token).await?;
     let total_granted = raw_data["data"]["total_granted"].as_i64().ok_or(parse_err(
         &serde_json::to_string(&raw_data).unwrap_or_default(),
-    ))? as i32;
+    ))?;
     Ok(total_granted)
 }
 

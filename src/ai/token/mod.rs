@@ -11,11 +11,13 @@ use std::convert::Infallible;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenInfo {
     pub token_name: String,
-    pub id: String,
+    pub id: u64,
 }
 
 /// 获取 token 列表
 ///
+/// **注意：token 是可以重名的**
+/// 
 /// # Parameters
 ///
 /// - `token`: 已登录的 [AiToken]
@@ -25,9 +27,10 @@ pub struct TokenInfo {
 /// 返回 token 列表，无 token 时返回空列表
 pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
     let raw_data = raw_token_list(token).await?;
-    let arr = raw_data["data"].as_array().ok_or(parse_err(
-        &serde_json::to_string(&raw_data).unwrap_or_default(),
-    ))?;
+    let arr = raw_data["data"]
+        .as_array()
+        .map(|a| a.as_slice())
+        .unwrap_or(&[]);
     arr.iter()
         .map(|item| {
             Ok(TokenInfo {
@@ -36,9 +39,8 @@ pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Er
                     .ok_or(parse_err(&serde_json::to_string(item).unwrap_or_default()))?
                     .to_string(),
                 id: item["id"]
-                    .as_str()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| item["id"].to_string()),
+                    .as_u64()
+                    .ok_or(parse_err(&serde_json::to_string(item).unwrap_or_default()))?,
             })
         })
         .collect()
@@ -54,7 +56,7 @@ pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Er
 /// # Returns
 ///
 /// 返回 key 值
-pub async fn get_token_key(token: &AiToken, id: &str) -> Result<String, crate::Error<Infallible>> {
+pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<Infallible>> {
     let raw_data = raw_token_key(token, id).await?;
     let key = raw_data["data"]["key"].as_str().ok_or(parse_err(
         &serde_json::to_string(&raw_data).unwrap_or_default(),
@@ -70,7 +72,7 @@ pub async fn get_token_key(token: &AiToken, id: &str) -> Result<String, crate::E
 ///
 /// - `token`: 已登录的 [AiToken]
 /// - `id`: 要删除的 token 的 ID
-pub async fn delete_token(token: &AiToken, id: &str) -> Result<(), crate::Error<Infallible>> {
+pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<Infallible>> {
     let _raw_data = raw_delete_token(token, id).await?;
     Ok(())
 }
@@ -107,7 +109,7 @@ mod tests {
         let token = get_ai_token().await.unwrap();
         let tokens = get_token_list(&token).await.unwrap();
         if let Some(t) = tokens.first() {
-            let key = get_token_key(&token, &t.id).await.unwrap();
+            let key = get_token_key(&token, t.id).await.unwrap();
             println!("key: {}", key);
         }
     }
@@ -127,7 +129,7 @@ mod tests {
         let tokens = get_token_list(&token).await.unwrap();
         // 删除 test_create_token 中创建的同名 token
         if let Some(t) = tokens.iter().find(|t| t.token_name == "test-token") {
-            delete_token(&token, &t.id).await.unwrap();
+            delete_token(&token, t.id).await.unwrap();
             println!("delete_token success");
         }
     }
