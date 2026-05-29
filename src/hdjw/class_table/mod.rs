@@ -153,7 +153,6 @@ pub async fn get_class_table(
                 .ok_or(parse_err_with_reason(&item.sktime, "上课时间: time"))?
                 .as_str()
                 .split('、')
-                .collect::<Vec<_>>()
             {
                 let parts = time_range.split('-').collect::<Vec<_>>();
                 let time_l = parts
@@ -175,7 +174,6 @@ pub async fn get_class_table(
                 .ok_or(parse_err_with_reason(&item.sktime, "上课时间: week"))?
                 .as_str()
                 .split(',')
-                .collect::<Vec<_>>()
             {
                 let parts = week_range.split('-').collect::<Vec<_>>();
                 let week_l = parts

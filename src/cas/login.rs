@@ -288,7 +288,8 @@ impl CasToken {
                         .ok_or("获取s_ticket失败")
                         .unexpected_err()?
                         .split('=')
-                        .collect::<Vec<&str>>()[1],
+                        .nth(1)
+                        .unwrap(),
                 );
                 break;
             }

@@ -39,7 +39,7 @@ impl CaToken {
             .error_for_status()
             .unexpected_err()?;
         // TODO 这里可能会 panic
-        let ticket = ticket_url.split("ticket=").collect::<Vec<&str>>()[1];
+        let ticket = ticket_url.split("ticket=").nth(1).unwrap();
         let json_str =
         client.get(format!("https://ca.hnu.edu.cn/student/cas/client/validateLogin?ticket={ticket}%23%2F&service=https:%2F%2Fca.hnu.edu.cn%2Fstudent%2F"))
         .send().await
