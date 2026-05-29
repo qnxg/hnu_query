@@ -111,10 +111,14 @@ impl CasToken {
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
         // 拿到登录表单的execution和_eventId
         let login_text = res.text().await.unexpected_err()?;
-        static EXECUTION_RE: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r#"name="execution" value="(.*?)""#).unwrap());
-        static EVENT_ID_RE: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r#"name="_eventId" value="(.*?)""#).unwrap());
+        static EXECUTION_RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"name="execution" value="(.*?)""#)
+                .unwrap_or_else(|e| panic!("invalid EXECUTION_RE regex: {:?}", e))
+        });
+        static EVENT_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"name="_eventId" value="(.*?)""#)
+                .unwrap_or_else(|e| panic!("invalid EVENT_ID_RE regex: {:?}", e))
+        });
         let execution = EXECUTION_RE
             .captures(&login_text)
             .and_then(|cap| cap.get(1))
@@ -147,7 +151,9 @@ impl CasToken {
             .ok_or(parse_err(&pubkey_str))?
             .to_string();
         // 加密密码
-        let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus);
+        let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus)
+            .ok_or("RSA encryption failed")
+            .unexpected_err()?;
         // Post登录表单
         let login = client
             .post(SERVICE_URL)
@@ -285,11 +291,9 @@ impl CasToken {
                     now_url
                         .split('&')
                         .find(|s| s.starts_with("s_ticket="))
-                        .ok_or("获取s_ticket失败")
-                        .unexpected_err()?
-                        .split('=')
-                        .nth(1)
-                        .unwrap(),
+                        .and_then(|s| s.split('=').nth(1))
+                        .ok_or("malformed s_ticket parameter")
+                        .unexpected_err()?,
                 );
                 break;
             }

@@ -1,13 +1,18 @@
 use crate::{
     cas::{self},
     gym::login::GymToken,
-    test::{TEST_PASSWORD, TEST_STU_ID},
+    test::{TEST_PASSWORD, TEST_STU_ID, test_ok},
 };
+
 use std::convert::Infallible;
 
 pub async fn get_gym_token_by_cas_login() -> GymToken {
-    let cas_token = cas::test::get_cas_token().await.unwrap();
-    GymToken::acquire_by_cas_login(&cas_token).await.unwrap()
+    let cas_token = test_ok(cas::test::get_cas_token().await, "get CAS token");
+
+    test_ok(
+        GymToken::acquire_by_cas_login(&cas_token).await,
+        "acquire gym token via CAS",
+    )
 }
 
 pub async fn get_gym_token_by_direct_login() -> Result<GymToken, crate::Error<Infallible>> {

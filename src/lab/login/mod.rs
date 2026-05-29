@@ -178,12 +178,12 @@ impl LabToken {
 #[cfg(test)]
 mod test {
 
-    use crate::lab::test::get_lab_token;
+    use crate::{lab::test::get_lab_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_lab_token() {
-        let lab_token = get_lab_token().await.unwrap();
+        let lab_token = test_ok(get_lab_token().await, "get lab token");
         println!("{:#?}", lab_token);
     }
 }

@@ -123,7 +123,10 @@ impl GymToken {
 
 #[cfg(test)]
 mod test {
-    use crate::gym::test::{get_gym_token_by_cas_login, get_gym_token_by_direct_login};
+    use crate::{
+        gym::test::{get_gym_token_by_cas_login, get_gym_token_by_direct_login},
+        test::test_ok,
+    };
 
     #[tokio::test]
     #[ignore]
@@ -135,7 +138,10 @@ mod test {
     #[tokio::test]
     #[ignore]
     pub async fn test_get_gym_token_by_direct_login() {
-        let gym_token = get_gym_token_by_direct_login().await.unwrap();
+        let gym_token = test_ok(
+            get_gym_token_by_direct_login().await,
+            "get gym token by direct login",
+        );
         println!("{:#?}", gym_token);
     }
 }

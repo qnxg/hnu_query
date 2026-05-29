@@ -50,13 +50,19 @@ pub async fn get_course_list(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lab::test::{TEST_SEMESTER_ID, get_lab_token};
+    use crate::{
+        lab::test::{TEST_SEMESTER_ID, get_lab_token},
+        test::test_ok,
+    };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_course_list() {
-        let lab_token = get_lab_token().await.unwrap();
-        let course_list = get_course_list(&lab_token, TEST_SEMESTER_ID).await.unwrap();
+        let lab_token = test_ok(get_lab_token().await, "get lab token");
+        let course_list = test_ok(
+            get_course_list(&lab_token, TEST_SEMESTER_ID).await,
+            "get course list",
+        );
         println!("{:#?}", course_list);
     }
 }

@@ -119,7 +119,8 @@ pub async fn get_class_table(
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let raw_data = raw_class_table_data(hdjw_token, xn, xq).await?;
     let mut courses = Vec::with_capacity(raw_data.len());
-    let re = Regex::new(r"周(.)第(.*)节.*\{第(.*)周\}").expect("创建正则表达式失败");
+    let re = Regex::new(r"周(.)第(.*)节.*\{第(.*)周\}")
+        .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
     for item in raw_data {
         let places = item.skddmc.split(';').collect::<Vec<_>>();
         let detail_times = item.sktime.split(';');
@@ -268,15 +269,16 @@ pub async fn get_class_table_extra(
 mod test {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
-    use crate::test::{TEST_XN, TEST_XQ};
+    use crate::test::{TEST_XN, TEST_XQ, test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_classtable() {
         let hdjw_token = get_hdjw_token().await;
-        let classtable = get_class_table(&hdjw_token, *TEST_XN, *TEST_XQ)
-            .await
-            .unwrap();
+        let classtable = test_ok(
+            get_class_table(&hdjw_token, *TEST_XN, *TEST_XQ).await,
+            "get class table",
+        );
         println!("{:#?}", classtable);
     }
 
@@ -284,9 +286,10 @@ mod test {
     #[ignore]
     async fn test_get_class_table_extra() {
         let hdjw_token = get_hdjw_token().await;
-        let extra_courses = get_class_table_extra(&hdjw_token, *TEST_XN, *TEST_XQ)
-            .await
-            .unwrap();
+        let extra_courses = test_ok(
+            get_class_table_extra(&hdjw_token, *TEST_XN, *TEST_XQ).await,
+            "get class table extra",
+        );
         println!("{:#?}", extra_courses);
     }
 }

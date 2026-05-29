@@ -132,23 +132,25 @@ mod test {
         TEST_HDJW_BUILDING_ID, TEST_HDJW_DAY_OF_WEEK, TEST_HDJW_TIME, TEST_HDJW_WEEK,
         get_hdjw_token,
     };
-    use crate::test::{TEST_XN, TEST_XQ};
+    use crate::test::{TEST_XN, TEST_XQ, test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_empty_classroom() {
         let hdjw_token = get_hdjw_token().await;
-        let empty_classroom = get_empty_classroom(
-            &hdjw_token,
-            TEST_HDJW_BUILDING_ID,
-            *TEST_HDJW_WEEK,
-            *TEST_HDJW_DAY_OF_WEEK,
-            &TEST_HDJW_TIME,
-            *TEST_XN,
-            *TEST_XQ,
-        )
-        .await
-        .unwrap();
+        let empty_classroom = test_ok(
+            get_empty_classroom(
+                &hdjw_token,
+                TEST_HDJW_BUILDING_ID,
+                *TEST_HDJW_WEEK,
+                *TEST_HDJW_DAY_OF_WEEK,
+                &TEST_HDJW_TIME,
+                *TEST_XN,
+                *TEST_XQ,
+            )
+            .await,
+            "get empty classroom",
+        );
         println!("{:#?}", empty_classroom);
     }
 }

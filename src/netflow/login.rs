@@ -55,7 +55,15 @@ impl NetflowToken {
             return Err("获取到空的cookies").unexpected_err();
         }
         let mut headers = HeaderMap::new();
-        let cookies = format!("{}; {}", cookies.first().unwrap(), cookies.last().unwrap());
+        let first = cookies
+            .first()
+            .ok_or("missing first cookie")
+            .unexpected_err()?;
+        let last = cookies
+            .last()
+            .ok_or("missing last cookie")
+            .unexpected_err()?;
+        let cookies = format!("{first}; {last}");
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
         Ok(Self { headers })
     }

@@ -260,13 +260,13 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
 #[cfg(test)]
 mod test {
     use super::get_grade;
-    use crate::{gym::test::get_gym_token, test::TEST_XN};
+    use crate::{gym::test::get_gym_token, test::{TEST_XN, test_ok}};
 
     #[tokio::test]
     #[ignore]
     pub async fn test_get_grade() {
         let gym_token = get_gym_token().await;
-        let grade = get_grade(&gym_token, *TEST_XN).await.unwrap();
+        let grade = test_ok(get_grade(&gym_token, *TEST_XN).await, "get grade");
         println!("{:#?}", grade);
     }
 }

@@ -91,15 +91,16 @@ pub async fn get_exam_schedule(
 mod test {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
-    use crate::test::{TEST_XN, TEST_XQ};
+    use crate::test::{TEST_XN, TEST_XQ, test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_exam_schedule() {
         let hdjw_token = get_hdjw_token().await;
-        let exam_schedule = get_exam_schedule(&hdjw_token, *TEST_XN, *TEST_XQ)
-            .await
-            .unwrap();
+        let exam_schedule = test_ok(
+            get_exam_schedule(&hdjw_token, *TEST_XN, *TEST_XQ).await,
+            "get exam schedule",
+        );
         println!("{:#?}", exam_schedule);
     }
 }

@@ -1,6 +1,8 @@
 use crate::cas;
 use crate::cas::login::CasToken;
-use crate::error::{MapNetworkErr, MapParseErr, MapUnexpectedErr};
+use crate::error::{
+    MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason,
+};
 use crate::utils::client;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
@@ -38,8 +40,11 @@ impl CaToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        // TODO 这里可能会 panic
-        let ticket = ticket_url.split("ticket=").nth(1).unwrap();
+        let ticket = ticket_url
+            .split("ticket=")
+            .nth(1)
+            .ok_or("ticket not found in ticket_url")
+            .unexpected_err()?;
         let json_str =
         client.get(format!("https://ca.hnu.edu.cn/student/cas/client/validateLogin?ticket={ticket}%23%2F&service=https:%2F%2Fca.hnu.edu.cn%2Fstudent%2F"))
         .send().await
@@ -54,8 +59,12 @@ impl CaToken {
         if json["message"] != "登录成功" {
             return Err(format!("登录失败: {}", json["message"])).unexpected_err();
         }
-        // TODO 这里可能会 panic？
-        let token = json["result"]["token"].as_str().unwrap();
+        let token = json["result"]["token"]
+            .as_str()
+            .ok_or(parse_err_with_reason(
+                &json_str,
+                "Ca 系统返回的 token 字段不存在",
+            ))?;
         let cookie = format!("X-Access-Token={token}");
         let mut headers = HeaderMap::new();
         headers.insert("X-Access-Token", token.parse().parse_err(token)?);

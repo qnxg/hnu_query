@@ -3,6 +3,7 @@ use crate::{
         login::{AccountIssue, CasToken},
         tfa::VerifyResult,
     },
+    error::MapUnexpectedErr,
     test::{TEST_CAS_CACHE, TEST_PASSWORD, TEST_STU_ID},
 };
 use std::io::{Read, Write};
@@ -28,9 +29,9 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
             .write(true)
             .create(true)
             .open(format!("cache/{}", cache_name))
-            .unwrap();
+            .unexpected_err()?;
         let mut cookies = String::new();
-        cache_file.read_to_string(&mut cookies).unwrap();
+        cache_file.read_to_string(&mut cookies).unexpected_err()?;
         if !cookies.is_empty() {
             return Ok(CasToken::from_cookie_unchecked(&cookies, stu_id));
         }
@@ -47,9 +48,9 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
             // 测试时，要求手动输入验证码
             loop {
                 print!("需要双因子认证({}), 是否继续(y/n): ", tfa_token.phone());
-                std::io::stdout().flush().unwrap();
+                std::io::stdout().flush().unexpected_err()?;
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
+                std::io::stdin().read_line(&mut input).unexpected_err()?;
                 if input.trim().to_lowercase() == "y" {
                     break;
                 } else if input.trim().to_lowercase() == "n" {
@@ -61,10 +62,14 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
                 let res = tfa_token.send_sms().await?;
                 println!("发送验证码结果: {:?}", res);
                 print!("请输入验证码（输入 -1 重新发送验证码）: ");
-                std::io::stdout().flush().unwrap();
+                std::io::stdout().flush().unexpected_err()?;
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
-                let input = input.trim().parse::<i32>().unwrap();
+                std::io::stdin().read_line(&mut input).unexpected_err()?;
+                let input = input
+                    .trim()
+                    .parse::<i32>()
+                    .map_err(|e| format!("invalid verification code: {e}"))
+                    .unexpected_err()?;
                 if input == -1 {
                     continue;
                 }
@@ -92,8 +97,10 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
             .write(true)
             .create(true)
             .open(format!("cache/{}", cache_name))
-            .unwrap();
-        cache_file.write_all(cas_token.cookie().as_bytes()).unwrap();
+            .unexpected_err()?;
+        cache_file
+            .write_all(cas_token.cookie().as_bytes())
+            .unexpected_err()?;
     }
     Ok(cas_token)
 }

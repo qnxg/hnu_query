@@ -61,6 +61,11 @@ pub async fn raw_certification_data(
         .error_for_status()
         .unexpected_err()?;
     let bytes = res.bytes().await.unexpected_err()?;
-    let pdf = pdf_extract::extract_text_from_mem(&bytes).unwrap();
+    let pdf = pdf_extract::extract_text_from_mem(&bytes).map_err(|e| {
+        parse_err(&format!(
+            "failed to extract PDF text ({} bytes): {e}",
+            bytes.len()
+        ))
+    })?;
     Ok(pdf)
 }

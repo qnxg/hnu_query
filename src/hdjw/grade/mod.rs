@@ -119,7 +119,7 @@ pub async fn get_grade_detail(
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
             .build()
-            .expect("构建正则表达式失败");
+            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
     let caps = regex
         .captures(&raw_data)
         .ok_or(parse_err(&raw_data))?
@@ -199,14 +199,17 @@ mod test {
     use super::*;
     use crate::{
         hdjw::test::{TEST_HDJW_JX0404ID, get_hdjw_token},
-        test::{TEST_XN, TEST_XQ},
+        test::{TEST_XN, TEST_XQ, test_ok},
     };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_grade() {
         let hdjw_token = get_hdjw_token().await;
-        let grade = get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await.unwrap();
+        let grade = test_ok(
+            get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await,
+            "get grade",
+        );
         println!("{:#?}", grade);
     }
 
@@ -214,9 +217,10 @@ mod test {
     #[ignore]
     async fn test_get_grade_detail() {
         let hdjw_token = get_hdjw_token().await;
-        let grade_detail = get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID)
-            .await
-            .unwrap();
+        let grade_detail = test_ok(
+            get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID).await,
+            "get grade detail",
+        );
         println!("{:#?}", grade_detail);
     }
 }

@@ -7,6 +7,7 @@
 #![warn(clippy::needless_pass_by_ref_mut)]
 #![warn(clippy::dbg_macro)]
 #![warn(clippy::needless_collect)]
+#![warn(clippy::unwrap_used)]
 #![warn(clippy::todo, reason = "在`git commit`之前，请确认代码中没有`todo!()`")]
 
 pub mod ca;

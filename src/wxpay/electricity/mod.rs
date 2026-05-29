@@ -81,7 +81,10 @@ mod tests {
         let build = env!("TEST_DORMITORY_BUILD");
         let room = env!("TEST_DORMITORY_ROOM");
         let dormitory = Dormitory::from_parsed_value(park, build, room);
-        let electricity = get_electricity(dormitory).await.unwrap();
+        let electricity = crate::test::test_ok(
+            get_electricity(dormitory).await,
+            "get electricity",
+        );
         println!("{:#?}", electricity);
     }
 }

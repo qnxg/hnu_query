@@ -22,13 +22,13 @@ pub async fn get_overdue_payment(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::netflow::test::get_netflow_token;
+    use crate::{netflow::test::get_netflow_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_overdue_payment() {
         let token = get_netflow_token().await;
-        let overdue_payment = get_overdue_payment(&token).await.unwrap();
+        let overdue_payment = test_ok(get_overdue_payment(&token).await, "get overdue payment");
         println!("{:#?}", overdue_payment);
     }
 }
