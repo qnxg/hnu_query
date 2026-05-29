@@ -33,7 +33,7 @@ impl GymToken {
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
-        cas_token: &mut CasToken,
+        cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, _) = cas_token.get_sticket(GYM_URL_FROM_CAS).await?;
         // 发送请求

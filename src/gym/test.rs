@@ -6,10 +6,8 @@ use crate::{
 use std::convert::Infallible;
 
 pub async fn get_gym_token_by_cas_login() -> GymToken {
-    let mut cas_token = cas::test::get_cas_token().await.unwrap();
-    GymToken::acquire_by_cas_login(&mut cas_token)
-        .await
-        .unwrap()
+    let cas_token = cas::test::get_cas_token().await.unwrap();
+    GymToken::acquire_by_cas_login(&cas_token).await.unwrap()
 }
 
 pub async fn get_gym_token_by_direct_login() -> Result<GymToken, crate::Error<Infallible>> {

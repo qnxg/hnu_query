@@ -267,7 +267,7 @@ impl CasToken {
     /// 后来发现体测系统也需要这么做了，于是就把这个逻辑抽取出来放在这里了，所以这个
     /// 函数本身的实际意义并不明显
     pub(crate) async fn get_sticket(
-        &mut self,
+        &self,
         service_url: &str,
     ) -> Result<(String, String), crate::Error<TokenExpired>> {
         // 后面可能会进行多次重定向才能拿到 s_ticket，由于目前 client

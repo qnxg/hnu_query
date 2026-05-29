@@ -30,7 +30,7 @@ impl XgxtToken {
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
-        cas_token: &mut CasToken,
+        cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(XGXT_URL).await?;
         // cas 下发的 ticket_url 是 http 的，但是学工系统要用 https

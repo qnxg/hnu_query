@@ -21,6 +21,7 @@ pub struct LabToken {
 }
 
 /// 登录实验平台时可能遇到的错误
+#[expect(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum LoginIssue {
     /// 密码错误

@@ -4,8 +4,8 @@ use crate::{
 };
 
 pub async fn get_yjsxt_token() -> YjsxtToken {
-    let mut cas_token = cas::test::get_cas_token().await.unwrap();
-    YjsxtToken::acquire_by_cas_login(&mut cas_token)
+    let cas_token = cas::test::get_cas_token().await.unwrap();
+    YjsxtToken::acquire_by_cas_login(&cas_token)
         .await
         .unwrap()
 }

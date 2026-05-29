@@ -27,8 +27,6 @@ pub static TEST_HDJW_TIME: LazyLock<Vec<u8>> = LazyLock::new(|| {
 });
 
 pub async fn get_hdjw_token() -> HdjwToken {
-    let mut cas_token = cas::test::get_cas_token().await.unwrap();
-    HdjwToken::acquire_by_cas_login(&mut cas_token)
-        .await
-        .unwrap()
+    let cas_token = cas::test::get_cas_token().await.unwrap();
+    HdjwToken::acquire_by_cas_login(&cas_token).await.unwrap()
 }

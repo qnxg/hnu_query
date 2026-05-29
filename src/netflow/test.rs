@@ -4,8 +4,8 @@ use crate::{
 };
 
 pub async fn get_netflow_token() -> NetflowToken {
-    let mut cas_token = cas::test::get_cas_token().await.unwrap();
-    NetflowToken::acquire_by_cas_login(&mut cas_token)
+    let cas_token = cas::test::get_cas_token().await.unwrap();
+    NetflowToken::acquire_by_cas_login(&cas_token)
         .await
         .unwrap()
 }
