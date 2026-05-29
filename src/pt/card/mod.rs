@@ -117,8 +117,7 @@ pub async fn get_card_history(
             .nowAmt
             .trim()
             // 可能会有 1,359.30 这种情况
-            .replace(',', "")
-            .replace(' ', "")
+            .replace([',', ' '], "")
             .parse::<f64>()
             .parse_err_with_reason(&item.nowAmt, "now_balance")?;
         let amount = item
