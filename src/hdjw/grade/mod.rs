@@ -164,9 +164,8 @@ pub async fn get_grade_detail(
                 .filter(|item| item.get("field").and_then(|f| f.as_str()).is_some())
                 .map(|item| {
                     let key = item.get("field").and_then(|f| f.as_str());
-                    item.get("title")
-                        .and_then(|f| f.as_str())
-                        .and_then(|value| key.map(|key| (key, value)))
+                    key.zip(item.get("title")
+                        .and_then(|f| f.as_str()))
                         .ok_or(parse_err(&raw_data))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
