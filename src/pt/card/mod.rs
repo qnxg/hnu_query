@@ -115,6 +115,9 @@ pub async fn get_card_history(
             .parse_err_with_reason(&item.jndatetime, "journal_time")?;
         let now_balance = item
             .nowAmt
+            .trim()
+            // 可能会有 1,359.30 这种情况
+            .replace([',', ' '], "")
             .parse::<f64>()
             .parse_err_with_reason(&item.nowAmt, "now_balance")?;
         let amount = item
