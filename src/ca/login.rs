@@ -1,8 +1,6 @@
 use crate::cas;
 use crate::cas::login::CasToken;
-use crate::error::{
-    MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason,
-};
+use crate::error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason};
 use crate::utils::client;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
