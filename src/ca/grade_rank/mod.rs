@@ -68,7 +68,7 @@ pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Inf
     let regex = RegexBuilder::new(r"平均学分绩点排名 ([0-9/]+).*平均学分绩点 ([0-9.]+).*核心课程平均学分绩点排名 ([0-9/]+).*必修课平均学分绩点 ([0-9.]+).*课程算术平均成绩排名 ([0-9/]+).*算术平均分 ([0-9.]+).*核心课程算术平均成绩排名 ([0-9/]+).*必修课算术平均分 ([0-9.]+).*学分加权平均成绩排名 ([0-9/]+).*加权平均分 ([0-9.]+).*核心课程学分加权平均成绩排名 ([0-9/]+).*必修课加权平均分 ([0-9.]+)")
         .dot_matches_new_line(true)
         .build()
-        .expect("构建正则表达式失败");
+        .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
     let caps = regex
         .captures(&raw_data)
         .ok_or(parse_err(&raw_data))?
@@ -114,13 +114,13 @@ pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Inf
 #[cfg(test)]
 mod test {
     use super::get_grade_rank;
-    use crate::ca::test::get_ca_token;
+    use crate::{ca::test::get_ca_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     pub async fn test_get_grade_rank() {
         let ca_token = get_ca_token().await;
-        let grade_rank = get_grade_rank(&ca_token).await.unwrap();
+        let grade_rank = test_ok(get_grade_rank(&ca_token).await, "get grade rank");
         println!("{:#?}", grade_rank);
     }
 }

@@ -52,10 +52,14 @@ fn cookie_parser_inner(cookie: &HeaderValue) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test::test_ok;
 
     #[tokio::test]
     async fn test_init_request() {
-        let res = CLIENT.get("https://www.baidu.com").send().await.unwrap();
+        let res = test_ok(
+            CLIENT.get("https://www.baidu.com").send().await,
+            "send request to baidu",
+        );
         assert!(res.status().is_success());
     }
 }

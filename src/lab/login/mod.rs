@@ -21,6 +21,7 @@ pub struct LabToken {
 }
 
 /// 登录实验平台时可能遇到的错误
+#[expect(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum LoginIssue {
     /// 密码错误
@@ -177,12 +178,12 @@ impl LabToken {
 #[cfg(test)]
 mod test {
 
-    use crate::lab::test::get_lab_token;
+    use crate::{lab::test::get_lab_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_lab_token() {
-        let lab_token = get_lab_token().await.unwrap();
+        let lab_token = test_ok(get_lab_token().await, "get lab token");
         println!("{:#?}", lab_token);
     }
 }

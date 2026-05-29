@@ -67,13 +67,13 @@ pub async fn get_order(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::netflow::test::get_netflow_token;
+    use crate::{netflow::test::get_netflow_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_order() {
         let token = get_netflow_token().await;
-        let order = get_order(&token).await.unwrap();
+        let order = test_ok(get_order(&token).await, "get order");
         println!("{:#?}", order);
     }
 }

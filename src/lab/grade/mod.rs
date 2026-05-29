@@ -140,15 +140,19 @@ pub async fn get_virtual_lab_grade(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lab::test::{TEST_COURSE_ID, TEST_SEMESTER_ID, get_lab_token};
+    use crate::{
+        lab::test::{TEST_COURSE_ID, TEST_SEMESTER_ID, get_lab_token},
+        test::test_ok,
+    };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_lab_grade() {
-        let lab_token = get_lab_token().await.unwrap();
-        let grade = get_lab_grade(&lab_token, TEST_COURSE_ID, TEST_SEMESTER_ID)
-            .await
-            .unwrap();
+        let lab_token = test_ok(get_lab_token().await, "get lab token");
+        let grade = test_ok(
+            get_lab_grade(&lab_token, TEST_COURSE_ID, TEST_SEMESTER_ID).await,
+            "get lab grade",
+        );
         println!("{:#?}", grade);
     }
 }

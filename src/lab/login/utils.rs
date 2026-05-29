@@ -7,7 +7,8 @@ type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
 const LAB_KEY: &str = "1234567891234567";
 
 pub fn lab_encrypt(e: &str) -> String {
-    let cipher = Aes128EcbEnc::new_from_slice(LAB_KEY.as_bytes()).unwrap();
+    let cipher = Aes128EcbEnc::new_from_slice(LAB_KEY.as_bytes())
+        .unwrap_or_else(|_| panic!("LAB_KEY must be 16 bytes"));
     let plaintext = e.as_bytes();
     let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext);
     let p1 = base64.encode(&ciphertext);

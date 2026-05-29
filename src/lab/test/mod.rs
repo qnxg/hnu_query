@@ -13,8 +13,11 @@ pub static TEST_SEMESTER_ID: &str = env!("TEST_LAB_SEMESTER_ID");
 
 pub static TEST_COURSE_ID: &str = env!("TEST_LAB_COURSE_ID");
 
-pub static TEST_LAB_MAX_TRIED: LazyLock<usize> =
-    LazyLock::new(|| env!("TEST_LAB_MAX_TRIED").parse().unwrap());
+pub static TEST_LAB_MAX_TRIED: LazyLock<usize> = LazyLock::new(|| {
+    env!("TEST_LAB_MAX_TRIED")
+        .parse()
+        .unwrap_or_else(|e| panic!("invalid TEST_LAB_MAX_TRIED: {e}"))
+});
 
 pub static TEST_LAB_PASSWORD: &str = env!("TEST_LAB_PASSWORD");
 

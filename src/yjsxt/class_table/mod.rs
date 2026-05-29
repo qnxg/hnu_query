@@ -50,9 +50,10 @@ struct ParsedCourse {
 fn parse_course_info(
     cell_text: &str,
 ) -> Result<(ParsedCourse, HashSet<u8>, String), crate::Error<TokenExpired>> {
-    let class_time_regex =
-        Regex::new(r"上课时间:.*\[([0-9\-]+)周\].*连续周").expect("创建正则表达式失败");
-    let teacher_and_classroom_regex = Regex::new(r"(.*)\[(.*)\]").expect("创建正则表达式失败");
+    let class_time_regex = Regex::new(r"上课时间:.*\[([0-9\-]+)周\].*连续周")
+        .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
+    let teacher_and_classroom_regex =
+        Regex::new(r"(.*)\[(.*)\]").unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
 
     let parts: Vec<&str> = cell_text.split("<br/>").filter(|s| !s.is_empty()).collect();
 
@@ -229,7 +230,7 @@ pub async fn get_class_table(
 #[cfg(test)]
 mod tests {
     use crate::{
-        test::{TEST_XN, TEST_XQ},
+        test::{TEST_XN, TEST_XQ, test_ok},
         yjsxt::test::get_yjsxt_token,
     };
 
@@ -239,10 +240,14 @@ mod tests {
     #[ignore]
     async fn test_get_class_table() {
         let yjsxt_token = get_yjsxt_token().await;
-        let termcode = crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ)
-            .await
-            .unwrap();
-        let class_table = get_class_table(&yjsxt_token, termcode).await.unwrap();
+        let termcode = test_ok(
+            crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ).await,
+            "get termcode",
+        );
+        let class_table = test_ok(
+            get_class_table(&yjsxt_token, termcode).await,
+            "get class table",
+        );
         println!("{:#?}", class_table);
     }
 }

@@ -33,7 +33,7 @@ impl HdjwToken {
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
-        cas_token: &mut CasToken,
+        cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         // 需要先请求 hdjw 的登录页面，获取到相关的 cookie
         let cookies = cookie_parser(

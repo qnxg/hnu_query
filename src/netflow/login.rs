@@ -29,7 +29,7 @@ impl NetflowToken {
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
-        cas_token: &mut CasToken,
+        cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, cookies) = cas_token.get_sticket(NETFLOW_URL).await?;
         // 发送请求
@@ -55,7 +55,15 @@ impl NetflowToken {
             return Err("获取到空的cookies").unexpected_err();
         }
         let mut headers = HeaderMap::new();
-        let cookies = format!("{}; {}", cookies.first().unwrap(), cookies.last().unwrap());
+        let first = cookies
+            .first()
+            .ok_or("missing first cookie")
+            .unexpected_err()?;
+        let last = cookies
+            .last()
+            .ok_or("missing last cookie")
+            .unexpected_err()?;
+        let cookies = format!("{first}; {last}");
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
         Ok(Self { headers })
     }

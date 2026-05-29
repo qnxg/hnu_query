@@ -103,13 +103,13 @@ pub async fn get_lab_schedule(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lab::test::get_lab_token;
+    use crate::{lab::test::get_lab_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_lab_schedule() {
-        let lab_token = get_lab_token().await.unwrap();
-        let schedule = get_lab_schedule(&lab_token).await.unwrap();
+        let lab_token = test_ok(get_lab_token().await, "get lab token");
+        let schedule = test_ok(get_lab_schedule(&lab_token).await, "get lab schedule");
         println!("{:#?}", schedule);
     }
 }

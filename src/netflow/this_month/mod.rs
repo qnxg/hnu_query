@@ -96,13 +96,13 @@ pub async fn get_this_month_info(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::netflow::test::get_netflow_token;
+    use crate::{netflow::test::get_netflow_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_this_month_info() {
         let token = get_netflow_token().await;
-        let this_month_info = get_this_month_info(&token).await.unwrap();
+        let this_month_info = test_ok(get_this_month_info(&token).await, "get this month info");
         println!("{:#?}", this_month_info);
     }
 }

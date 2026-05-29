@@ -55,11 +55,13 @@ impl TFAToken {
         let regex_execution = RegexBuilder::new(r#"name="execution".*?value="(.*?)""#)
             .dot_matches_new_line(true)
             .build()
-            .unwrap();
+            .map_err(|e| format!("invalid execution regex: {:?}", e))
+            .unexpected_err()?;
         let regex_phone = RegexBuilder::new(r#"id="phone".*?name="username".*?value="(.*?)""#)
             .dot_matches_new_line(true)
             .build()
-            .unwrap();
+            .map_err(|e| format!("invalid phone regex: {:?}", e))
+            .unexpected_err()?;
         let execution = regex_execution
             .captures(html)
             .and_then(|cap| cap.get(1))
@@ -173,7 +175,8 @@ mod tests {
     #[test]
     fn test_new_tfa_token() {
         let html = include_str!("test_data/tfa.html");
-        let tfa_token = TFAToken::new(html, "test_cookie", "114514", "1919810").unwrap();
+        let tfa_token = TFAToken::new(html, "test_cookie", "114514", "1919810")
+            .unwrap_or_else(|e| panic!("failed to parse TFA token from test HTML: {e}"));
         assert_eq!(tfa_token.phone, "114514");
         assert_eq!(
             tfa_token.execution,

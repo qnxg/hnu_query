@@ -178,7 +178,7 @@ mod test {
     use super::*;
     use crate::{
         hdjw::test::get_hdjw_token,
-        test::{TEST_XN, TEST_XQ},
+        test::{TEST_XN, TEST_XQ, test_ok},
     };
 
     #[tokio::test]
@@ -186,15 +186,17 @@ mod test {
     pub async fn test_get_rank() {
         let hdjw_token = get_hdjw_token().await;
         let selection = vec![(*TEST_XN, *TEST_XQ)];
-        let rank = get_rank(
-            &hdjw_token,
-            &selection,
-            Range::Major,
-            DataSource::Total,
-            Display::Max,
-        )
-        .await
-        .unwrap();
+        let rank = test_ok(
+            get_rank(
+                &hdjw_token,
+                &selection,
+                Range::Major,
+                DataSource::Total,
+                Display::Max,
+            )
+            .await,
+            "get rank",
+        );
         println!("{:#?}", rank);
     }
 }

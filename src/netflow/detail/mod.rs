@@ -121,16 +121,17 @@ mod tests {
     use super::*;
     use crate::{
         netflow::test::get_netflow_token,
-        test::{TEST_DAY, TEST_MONTH, TEST_YEAR},
+        test::{TEST_DAY, TEST_MONTH, TEST_YEAR, test_ok},
     };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_month_detail() {
         let token = get_netflow_token().await;
-        let res = get_month_detail(&token, *TEST_YEAR, *TEST_MONTH)
-            .await
-            .unwrap();
+        let res = test_ok(
+            get_month_detail(&token, *TEST_YEAR, *TEST_MONTH).await,
+            "get month detail",
+        );
         println!("{:#?}", res);
     }
 
@@ -138,9 +139,10 @@ mod tests {
     #[ignore]
     async fn test_get_day_detail() {
         let token = get_netflow_token().await;
-        let day_detail = get_day_detail(&token, *TEST_YEAR, *TEST_MONTH, *TEST_DAY)
-            .await
-            .unwrap();
+        let day_detail = test_ok(
+            get_day_detail(&token, *TEST_YEAR, *TEST_MONTH, *TEST_DAY).await,
+            "get day detail",
+        );
         println!("{:#?}", day_detail);
     }
 }
