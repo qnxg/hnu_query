@@ -8,6 +8,11 @@
 #![warn(clippy::dbg_macro)]
 #![warn(clippy::needless_collect)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::option_as_ref_deref)]
+#![warn(clippy::redundant_pub_crate)]
+#![warn(clippy::map_unwrap_or)]
+#![warn(clippy::implicit_clone)]
+#![warn(clippy::unused_async)]
 #![warn(clippy::todo, reason = "在`git commit`之前，请确认代码中没有`todo!()`")]
 
 pub mod ca;

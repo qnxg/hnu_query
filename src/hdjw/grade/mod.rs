@@ -182,9 +182,9 @@ pub async fn get_grade_detail(
                 .ok_or(parse_err(&raw_data))?;
             let percentage = v;
             Ok::<_, crate::Error<TokenExpired>>(GradeDetailItem {
-                score: score.to_string(),
+                score: score.clone(),
                 name: name.to_string(),
-                percentage: percentage.to_string(),
+                percentage: percentage.clone(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?

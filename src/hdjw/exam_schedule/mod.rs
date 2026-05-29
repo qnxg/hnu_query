@@ -80,7 +80,7 @@ pub async fn get_exam_schedule(
             area: item.ksxq,
             classroom: item.js_mc,
             date,
-            time: time.map(|s| s.to_string()),
+            time,
             seat: item.zwh,
         });
     }

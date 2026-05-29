@@ -1,4 +1,4 @@
-pub(crate) mod request;
+pub mod request;
 
 // 发送请求的全局请求池，设置请求上限为1000个
-pub(crate) use request::CLIENT as client;
+pub use request::CLIENT as client;
