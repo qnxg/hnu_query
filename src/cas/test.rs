@@ -96,6 +96,7 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
         let mut cache_file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(format!("cache/{}", cache_name))
             .unexpected_err()?;
         cache_file
