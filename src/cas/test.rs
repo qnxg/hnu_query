@@ -24,6 +24,7 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
     let cache_name = format!("{:x}", md5::compute(format!("{}{}", stu_id, password)));
     if *TEST_CAS_CACHE {
         println!("使用 CasToken 缓存: {}", cache_name);
+        std::fs::create_dir_all("cache").expect("Failed to create cache directory");
         let mut cache_file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -93,6 +94,7 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
         Err(e) => return Err(e),
     }
     if *TEST_CAS_CACHE {
+        std::fs::create_dir_all("cache").expect("Failed to create cache directory");
         let mut cache_file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
