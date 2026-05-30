@@ -17,11 +17,11 @@ pub struct OrderItem {
     pub time: String,
     /// 使用的下载流量
     ///
-    /// 单位: 字节
+    /// 单位: 字节 (原始 API 返回即为小数)
     pub download_usage: f64,
     /// 使用的上传流量
     ///
-    /// 单位: 字节
+    /// 单位: 字节 (原始 API 返回即为小数)
     pub upload_usage: f64,
     /// 超额流量
     ///
