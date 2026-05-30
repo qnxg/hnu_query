@@ -17,12 +17,12 @@ pub struct OrderItem {
     pub time: String,
     /// 使用的下载流量
     ///
-    /// 单位: 字节 (原始 API 返回即为小数)
-    pub download_usage: f64,
+    /// 单位: 字节
+    pub download_usage: usize,
     /// 使用的上传流量
     ///
-    /// 单位: 字节 (原始 API 返回即为小数)
-    pub upload_usage: f64,
+    /// 单位: 字节
+    pub upload_usage: usize,
     /// 超额流量
     ///
     /// 单位: GB
@@ -52,8 +52,9 @@ pub async fn get_order(
     for item in raw_data {
         let temp = OrderItem {
             time: item.Month,
-            download_usage: item.Download.unwrap_or_default(),
-            upload_usage: item.Upload.unwrap_or_default(),
+            // 考虑到月流量应当不会超过约 8192TB，此处直接转换不会丢失精度
+            download_usage: item.Download.unwrap_or_default() as usize,
+            upload_usage: item.Upload.unwrap_or_default() as usize,
             over_usage: item.RealOverTraffic,
             should_pay: item.ShouldPay,
             update_time: NaiveDateTime::parse_from_str(&item.UpdateTime, "%Y-%m-%d %H:%M:%S")
