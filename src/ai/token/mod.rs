@@ -4,15 +4,9 @@ use crate::{
     ai::{login::AiToken, token::raw::*},
     error::parse_err,
 };
-use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
-/// Token 信息
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenInfo {
-    pub token_name: String,
-    pub id: u64,
-}
+pub use raw::TokenInfo;
 
 /// 获取 token 列表
 ///
@@ -20,48 +14,32 @@ pub struct TokenInfo {
 ///
 /// # Parameters
 ///
-/// - `token`: 已登录的 [AiToken]
+/// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 ///
 /// # Returns
 ///
 /// 返回 token 列表，无 token 时返回空列表
-pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
-    let raw_data = raw_token_list(token).await?;
-    let arr = raw_data["data"]
-        .as_array()
-        .map(|a| a.as_slice())
-        .unwrap_or(&[]);
-    arr.iter()
-        .map(|item| {
-            Ok(TokenInfo {
-                token_name: item["token_name"]
-                    .as_str()
-                    .ok_or(parse_err(&serde_json::to_string(item).unwrap_or_default()))?
-                    .to_string(),
-                id: item["id"]
-                    .as_u64()
-                    .ok_or(parse_err(&serde_json::to_string(item).unwrap_or_default()))?,
-            })
-        })
-        .collect()
+pub async fn get_token_list(
+    token: &AiToken,
+) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
+    raw_token_list(token).await
 }
 
 /// 获取指定 token 的 key
 ///
 /// # Parameters
 ///
-/// - `token`: 已登录的 [AiToken]
+/// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `id`: token 的 ID
 ///
 /// # Returns
 ///
 /// 返回 key 值
-pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<Infallible>> {
-    let raw_data = raw_token_key(token, id).await?;
-    let key = raw_data["data"]["key"].as_str().ok_or(parse_err(
-        &serde_json::to_string(&raw_data).unwrap_or_default(),
-    ))?;
-    Ok(key.to_string())
+pub async fn get_token_key(
+    token: &AiToken,
+    id: u64,
+) -> Result<String, crate::Error<Infallible>> {
+    raw_token_key(token, id).await
 }
 
 /// 删除指定 token
@@ -70,10 +48,13 @@ pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
 ///
 /// # Parameters
 ///
-/// - `token`: 已登录的 [AiToken]
+/// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `id`: 要删除的 token 的 ID
 pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<Infallible>> {
-    let _raw_data = raw_delete_token(token, id).await?;
+    let success = raw_delete_token(token, id).await?;
+    if !success {
+        return Err(parse_err("删除 token 失败，服务器返回 success=false"));
+    }
     Ok(())
 }
 
@@ -83,10 +64,16 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<I
 ///
 /// # Parameters
 ///
-/// - `token`: 已登录的 [AiToken]
+/// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `name`: token 名称
-pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Error<Infallible>> {
-    let _raw_data = raw_create_token(token, name).await?;
+pub async fn create_token(
+    token: &AiToken,
+    name: &str,
+) -> Result<(), crate::Error<Infallible>> {
+    let success = raw_create_token(token, name).await?;
+    if !success {
+        return Err(parse_err("创建 token 失败，服务器返回 success=false"));
+    }
     Ok(())
 }
 

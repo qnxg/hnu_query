@@ -1,26 +1,19 @@
 mod raw;
 
-use crate::{
-    ai::{login::AiToken, user_info::raw::raw_user_info_data},
-    error::parse_err,
-};
+use crate::ai::{login::AiToken, user_info::raw::raw_user_info_data};
 use std::convert::Infallible;
 
-/// 获取用户剩余 token
+/// 获取用户总计授予额度
 ///
 /// # Parameters
 ///
-/// - `token`: 已登录的 [AiToken]
+/// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 ///
 /// # Returns
 ///
 /// 返回 `data.total_granted` 的值（剩余 token）
 pub async fn get_user_total_granted(token: &AiToken) -> Result<i64, crate::Error<Infallible>> {
-    let raw_data = raw_user_info_data(token).await?;
-    let total_granted = raw_data["data"]["total_granted"].as_i64().ok_or(parse_err(
-        &serde_json::to_string(&raw_data).unwrap_or_default(),
-    ))?;
-    Ok(total_granted)
+    raw_user_info_data(token).await
 }
 
 #[cfg(test)]

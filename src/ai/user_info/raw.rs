@@ -1,6 +1,6 @@
 use crate::{
     ai::login::AiToken,
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::client,
 };
 use serde_json::Value;
@@ -9,7 +9,7 @@ use std::convert::Infallible;
 // maas 平台用户信息端点
 const USER_INFO_URL: &str = "https://maas.nscc-cs.cn/api/user-info";
 
-pub async fn raw_user_info_data(token: &AiToken) -> Result<Value, crate::Error<Infallible>> {
+pub async fn raw_user_info_data(token: &AiToken) -> Result<i64, crate::Error<Infallible>> {
     let headers = token.headers().clone();
     let json_str = client
         .get(USER_INFO_URL)
@@ -23,5 +23,8 @@ pub async fn raw_user_info_data(token: &AiToken) -> Result<Value, crate::Error<I
         .await
         .unexpected_err()?;
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
-    Ok(res)
+    let total_granted = res["data"]["total_granted"]
+        .as_i64()
+        .ok_or(parse_err(&json_str))?;
+    Ok(total_granted)
 }
