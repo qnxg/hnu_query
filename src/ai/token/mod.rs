@@ -19,9 +19,7 @@ pub use raw::TokenInfo;
 /// # Returns
 ///
 /// 返回 token 列表，无 token 时返回空列表
-pub async fn get_token_list(
-    token: &AiToken,
-) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
+pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
     raw_token_list(token).await
 }
 
@@ -35,10 +33,7 @@ pub async fn get_token_list(
 /// # Returns
 ///
 /// 返回 key 值
-pub async fn get_token_key(
-    token: &AiToken,
-    id: u64,
-) -> Result<String, crate::Error<Infallible>> {
+pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<Infallible>> {
     raw_token_key(token, id).await
 }
 
@@ -66,10 +61,7 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<I
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `name`: token 名称
-pub async fn create_token(
-    token: &AiToken,
-    name: &str,
-) -> Result<(), crate::Error<Infallible>> {
+pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Error<Infallible>> {
     let success = raw_create_token(token, name).await?;
     if !success {
         return Err(parse_err("创建 token 失败，服务器返回 success=false"));
