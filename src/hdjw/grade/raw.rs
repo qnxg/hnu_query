@@ -38,7 +38,7 @@ pub struct GradeInfoRes {
     // 似乎又和 xnxqid 重复
     // pub xqstr: String,
     /// 总成绩
-    pub zcj: u8,
+    pub zcj: f64,
     // 总成绩字符串形式（暂时不用）
     // pub zcjstr: String,
     // 未知字段

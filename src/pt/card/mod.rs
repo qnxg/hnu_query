@@ -115,6 +115,9 @@ pub async fn get_card_history(
             .parse_err_with_reason(&item.jndatetime, "journal_time")?;
         let now_balance = item
             .nowAmt
+            .trim()
+            // 可能会有 1,359.30 这种情况
+            .replace([',', ' '], "")
             .parse::<f64>()
             .parse_err_with_reason(&item.nowAmt, "now_balance")?;
         let amount = item
@@ -145,14 +148,14 @@ mod tests {
     use super::*;
     use crate::{
         pt::test::get_pt_token,
-        test::{TEST_MONTH, TEST_YEAR},
+        test::{TEST_MONTH, TEST_YEAR, test_ok},
     };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_card_info() {
         let token = get_pt_token().await;
-        let res = get_card_info(&token).await.unwrap();
+        let res = test_ok(get_card_info(&token).await, "get card info");
         println!("{:#?}", res);
     }
 
@@ -160,14 +163,16 @@ mod tests {
     #[ignore]
     async fn test_get_card_history() {
         let token = get_pt_token().await;
-        let card_history = get_card_history(
-            &token,
-            *TEST_YEAR,
-            *TEST_MONTH,
-            CardHistoryType::Consumption,
-        )
-        .await
-        .unwrap();
+        let card_history = test_ok(
+            get_card_history(
+                &token,
+                *TEST_YEAR,
+                *TEST_MONTH,
+                CardHistoryType::Consumption,
+            )
+            .await,
+            "get card history",
+        );
         println!("{:#?}", card_history);
     }
 }

@@ -1,5 +1,6 @@
 use std::error::Error as StdError;
 
+#[expect(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug)]
 pub enum Error<E: StdError> {
     /// 意料之外的错误

@@ -24,13 +24,16 @@ pub async fn get_unread_email_count(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pt::test::get_pt_token;
+    use crate::{pt::test::get_pt_token, test::test_ok};
 
     #[tokio::test]
     #[ignore]
     async fn test_get_unread_email_count() {
         let token = get_pt_token().await;
-        let unread_email_count = get_unread_email_count(&token).await.unwrap();
+        let unread_email_count = test_ok(
+            get_unread_email_count(&token).await,
+            "get unread email count",
+        );
         println!("{:#?}", unread_email_count);
     }
 }

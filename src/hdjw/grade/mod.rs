@@ -29,7 +29,7 @@ pub struct Grade {
     /// 该门课程获得的绩点
     pub gpa: Option<f32>,
     /// 该门课程获得的分数
-    pub score: u8,
+    pub score: f64,
     /// 成绩标识
     ///
     /// 如果成绩正常则为 `None`，否则为类似 `缓考`、`重修` 等标识
@@ -119,7 +119,7 @@ pub async fn get_grade_detail(
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
             .build()
-            .expect("构建正则表达式失败");
+            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
     let caps = regex
         .captures(&raw_data)
         .ok_or(parse_err(&raw_data))?
@@ -164,9 +164,7 @@ pub async fn get_grade_detail(
                 .filter(|item| item.get("field").and_then(|f| f.as_str()).is_some())
                 .map(|item| {
                     let key = item.get("field").and_then(|f| f.as_str());
-                    item.get("title")
-                        .and_then(|f| f.as_str())
-                        .and_then(|value| key.map(|key| (key, value)))
+                    key.zip(item.get("title").and_then(|f| f.as_str()))
                         .ok_or(parse_err(&raw_data))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
@@ -184,9 +182,9 @@ pub async fn get_grade_detail(
                 .ok_or(parse_err(&raw_data))?;
             let percentage = v;
             Ok::<_, crate::Error<TokenExpired>>(GradeDetailItem {
-                score: score.to_string(),
+                score: score.clone(),
                 name: name.to_string(),
-                percentage: percentage.to_string(),
+                percentage: percentage.clone(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?
@@ -201,14 +199,17 @@ mod test {
     use super::*;
     use crate::{
         hdjw::test::{TEST_HDJW_JX0404ID, get_hdjw_token},
-        test::{TEST_XN, TEST_XQ},
+        test::{TEST_XN, TEST_XQ, test_ok},
     };
 
     #[tokio::test]
     #[ignore]
     async fn test_get_grade() {
         let hdjw_token = get_hdjw_token().await;
-        let grade = get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await.unwrap();
+        let grade = test_ok(
+            get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await,
+            "get grade",
+        );
         println!("{:#?}", grade);
     }
 
@@ -216,9 +217,10 @@ mod test {
     #[ignore]
     async fn test_get_grade_detail() {
         let hdjw_token = get_hdjw_token().await;
-        let grade_detail = get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID)
-            .await
-            .unwrap();
+        let grade_detail = test_ok(
+            get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID).await,
+            "get grade detail",
+        );
         println!("{:#?}", grade_detail);
     }
 }
