@@ -18,6 +18,7 @@ pub async fn get_user_total_granted(token: &AiToken) -> Result<i64, crate::Error
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::ai::test::get_ai_token;
 

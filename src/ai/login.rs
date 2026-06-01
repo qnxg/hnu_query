@@ -192,6 +192,7 @@ impl AiToken {
 
 #[cfg(test)]
 mod test {
+    #![allow(clippy::unwrap_used)]
     use crate::ai::test::get_ai_token;
 
     #[tokio::test]

@@ -71,6 +71,7 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Erro
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::ai::test::get_ai_token;
 
