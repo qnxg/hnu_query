@@ -140,9 +140,9 @@ pub async fn get_person_info(
         .ok_or(parse_err_with_reason(&entries_str, "level"))?
         .as_ref()
     {
-        "1" => Level::Undergraduate,
+        "1" => Level::Doctoral,
         "2" => Level::Postgraduate,
-        "3" => Level::Doctoral,
+        "3" => Level::Undergraduate,
         _ => {
             return Err(parse_err_with_reason(&entries_str, "level"))?;
         }
