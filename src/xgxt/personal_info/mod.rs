@@ -2,14 +2,20 @@ mod dormitory;
 mod raw;
 
 use crate::{
-    error::{MapParseErr, parse_err_with_reason},
+    error::{MapParseErr, parse_err, parse_err_with_reason},
     xgxt::{
         login::XgxtToken,
-        personal_info::{dormitory::parse_dormitory, raw::raw_person_info_data},
+        personal_info::{
+            dormitory::parse_dormitory,
+            raw::{raw_contact_info, raw_in_school_info, raw_user_info},
+        },
     },
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::convert::Infallible;
+use tokio::try_join;
 
 pub use dormitory::Dormitory;
 
@@ -87,23 +93,48 @@ pub enum Gender {
     Female,
 }
 
-/// 从学工系统获取个人信息
+/// 将学工系统三个接口返回数据中的 `data.groupFields[0].fields` 数组解析合并为一个 `HashMap`。
+/// 具体格式可参考 test_data/ 目录中的样例文件。
 ///
-/// # Parameters
+/// # Errors
 ///
-/// - `xgxt_token`: 学工系统令牌，可以通过 [XgxtToken::acquire_by_cas_login] 获取
+/// 如果原始数据缺少必要的字段或字段格式不正确，返回 [ParseError](crate::error::Error::ParseError)。
+fn extract_xgxt_entry(data: Value) -> Result<HashMap<String, String>, crate::Error<Infallible>> {
+    let mut parsed_entries = HashMap::<String, String>::new();
+
+    data.get("data")
+        .and_then(|data| data.get("groupFields"))
+        .and_then(|group_field_list| group_field_list.get(0))
+        .and_then(|group_field_item| group_field_item.get("fields"))
+        .and_then(|fields| fields.as_array())
+        .ok_or(parse_err(&data.to_string()))?
+        .iter()
+        .for_each(|field| {
+            if let Some(field_name) = field.get("fieldName")
+                && let Some(value) = field.get("defaultValue")
+            {
+                let Some(field_name) = field_name.as_str() else {
+                    return;
+                };
+                if let Some(v) = value.as_str() {
+                    parsed_entries.insert(field_name.to_string(), v.to_string());
+                } else if let Some(v) = value.as_i64() {
+                    parsed_entries.insert(field_name.to_string(), v.to_string());
+                }
+            }
+        });
+
+    Ok(parsed_entries)
+}
+
+/// 将 [extract_xgxt_entry] 中提取出的 `HashMap` 解析为 [PersonalInfo]。
 ///
-/// # Returns
+/// # Errors
 ///
-/// 个人信息
-///
-/// # Performance
-///
-/// 这个函数大概会同时发起三个请求，且一次请求数据量比较大（学工系统有个接口直接把近十年所有的班级数据全部返回了），所以建议不要频繁调用本函数。个人信息一般没有什么变动，建议做好缓存。
-pub async fn get_person_info(
-    xgxt_token: &XgxtToken,
+/// 如果原始数据缺少必要的字段或字段格式不正确，返回 [ParseError](crate::error::Error::ParseError)。
+fn parse_person_info(
+    mut entries: HashMap<String, String>,
 ) -> Result<PersonalInfo, crate::Error<Infallible>> {
-    let mut entries = raw_person_info_data(xgxt_token).await?;
     let entries_str = serde_json::to_string(&entries).expect("序列化失败");
 
     let name = entries
@@ -189,10 +220,83 @@ pub async fn get_person_info(
     Ok(res)
 }
 
+/// 从学工系统获取个人信息
+///
+/// # Parameters
+///
+/// - `xgxt_token`: 学工系统令牌，可以通过 [XgxtToken::acquire_by_cas_login] 获取
+///
+/// # Returns
+///
+/// 个人信息
+///
+/// # Performance
+///
+/// 这个函数大概会同时发起三个请求，且一次请求数据量比较大（学工系统有个接口直接把近十年所有的班级数据全部返回了），所以建议不要频繁调用本函数。个人信息一般没有什么变动，建议做好缓存。
+pub async fn get_person_info(
+    xgxt_token: &XgxtToken,
+) -> Result<PersonalInfo, crate::Error<Infallible>> {
+    let raw_data_list = try_join!(
+        raw_user_info(xgxt_token),
+        raw_in_school_info(xgxt_token),
+        raw_contact_info(xgxt_token),
+    )
+    .map(|(a, b, c)| vec![a, b, c])?;
+
+    let mut entries = HashMap::<String, String>::new();
+    for raw_data in raw_data_list {
+        entries.extend(extract_xgxt_entry(raw_data)?);
+    }
+
+    parse_person_info(entries)
+}
+
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::{test::test_ok, xgxt::test::get_xgxt_token};
+
+    use super::*;
+
+    #[test]
+    fn test_parse_person_info() {
+        let raw_data_list = vec![
+            include_str!("test_data/user_info.json").to_string(),
+            include_str!("test_data/in_school_info.json").to_string(),
+            include_str!("test_data/contact_info.json").to_string(),
+        ]
+        .into_iter()
+        .map(|s| serde_json::from_str(&s).expect("准备测试数据时发生意外错误"));
+
+        let mut entries = HashMap::<String, String>::new();
+        for raw_data in raw_data_list {
+            entries.extend(extract_xgxt_entry(raw_data).expect("准备测试数据时发生意外错误"));
+        }
+
+        let info = parse_person_info(entries).expect("xgxt personal_info 解析失败");
+
+        assert_eq!(info.name, "林政和");
+        assert_eq!(info.enter_year, 2025);
+        assert_eq!(info.xz, Some(4));
+        assert_eq!(info.stu_id, "202506050175");
+        assert_eq!(info.gender, Gender::Male);
+        assert_eq!(info.level, Level::Undergraduate);
+        assert_eq!(info.academy, "0004");
+        assert_eq!(info.major, "0605");
+        assert_eq!(info.class, "2025060501");
+        assert_eq!(info.politic, Some("".to_string()));
+        assert_eq!(info.race, Some("01".to_string()));
+        assert_eq!(info.hometown, Some("430104".to_string()));
+        assert_eq!(info.phone, Some("13000000000".to_string()));
+        assert_eq!(info.wechat, Some("my_wechat".to_string()));
+        assert_eq!(info.qq, Some("123456".to_string()));
+        assert_eq!(info.email, Some("qnxg@example.com".to_string()));
+
+        let dorm = info.dormitory.expect("xgxt personal_info 宿舍解析失败");
+        assert!(dorm.successfully_parsed());
+        assert_eq!(dorm.park(), Some("天马园区"));
+        assert_eq!(dorm.build(), Some("三区13栋"));
+        assert_eq!(dorm.room(), "123");
+    }
 
     #[tokio::test]
     #[ignore]
