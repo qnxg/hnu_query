@@ -128,24 +128,26 @@ pub fn person_info(
 
 #[cfg(test)]
 mod test {
+    use crate::test::TestResult;
+
     use super::*;
 
     #[test]
-    fn test_parse_person_info() {
+    fn test_parse_person_info() -> TestResult<()> {
         let raw_data_list = vec![
             include_str!("test_data/user_info.json").to_string(),
             include_str!("test_data/in_school_info.json").to_string(),
             include_str!("test_data/contact_info.json").to_string(),
         ]
         .into_iter()
-        .map(|s| serde_json::from_str(&s).expect("准备测试数据时发生意外错误"));
+        .map(|s| serde_json::from_str(&s));
 
         let mut entries = HashMap::<String, String>::new();
         for raw_data in raw_data_list {
-            entries.extend(extract_xgxt_entry(raw_data).expect("准备测试数据时发生意外错误"));
+            entries.extend(extract_xgxt_entry(raw_data?)?);
         }
 
-        let info = person_info(entries).expect("xgxt personal_info 解析失败");
+        let info = person_info(entries)?;
 
         assert_eq!(info.name, "林政和");
         assert_eq!(info.enter_year, 2025);
@@ -169,5 +171,7 @@ mod test {
         assert_eq!(dorm.park(), Some("天马园区"));
         assert_eq!(dorm.build(), Some("三区13栋"));
         assert_eq!(dorm.room(), "123");
+
+        Ok(())
     }
 }
