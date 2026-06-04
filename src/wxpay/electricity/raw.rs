@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
 use serde_json::Value;
@@ -7,12 +7,12 @@ use std::convert::Infallible;
 
 const QUERY_URL: &str = "http://wxpay.hnu.edu.cn/api/appElectricCharge/checkRoomNo";
 
-pub async fn raw_electricity_data(
+pub async fn check_room_no(
     park: u8,
     building: &str,
     room: &str,
-) -> Result<String, crate::Error<Infallible>> {
-    let json_str = client
+) -> Result<Value, crate::Error<Infallible>> {
+    client
         .get(format!(
             "{}?parkNo={}&buildingNo={}&rechargeType=2&roomNo={}",
             QUERY_URL, park, building, room
@@ -24,14 +24,7 @@ pub async fn raw_electricity_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .text()
+        .json()
         .await
-        .unexpected_err()?;
-    let json = serde_json::from_str::<Value>(&json_str).parse_err(&json_str)?;
-    Ok(json
-        .get("data")
-        .and_then(|data| data.get("Balance"))
-        .and_then(|balance| balance.as_str())
-        .ok_or(parse_err(&json_str))?
-        .to_string())
+        .unexpected_err()
 }
