@@ -18,15 +18,15 @@ pub async fn get_user_total_granted(token: &AiToken) -> Result<i64, crate::Error
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::ai::test::get_ai_token;
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_user_total_granted() {
-        let token = get_ai_token().await.unwrap();
-        let total_granted = get_user_total_granted(&token).await.unwrap();
+    async fn test_get_user_total_granted() -> Result<(), Box<dyn std::error::Error>> {
+        let token = get_ai_token().await?;
+        let total_granted = get_user_total_granted(&token).await?;
         println!("total_granted: {}", total_granted);
+        Ok(())
     }
 }

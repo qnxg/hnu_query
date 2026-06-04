@@ -71,46 +71,49 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Erro
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     use crate::ai::test::get_ai_token;
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_token_list() {
-        let token = get_ai_token().await.unwrap();
-        let tokens = get_token_list(&token).await.unwrap();
+    async fn test_get_token_list() -> Result<(), Box<dyn std::error::Error>> {
+        let token = get_ai_token().await?;
+        let tokens = get_token_list(&token).await?;
         println!("{:#?}", tokens);
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_token_key() {
-        let token = get_ai_token().await.unwrap();
-        let tokens = get_token_list(&token).await.unwrap();
+    async fn test_get_token_key() -> Result<(), Box<dyn std::error::Error>> {
+        let token = get_ai_token().await?;
+        let tokens = get_token_list(&token).await?;
         if let Some(t) = tokens.first() {
-            let key = get_token_key(&token, t.id).await.unwrap();
+            let key = get_token_key(&token, t.id).await?;
             println!("key: {}", key);
         }
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore]
-    async fn test_create_token() {
-        let token = get_ai_token().await.unwrap();
-        create_token(&token, "test-token").await.unwrap();
+    async fn test_create_token() -> Result<(), Box<dyn std::error::Error>> {
+        let token = get_ai_token().await?;
+        create_token(&token, "test-token").await?;
         println!("create_token success");
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore]
-    async fn test_delete_token() {
-        let token = get_ai_token().await.unwrap();
-        let tokens = get_token_list(&token).await.unwrap();
+    async fn test_delete_token() -> Result<(), Box<dyn std::error::Error>> {
+        let token = get_ai_token().await?;
+        let tokens = get_token_list(&token).await?;
         // 删除 test_create_token 中创建的同名 token
         if let Some(t) = tokens.iter().find(|t| t.token_name == "test-token") {
-            delete_token(&token, t.id).await.unwrap();
+            delete_token(&token, t.id).await?;
             println!("delete_token success");
         }
+        Ok(())
     }
 }

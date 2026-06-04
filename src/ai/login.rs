@@ -192,13 +192,13 @@ impl AiToken {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     use crate::ai::test::get_ai_token;
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_ai_token() {
-        let ai_token = get_ai_token().await.unwrap();
+    async fn test_get_ai_token() -> Result<(), Box<dyn std::error::Error>> {
+        let ai_token = get_ai_token().await?;
         println!("{:#?}", ai_token);
+        Ok(())
     }
 }
