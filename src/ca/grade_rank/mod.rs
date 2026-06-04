@@ -114,13 +114,14 @@ pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Inf
 #[cfg(test)]
 mod test {
     use super::get_grade_rank;
-    use crate::{ca::test::get_ca_token, test::test_ok};
+    use crate::{ca::test::get_ca_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade_rank() {
-        let ca_token = get_ca_token().await;
-        let grade_rank = test_ok(get_grade_rank(&ca_token).await, "get grade rank");
+    pub async fn test_get_grade_rank() -> TestResult<()> {
+        let ca_token = get_ca_token().await?;
+        let grade_rank = get_grade_rank(&ca_token).await?;
         println!("{:#?}", grade_rank);
+        Ok(())
     }
 }

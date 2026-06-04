@@ -199,28 +199,24 @@ mod test {
     use super::*;
     use crate::{
         hdjw::test::{TEST_HDJW_JX0404ID, get_hdjw_token},
-        test::{TEST_XN, TEST_XQ, test_ok},
+        test::{TEST_XN, TEST_XQ, TestResult},
     };
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_grade() {
-        let hdjw_token = get_hdjw_token().await;
-        let grade = test_ok(
-            get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await,
-            "get grade",
-        );
+    async fn test_get_grade() -> TestResult<()> {
+        let hdjw_token = get_hdjw_token().await?;
+        let grade = get_grade(&hdjw_token, *TEST_XN, *TEST_XQ).await?;
         println!("{:#?}", grade);
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_grade_detail() {
-        let hdjw_token = get_hdjw_token().await;
-        let grade_detail = test_ok(
-            get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID).await,
-            "get grade detail",
-        );
+    async fn test_get_grade_detail() -> TestResult<()> {
+        let hdjw_token = get_hdjw_token().await?;
+        let grade_detail = get_grade_detail(&hdjw_token, TEST_HDJW_JX0404ID).await?;
         println!("{:#?}", grade_detail);
+        Ok(())
     }
 }

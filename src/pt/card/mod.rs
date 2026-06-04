@@ -148,31 +148,30 @@ mod tests {
     use super::*;
     use crate::{
         pt::test::get_pt_token,
-        test::{TEST_MONTH, TEST_YEAR, test_ok},
+        test::{TEST_MONTH, TEST_YEAR, TestResult},
     };
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_card_info() {
-        let token = get_pt_token().await;
-        let res = test_ok(get_card_info(&token).await, "get card info");
+    async fn test_get_card_info() -> TestResult<()> {
+        let token = get_pt_token().await?;
+        let res = get_card_info(&token).await?;
         println!("{:#?}", res);
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_card_history() {
-        let token = get_pt_token().await;
-        let card_history = test_ok(
-            get_card_history(
-                &token,
-                *TEST_YEAR,
-                *TEST_MONTH,
-                CardHistoryType::Consumption,
-            )
-            .await,
-            "get card history",
-        );
+    async fn test_get_card_history() -> TestResult<()> {
+        let token = get_pt_token().await?;
+        let card_history = get_card_history(
+            &token,
+            *TEST_YEAR,
+            *TEST_MONTH,
+            CardHistoryType::Consumption,
+        )
+        .await?;
         println!("{:#?}", card_history);
+        Ok(())
     }
 }

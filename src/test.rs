@@ -6,11 +6,8 @@ pub static TEST_STU_ID: &str = env!("TEST_STU_ID");
 
 pub static TEST_PASSWORD: &str = env!("TEST_PASSWORD");
 
-/// 主要用于发送请求类的测试，该函数会尝试将一个 [Result] 中的值 unwrap，
-/// 如果失败则 panic，并打印相关信息
-pub fn test_ok<T, E: std::fmt::Debug>(result: Result<T, E>, context: &str) -> T {
-    result.unwrap_or_else(|e| panic!("{}: {:?}", context, e))
-}
+/// 测试函数的返回类型，可直接使用 `?` 传播错误
+pub type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn env_var(key: &str) -> String {
     std::env::var(key).unwrap_or_else(|e| panic!("missing environment variable {key}: {e}"))
