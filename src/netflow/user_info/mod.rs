@@ -45,13 +45,14 @@ pub async fn get_unlock_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{netflow::test::get_netflow_token, test::test_ok};
+    use crate::{netflow::test::get_netflow_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_unlock_status() {
-        let token = get_netflow_token().await;
-        let unlock_status = test_ok(get_unlock_status(&token).await, "get unlock status");
+    async fn test_get_unlock_status() -> TestResult<()> {
+        let token = get_netflow_token().await?;
+        let unlock_status = get_unlock_status(&token).await?;
         println!("{:#?}", unlock_status);
+        Ok(())
     }
 }

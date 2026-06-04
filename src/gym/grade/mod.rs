@@ -266,14 +266,15 @@ mod test {
     use super::get_grade;
     use crate::{
         gym::test::get_gym_token,
-        test::{TEST_XN, test_ok},
+        test::{TEST_XN, TestResult},
     };
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade() {
-        let gym_token = get_gym_token().await;
-        let grade = test_ok(get_grade(&gym_token, *TEST_XN).await, "get grade");
+    pub async fn test_get_grade() -> TestResult<()> {
+        let gym_token = get_gym_token().await?;
+        let grade = get_grade(&gym_token, *TEST_XN).await?;
         println!("{:#?}", grade);
+        Ok(())
     }
 }
