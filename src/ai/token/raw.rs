@@ -32,8 +32,11 @@ pub async fn raw_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Er
         .await
         .unexpected_err()?;
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
-    let tokens: Vec<TokenInfo> =
-        serde_json::from_value(res["data"].clone()).parse_err(&json_str)?;
+    let tokens: Vec<TokenInfo> = if res["data"].is_null() {
+        Vec::new()
+    } else {
+        serde_json::from_value(res["data"].clone()).parse_err(&json_str)?
+    };
     Ok(tokens)
 }
 
