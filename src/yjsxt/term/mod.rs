@@ -45,18 +45,16 @@ pub async fn get_termcode(
 mod test {
     use super::*;
     use crate::{
-        test::{TEST_XN, TEST_XQ, test_ok},
+        test::{TEST_XN, TEST_XQ, TestResult},
         yjsxt::test::get_yjsxt_token,
     };
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_termcode() {
-        let yjsxt_token = get_yjsxt_token().await;
-        let termcode = test_ok(
-            get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ).await,
-            "get termcode",
-        );
+    async fn test_get_termcode() -> TestResult<()> {
+        let yjsxt_token = get_yjsxt_token().await?;
+        let termcode = get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ).await?;
         println!("{termcode}");
+        Ok(())
     }
 }

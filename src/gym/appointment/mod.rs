@@ -84,13 +84,14 @@ pub async fn get_appointment(
 #[cfg(test)]
 mod test {
     use super::get_appointment;
-    use crate::{gym::test::get_gym_token, test::test_ok};
+    use crate::{gym::test::get_gym_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_appointment() {
-        let gym_token = get_gym_token().await;
-        let appointment = test_ok(get_appointment(&gym_token).await, "get appointment");
+    pub async fn test_get_appointment() -> TestResult<()> {
+        let gym_token = get_gym_token().await?;
+        let appointment = get_appointment(&gym_token).await?;
         println!("{:#?}", appointment);
+        Ok(())
     }
 }

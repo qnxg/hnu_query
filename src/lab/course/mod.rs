@@ -52,17 +52,15 @@ mod test {
     use super::*;
     use crate::{
         lab::test::{TEST_SEMESTER_ID, get_lab_token},
-        test::test_ok,
+        test::TestResult,
     };
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_course_list() {
-        let lab_token = test_ok(get_lab_token().await, "get lab token");
-        let course_list = test_ok(
-            get_course_list(&lab_token, TEST_SEMESTER_ID).await,
-            "get course list",
-        );
+    async fn test_get_course_list() -> TestResult<()> {
+        let lab_token = get_lab_token().await?;
+        let course_list = get_course_list(&lab_token, TEST_SEMESTER_ID).await?;
         println!("{:#?}", course_list);
+        Ok(())
     }
 }

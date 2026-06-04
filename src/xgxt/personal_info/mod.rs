@@ -192,13 +192,14 @@ pub async fn get_person_info(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{test::test_ok, xgxt::test::get_xgxt_token};
+    use crate::{test::TestResult, xgxt::test::get_xgxt_token};
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_person_info() {
-        let xgxt_token = get_xgxt_token().await;
-        let personal_info = test_ok(get_person_info(&xgxt_token).await, "get personal info");
+    async fn test_get_person_info() -> TestResult<()> {
+        let xgxt_token = get_xgxt_token().await?;
+        let personal_info = get_person_info(&xgxt_token).await?;
         println!("{:#?}", personal_info);
+        Ok(())
     }
 }
