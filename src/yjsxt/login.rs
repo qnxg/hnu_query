@@ -100,8 +100,9 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_yjsxt_token() {
-        let yjsxt_token = get_yjsxt_token().await;
+    pub async fn test_get_yjsxt_token() -> crate::test::TestResult<()> {
+        let yjsxt_token = get_yjsxt_token().await?;
         println!("{:#?}", yjsxt_token);
+        Ok(())
     }
 }

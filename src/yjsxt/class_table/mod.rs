@@ -230,7 +230,7 @@ pub async fn get_class_table(
 #[cfg(test)]
 mod tests {
     use crate::{
-        test::{TEST_XN, TEST_XQ, test_ok},
+        test::{TEST_XN, TEST_XQ, TestResult},
         yjsxt::test::get_yjsxt_token,
     };
 
@@ -238,16 +238,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_class_table() {
-        let yjsxt_token = get_yjsxt_token().await;
-        let termcode = test_ok(
-            crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ).await,
-            "get termcode",
-        );
-        let class_table = test_ok(
-            get_class_table(&yjsxt_token, termcode).await,
-            "get class table",
-        );
+    async fn test_get_class_table() -> TestResult<()> {
+        let yjsxt_token = get_yjsxt_token().await?;
+        let termcode = crate::yjsxt::get_termcode(&yjsxt_token, *TEST_XN, *TEST_XQ).await?;
+        let class_table = get_class_table(&yjsxt_token, termcode).await?;
         println!("{:#?}", class_table);
+        Ok(())
     }
 }

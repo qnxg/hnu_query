@@ -76,7 +76,7 @@ cargo add hnu_query
 
 > 注意，由于该项目的性质，项目的版本更新可能会非常频繁，并且每个版本更新都比较重要。你可能需要频繁更新项目依赖版本。
 
-```rust
+```rust,ignore
 // 完整代码在 examples/demo.rs 中
 // 学号
 let stu_id = "";

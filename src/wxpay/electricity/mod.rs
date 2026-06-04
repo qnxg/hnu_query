@@ -73,15 +73,17 @@ pub async fn get_electricity(dormitory: Dormitory) -> Result<String, crate::Erro
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test::TestResult;
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_electricity() {
+    async fn test_get_electricity() -> TestResult<()> {
         let park = env!("TEST_DORMITORY_PARK");
         let build = env!("TEST_DORMITORY_BUILD");
         let room = env!("TEST_DORMITORY_ROOM");
         let dormitory = Dormitory::from_parsed_value(park, build, room);
-        let electricity = crate::test::test_ok(get_electricity(dormitory).await, "get electricity");
+        let electricity = get_electricity(dormitory).await?;
         println!("{:#?}", electricity);
+        Ok(())
     }
 }
