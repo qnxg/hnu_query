@@ -225,20 +225,26 @@ impl CasToken {
         &self,
         service_url: &str,
     ) -> Result<String, crate::Error<TokenExpired>> {
-        let Ok(res) = client
+        let res = match client
             .get(service_url)
             .header(COOKIE, &self.cookie)
             .send()
             .await
             .network_err()?
-            // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
-            // 后续可能还要再验证一下有没有必要这么保守
             .error_for_status()
-        else {
-            return Err(crate::Error::Other(TokenExpired));
+        {
+            Ok(r) => r,
+            Err(e) => {
+                // 4xx/5xx 状态码都认为是令牌过期
+                let status = e.status().map_or(0, |s| s.as_u16());
+                return Err(crate::Error::Other(TokenExpired::new(status, service_url)));
+            }
         };
         if res.status() == StatusCode::OK {
-            return Err(crate::Error::Other(TokenExpired));
+            return Err(crate::Error::Other(TokenExpired::new(
+                res.status().as_u16(),
+                service_url,
+            )));
         }
         if res.status() != StatusCode::FOUND {
             return Err(format!("获取ticket_url时失败，HTTP代码 {}", res.status()))
@@ -297,16 +303,25 @@ impl CasToken {
                 );
                 break;
             }
-            let res = client
+            let res = match client
                 .get(&now_url)
                 .header(COOKIE, &cookies)
                 .send()
                 .await
                 .network_err()?
                 .error_for_status()
-                .unexpected_err()?;
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    let status = e.status().map_or(0, |s| s.as_u16());
+                    return Err(crate::Error::Other(TokenExpired::new(status, &now_url)));
+                }
+            };
             if res.status() == StatusCode::OK {
-                return Err(crate::Error::Other(TokenExpired));
+                return Err(crate::Error::Other(TokenExpired::new(
+                    res.status().as_u16(),
+                    &now_url,
+                )));
             }
             if res.status() != StatusCode::FOUND {
                 return Err(format!(

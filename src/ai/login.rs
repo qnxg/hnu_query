@@ -107,9 +107,12 @@ impl AiToken {
             } else if current_url.contains("maas.nscc-cs.cn") {
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
-                // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie + OAuth2
-                // session cookie 去请求 ticket URL
-                let temp_token = CasToken::from_cookie_unchecked(&all_cookies, cas_token.stu_id());
+                // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie 去请求 ticket URL。
+                // 注意：不能使用 all_cookies，因为 CAS 返回的 200 登录页面会在
+                // Set-Cookie 中写入新的 JSESSIONID，这个未认证 session 会覆盖掉
+                // TGT cookie 导致 TokenExpired。应该使用原始的 cas_token cookie。
+                let temp_token =
+                    CasToken::from_cookie_unchecked(cas_token.cookie(), cas_token.stu_id());
                 let ticket_url = temp_token
                     .get_ticket_url(&current_url)
                     .await
