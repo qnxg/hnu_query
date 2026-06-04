@@ -72,11 +72,11 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Erro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::test::get_ai_token;
+    use crate::{ai::test::get_ai_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_token_list() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_token_list() -> TestResult<()> {
         let token = get_ai_token().await?;
         let tokens = get_token_list(&token).await?;
         println!("{:#?}", tokens);
@@ -85,7 +85,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_token_key() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_token_key() -> TestResult<()> {
         let token = get_ai_token().await?;
         let tokens = get_token_list(&token).await?;
         if let Some(t) = tokens.first() {
@@ -97,7 +97,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_create_token() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_create_token() -> TestResult<()> {
         let token = get_ai_token().await?;
         create_token(&token, "test-token").await?;
         println!("create_token success");
@@ -106,7 +106,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_delete_token() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_delete_token() -> TestResult<()> {
         let token = get_ai_token().await?;
         let tokens = get_token_list(&token).await?;
         // 删除 test_create_token 中创建的同名 token

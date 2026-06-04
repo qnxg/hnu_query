@@ -195,11 +195,11 @@ impl AiToken {
 
 #[cfg(test)]
 mod test {
-    use crate::ai::test::get_ai_token;
+    use crate::{ai::test::get_ai_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_ai_token() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_ai_token() -> TestResult<()> {
         let ai_token = get_ai_token().await?;
         println!("{:#?}", ai_token);
         Ok(())
