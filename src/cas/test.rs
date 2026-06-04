@@ -4,7 +4,7 @@ use crate::{
         tfa::VerifyResult,
     },
     error::MapUnexpectedErr,
-    test::{TEST_CAS_CACHE, TEST_PASSWORD, TEST_STU_ID},
+    test::{TEST_CAS_CACHE, TEST_PASSWORD, TEST_STU_ID, TestResult},
 };
 use std::io::{Read, Write};
 
@@ -18,21 +18,28 @@ use std::io::{Read, Write};
 ///
 /// 通过登录获取了新的 CasToken 之后，如果设置了 `TEST_CAS_CACHE`，则会将
 /// 新的 CasToken 自动缓存到 `cache` 文件夹中。
-pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
+pub async fn get_cas_token() -> TestResult<CasToken> {
+    fn unexpected<T, E0>(result: Result<T, E0>) -> Result<T, crate::Error<AccountIssue>>
+    where
+        E0: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
+        result.unexpected_err()
+    }
+
     let stu_id = TEST_STU_ID;
     let password = TEST_PASSWORD;
     let cache_name = format!("{:x}", md5::compute(format!("{}{}", stu_id, password)));
     if *TEST_CAS_CACHE {
         println!("使用 CasToken 缓存: {}", cache_name);
         std::fs::create_dir_all("cache").expect("Failed to create cache directory");
-        let mut cache_file = std::fs::OpenOptions::new()
+        let cache_file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(format!("cache/{}", cache_name))
-            .unexpected_err()?;
+            .open(format!("cache/{}", cache_name));
+        let mut cache_file = unexpected(cache_file)?;
         let mut cookies = String::new();
-        cache_file.read_to_string(&mut cookies).unexpected_err()?;
+        unexpected(cache_file.read_to_string(&mut cookies))?;
         if !cookies.is_empty() {
             return Ok(CasToken::from_cookie_unchecked(&cookies, stu_id));
         }
@@ -49,9 +56,9 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
             // 测试时，要求手动输入验证码
             loop {
                 print!("需要双因子认证({}), 是否继续(y/n): ", tfa_token.phone());
-                std::io::stdout().flush().unexpected_err()?;
+                unexpected(std::io::stdout().flush())?;
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unexpected_err()?;
+                unexpected(std::io::stdin().read_line(&mut input))?;
                 if input.trim().to_lowercase() == "y" {
                     break;
                 } else if input.trim().to_lowercase() == "n" {
@@ -63,14 +70,15 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
                 let res = tfa_token.send_sms().await?;
                 println!("发送验证码结果: {:?}", res);
                 print!("请输入验证码（输入 -1 重新发送验证码）: ");
-                std::io::stdout().flush().unexpected_err()?;
+                unexpected(std::io::stdout().flush())?;
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unexpected_err()?;
-                let input = input
-                    .trim()
-                    .parse::<i32>()
-                    .map_err(|e| format!("invalid verification code: {e}"))
-                    .unexpected_err()?;
+                unexpected(std::io::stdin().read_line(&mut input))?;
+                let input = unexpected(
+                    input
+                        .trim()
+                        .parse::<i32>()
+                        .map_err(|e| format!("invalid verification code: {e}")),
+                )?;
                 if input == -1 {
                     continue;
                 }
@@ -91,19 +99,17 @@ pub async fn get_cas_token() -> Result<CasToken, crate::Error<AccountIssue>> {
                 }
             }
         }
-        Err(e) => return Err(e),
+        Err(e) => return Err(e.into()),
     }
     if *TEST_CAS_CACHE {
         std::fs::create_dir_all("cache").expect("Failed to create cache directory");
-        let mut cache_file = std::fs::OpenOptions::new()
+        let cache_file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(format!("cache/{}", cache_name))
-            .unexpected_err()?;
-        cache_file
-            .write_all(cas_token.cookie().as_bytes())
-            .unexpected_err()?;
+            .open(format!("cache/{}", cache_name));
+        let mut cache_file = unexpected(cache_file)?;
+        unexpected(cache_file.write_all(cas_token.cookie().as_bytes()))?;
     }
     Ok(cas_token)
 }
