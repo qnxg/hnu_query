@@ -35,10 +35,12 @@ pub async fn get_termcode(
         .iter()
         .find(|t| t.termname == target_termname)
         .and_then(|t| t.termcode.parse::<u16>().ok())
-        .ok_or(parse_err_with_reason(
-            &format!("{:?}", terms),
-            &format!("未找到对应学期: {target_termname}"),
-        ))
+        .ok_or_else(|| {
+            parse_err_with_reason(
+                &format!("{:?}", terms),
+                &format!("未找到对应学期: {target_termname}"),
+            )
+        })
 }
 
 #[cfg(test)]

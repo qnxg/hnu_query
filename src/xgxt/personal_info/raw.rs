@@ -43,7 +43,7 @@ pub async fn raw_person_info_data(
             .and_then(|group_field_list| group_field_list.get(0))
             .and_then(|group_field_item| group_field_item.get("fields"))
             .and_then(|fields| fields.as_array())
-            .ok_or(parse_err(&data_str))?
+            .ok_or_else(|| parse_err(&data_str))?
             .iter()
             .for_each(|field| {
                 if let Some(field_name) = field.get("fieldName")

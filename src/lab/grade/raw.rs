@@ -90,7 +90,7 @@ pub async fn raw_lab_score_data(
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<LabScoreItem>>(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }
 
@@ -120,7 +120,7 @@ pub async fn raw_lab_score_structure_data(
             serde_json::from_value::<Vec<LabScoreStructureItem>>(v.clone()).parse_err(&json_str)
         })
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }
 
@@ -151,7 +151,7 @@ pub async fn raw_lab_score_detail_data(
         .and_then(|v| v.get("Lablist"))
         .map(|v| serde_json::from_value::<Vec<LabScoreDetailItem>>(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }
 
@@ -186,6 +186,6 @@ pub async fn raw_virtual_lab_score_data(
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<VirtualLabScoreItem>>(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }

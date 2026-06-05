@@ -108,10 +108,10 @@ pub async fn get_person_info(
 
     let name = entries
         .remove("姓名")
-        .ok_or(parse_err_with_reason(&entries_str, "name"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "name"))?;
     let enter_year: u16 = entries
         .remove("年级")
-        .ok_or(parse_err_with_reason(&entries_str, "enter_year"))?
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "enter_year"))?
         .parse()
         .parse_err_with_reason(&entries_str, "enter_year")?;
     let xz = entries
@@ -127,7 +127,7 @@ pub async fn get_person_info(
         .parse_err_with_reason(&entries_str, "xz")?;
     let stu_id = entries
         .remove("学号")
-        .ok_or(parse_err_with_reason(&entries_str, "stu_id"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "stu_id"))?;
     let gender = match entries.get("性别").map(|v| v.as_str()) {
         Some("1") => Gender::Male,
         Some("2") => Gender::Female,
@@ -137,7 +137,7 @@ pub async fn get_person_info(
     };
     let level = match entries
         .remove("培养层次")
-        .ok_or(parse_err_with_reason(&entries_str, "level"))?
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "level"))?
         .as_ref()
     {
         "1" => Level::Doctoral,
@@ -149,19 +149,19 @@ pub async fn get_person_info(
     };
     let academy = entries
         .remove("学院")
-        .ok_or(parse_err_with_reason(&entries_str, "academy"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "academy"))?;
     let major = entries
         .remove("专业")
-        .ok_or(parse_err_with_reason(&entries_str, "major"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "major"))?;
     let class = entries
         .remove("班级")
-        .ok_or(parse_err_with_reason(&entries_str, "class"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "class"))?;
     let dormitory = entries
         .remove("寝室楼")
-        .ok_or(parse_err_with_reason(&entries_str, "dormitory"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "dormitory"))?;
     let room = entries
         .remove("寝室号")
-        .ok_or(parse_err_with_reason(&entries_str, "room"))?;
+        .ok_or_else(|| parse_err_with_reason(&entries_str, "room"))?;
     let dormitory = if dormitory.is_empty() || room.is_empty() {
         None
     } else {

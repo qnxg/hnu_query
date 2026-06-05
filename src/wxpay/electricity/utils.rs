@@ -36,7 +36,7 @@ pub fn parse_dormitory(
             let no = room
                 .chars()
                 .next()
-                .ok_or(parse_err_with_reason(room, "room"))?;
+                .ok_or_else(|| parse_err_with_reason(room, "room"))?;
             match no {
                 '1' => "25-1",
                 '2' => "25-2",

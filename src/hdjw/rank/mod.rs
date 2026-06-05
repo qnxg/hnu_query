@@ -137,25 +137,26 @@ pub async fn get_rank(
             value
                 .as_f64()
                 .map(|f| f.to_string())
-                .or(value.as_i64().map(|i| i.to_string()))
-                .or(value.as_str().map(|s| s.to_string()))
+                .or_else(|| value.as_i64().map(|i| i.to_string()))
+                .or_else(|| value.as_str().map(|s| s.to_string()))
         }
         Ok(RankDetail {
-            arithmetic: parse_number(&value["avgzcj"]).ok_or(parse_err(&value.to_string()))?,
+            arithmetic: parse_number(&value["avgzcj"])
+                .ok_or_else(|| parse_err(&value.to_string()))?,
             arithmetic_rank: value["avgzcjpm"]
                 .as_str()
                 .map(|s| s.to_string())
-                .ok_or(parse_err(&value.to_string()))?,
-            weighted: parse_number(&value["pjxfj"]).ok_or(parse_err(&value.to_string()))?,
+                .ok_or_else(|| parse_err(&value.to_string()))?,
+            weighted: parse_number(&value["pjxfj"]).ok_or_else(|| parse_err(&value.to_string()))?,
             weighted_rank: value["pjxfjpm"]
                 .as_str()
                 .map(|s| s.to_string())
-                .ok_or(parse_err(&value.to_string()))?,
-            gpa: parse_number(&value["pjxfjd"]).ok_or(parse_err(&value.to_string()))?,
+                .ok_or_else(|| parse_err(&value.to_string()))?,
+            gpa: parse_number(&value["pjxfjd"]).ok_or_else(|| parse_err(&value.to_string()))?,
             gpa_rank: value["pjxfjdpm"]
                 .as_str()
                 .map(|s| s.to_string())
-                .ok_or(parse_err(&value.to_string()))?,
+                .ok_or_else(|| parse_err(&value.to_string()))?,
         })
     }
     let raw_data = raw_rank_data(
