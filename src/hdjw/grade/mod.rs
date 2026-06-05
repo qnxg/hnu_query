@@ -122,11 +122,11 @@ pub async fn get_grade_detail(
             .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
     let caps = regex
         .captures(&raw_data)
-        .ok_or(parse_err(&raw_data))?
+        .ok_or_else(|| parse_err(&raw_data))?
         .iter()
         .map(|c| {
             c.map(|v| v.as_str().to_string())
-                .ok_or(parse_err(&raw_data))
+                .ok_or_else(|| parse_err(&raw_data))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let [_, data, map] = caps.try_into().map_err(|_| parse_err(&raw_data))?;
@@ -142,12 +142,12 @@ pub async fn get_grade_detail(
                         .as_str()
                         .map(|s| s.to_string())
                         .or(value.as_number().map(|num| num.to_string()))
-                        .ok_or(parse_err(&raw_data))
+                        .ok_or_else(|| parse_err(&raw_data))
                         .map(|ok_value| (key, ok_value))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
         })
-        .ok_or(parse_err(&raw_data))??;
+        .ok_or_else(|| parse_err(&raw_data))??;
     // map 是 js obj 格式，不是标准 json，我们需要进行一些处理
     let map = map
         .replace("//表头", "")
@@ -165,21 +165,21 @@ pub async fn get_grade_detail(
                 .map(|item| {
                     let key = item.get("field").and_then(|f| f.as_str());
                     key.zip(item.get("title").and_then(|f| f.as_str()))
-                        .ok_or(parse_err(&raw_data))
+                        .ok_or_else(|| parse_err(&raw_data))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
         })
-        .ok_or(parse_err(&raw_data))??;
+        .ok_or_else(|| parse_err(&raw_data))??;
     let res = data
         .iter()
         .filter(|(k, _)| k.ends_with("bl"))
         .map(|(k, v)| {
             let score = data
                 .get(&k.trim_end_matches("bl").to_string())
-                .ok_or(parse_err(&raw_data))?;
+                .ok_or_else(|| parse_err(&raw_data))?;
             let name = map
                 .get(k.trim_end_matches("bl"))
-                .ok_or(parse_err(&raw_data))?;
+                .ok_or_else(|| parse_err(&raw_data))?;
             let percentage = v;
             Ok::<_, crate::Error<TokenExpired>>(GradeDetailItem {
                 score: score.clone(),

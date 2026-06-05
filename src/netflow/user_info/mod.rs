@@ -34,7 +34,7 @@ pub async fn get_unlock_status(
     let is_locked = raw_data
         .get("IsLocked")
         .and_then(|v| v.as_i64())
-        .ok_or(parse_err(&raw_data.to_string()))?;
+        .ok_or_else(|| parse_err(&raw_data.to_string()))?;
     match is_locked {
         0 => Ok(UnlockStatus::Unlocked),
         1 => Ok(UnlockStatus::Locked),

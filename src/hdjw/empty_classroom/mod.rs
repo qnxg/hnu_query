@@ -71,19 +71,18 @@ pub async fn get_empty_classroom(
         .as_array()
         .and_then(|v| v.get(4))
         .and_then(|v| v.as_array())
-        .ok_or(parse_err(&raw_data.to_string()))?;
+        .ok_or_else(|| parse_err(&raw_data.to_string()))?;
     let mut res = Vec::new();
     for item in data {
-        let item = item.as_array().ok_or(parse_err(&item.to_string()))?;
+        let item = item
+            .as_array()
+            .ok_or_else(|| parse_err(&item.to_string()))?;
         let mut is_free = true;
         // 需要每一节课均为空才会被认为是空教室
         for i in 1..=time.len() {
             if !item
                 .get(i)
-                .ok_or(parse_err_with_reason(
-                    &format!("{:?}", item),
-                    "空教室占用情况",
-                ))?
+                .ok_or_else(|| parse_err_with_reason(&format!("{:?}", item), "空教室占用情况"))?
                 .is_null()
             {
                 is_free = false;

@@ -62,7 +62,7 @@ pub async fn raw_card_info_data(pt_token: &PtToken) -> Result<CardInfo, crate::E
         .get("data")
         .map(|v| serde_json::from_value(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }
 
@@ -92,7 +92,7 @@ pub async fn raw_card_history_data(
     let token = json
         .get("data")
         .and_then(|v| v.as_str())
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     let form_data = [
         ("beginDate", begin_date.as_str()),
         ("endDate", end_date.as_str()),
@@ -119,6 +119,6 @@ pub async fn raw_card_history_data(
         .get("data")
         .map(|v| serde_json::from_value(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }

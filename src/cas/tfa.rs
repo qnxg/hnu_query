@@ -66,13 +66,13 @@ impl TFAToken {
             .captures(html)
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
-            .ok_or(parse_err_with_reason(html, "没有找到execution"))?
+            .ok_or_else(|| parse_err_with_reason(html, "没有找到execution"))?
             .to_string();
         let phone = regex_phone
             .captures(html)
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
-            .ok_or(parse_err_with_reason(html, "没有找到绑定手机号"))?
+            .ok_or_else(|| parse_err_with_reason(html, "没有找到绑定手机号"))?
             .to_string();
         Ok(Self {
             phone,

@@ -60,21 +60,21 @@ fn parse_course_info(
     // 研究生系统返回的信息可能有多余的神秘空格，要去掉
     let course_id = parts
         .first()
-        .ok_or(parse_err(cell_text))?
+        .ok_or_else(|| parse_err(cell_text))?
         .replace("课程编号:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let course_name = parts
         .get(1)
-        .ok_or(parse_err(cell_text))?
+        .ok_or_else(|| parse_err(cell_text))?
         .replace("课程名称:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let class_name = parts
         .get(2)
-        .ok_or(parse_err(cell_text))?
+        .ok_or_else(|| parse_err(cell_text))?
         .replace("班级:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
@@ -83,7 +83,7 @@ fn parse_course_info(
     // 上课时间: [9-16周] 连续周
     let class_time_str = parts
         .get(3)
-        .ok_or(parse_err(cell_text))?
+        .ok_or_else(|| parse_err(cell_text))?
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -96,7 +96,7 @@ fn parse_course_info(
                 .map(|s| s.parse::<u8>().ok())
                 .collect::<Option<Vec<_>>>()
         })
-        .ok_or(parse_err_with_reason(&class_time_str, "解析上课时间失败"))?;
+        .ok_or_else(|| parse_err_with_reason(&class_time_str, "解析上课时间失败"))?;
     let Some(weeks_l) = class_time.first() else {
         return Err(parse_err_with_reason(&class_time_str, "解析上课时间失败"));
     };
@@ -105,7 +105,7 @@ fn parse_course_info(
 
     let teacher_and_classroom_str = parts
         .get(4)
-        .ok_or(parse_err(cell_text))?
+        .ok_or_else(|| parse_err(cell_text))?
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -170,14 +170,16 @@ pub async fn get_class_table(
     for item in raw_rows {
         let jc = item["mc"]
             .as_str()
-            .ok_or(parse_err_with_reason(&item.to_string(), "解析节次失败"))?;
+            .ok_or_else(|| parse_err_with_reason(&item.to_string(), "解析节次失败"))?;
         for day in 1..=7u8 {
             let key = format!("z{day}");
             if item[&key] == Value::Null {
                 continue;
             }
 
-            let cell_text = item[&key].as_str().ok_or(parse_err(&item.to_string()))?;
+            let cell_text = item[&key]
+                .as_str()
+                .ok_or_else(|| parse_err(&item.to_string()))?;
             let (course_info, weeks, place) = parse_course_info(cell_text)?;
 
             if jc == "无节次" {

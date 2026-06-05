@@ -49,6 +49,6 @@ pub async fn raw_course_list_data(
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<CourseItem>>(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(res)
 }

@@ -27,7 +27,9 @@ pub async fn raw_class_table_data(
         .extract_data(true)
         .await?;
 
-    let rows = res["rows"].as_array().ok_or(parse_err(&res.to_string()))?;
+    let rows = res["rows"]
+        .as_array()
+        .ok_or_else(|| parse_err(&res.to_string()))?;
 
     Ok(rows.clone())
 }

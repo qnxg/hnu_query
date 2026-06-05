@@ -71,11 +71,11 @@ pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Inf
         .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
     let caps = regex
         .captures(&raw_data)
-        .ok_or(parse_err(&raw_data))?
+        .ok_or_else(|| parse_err(&raw_data))?
         .iter()
         .map(|c| {
             c.map(|v| v.as_str().to_string())
-                .ok_or(parse_err(&raw_data))
+                .ok_or_else(|| parse_err(&raw_data))
         })
         .collect::<Result<Vec<_>, _>>()?;
     // 12 个捕获组，caps[0] 是完整匹配，共 13 个
