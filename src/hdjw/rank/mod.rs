@@ -137,8 +137,8 @@ pub async fn get_rank(
             value
                 .as_f64()
                 .map(|f| f.to_string())
-                .or(value.as_i64().map(|i| i.to_string()))
-                .or(value.as_str().map(|s| s.to_string()))
+                .or_else(|| value.as_i64().map(|i| i.to_string()))
+                .or_else(|| value.as_str().map(|s| s.to_string()))
         }
         Ok(RankDetail {
             arithmetic: parse_number(&value["avgzcj"])

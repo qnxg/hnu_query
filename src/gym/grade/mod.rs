@@ -153,8 +153,8 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
     // score 在 grade_summary 中别是形如 `10.5秒` 的带单位数据
     //       在 grade_detail 中是该项目得分
     let short_run = GradeItem {
-        color: grade_summary.short_run_class.map_or(
-            item_grade_into_color(&grade_detail.short_run_grade),
+        color: grade_summary.short_run_class.map_or_else(
+            || item_grade_into_color(&grade_detail.short_run_grade),
             |class| item_class_into_color(&class),
         ),
         rank: grade_detail.short_run_grade,
@@ -164,11 +164,10 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.short_run_score,
     };
     let bmi = GradeItem {
-        color: grade_summary
-            .bmi_class
-            .map_or(item_grade_into_color(&grade_detail.bmi_grade), |class| {
-                item_class_into_color(&class)
-            }),
+        color: grade_summary.bmi_class.map_or_else(
+            || item_grade_into_color(&grade_detail.bmi_grade),
+            |class| item_class_into_color(&class),
+        ),
         rank: grade_detail.bmi_grade,
         grade: grade_summary
             .bmi_score
@@ -176,11 +175,10 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.bmi_score,
     };
     let jump = GradeItem {
-        color: grade_summary
-            .jump_class
-            .map_or(item_grade_into_color(&grade_detail.jump_grade), |class| {
-                item_class_into_color(&class)
-            }),
+        color: grade_summary.jump_class.map_or_else(
+            || item_grade_into_color(&grade_detail.jump_grade),
+            |class| item_class_into_color(&class),
+        ),
         rank: grade_detail.jump_grade,
         grade: grade_summary
             .jump_score
@@ -188,8 +186,8 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.jump_score,
     };
     let pull_and_sit = GradeItem {
-        color: grade_summary.pull_and_sit_class.map_or(
-            item_grade_into_color(&grade_detail.pull_and_sit_grade),
+        color: grade_summary.pull_and_sit_class.map_or_else(
+            || item_grade_into_color(&grade_detail.pull_and_sit_grade),
             |class| item_class_into_color(&class),
         ),
         rank: grade_detail.pull_and_sit_grade,
@@ -199,11 +197,10 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.pull_and_sit_score + grade_detail.extra_score_pull_or_sit_up,
     };
     let run = GradeItem {
-        color: grade_summary
-            .run_class
-            .map_or(item_grade_into_color(&grade_detail.run_grade), |class| {
-                item_class_into_color(&class)
-            }),
+        color: grade_summary.run_class.map_or_else(
+            || item_grade_into_color(&grade_detail.run_grade),
+            |class| item_class_into_color(&class),
+        ),
         rank: grade_detail.run_grade,
         grade: grade_summary.run_score.unwrap_or_else(|| {
             let total_seconds: u32 = grade_detail.run.parse().unwrap_or(0);
@@ -218,8 +215,8 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.run_score + grade_detail.extra_score_run,
     };
     let sit_and_reach = GradeItem {
-        color: grade_summary.sit_and_reach_class.map_or(
-            item_grade_into_color(&grade_detail.sit_and_reach_grade),
+        color: grade_summary.sit_and_reach_class.map_or_else(
+            || item_grade_into_color(&grade_detail.sit_and_reach_grade),
             |class| item_class_into_color(&class),
         ),
         rank: grade_detail.sit_and_reach_grade,
@@ -229,11 +226,10 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         score: grade_detail.sit_and_reach_score,
     };
     let vc = GradeItem {
-        color: grade_summary
-            .vc_class
-            .map_or(item_grade_into_color(&grade_detail.vc_grade), |class| {
-                item_class_into_color(&class)
-            }),
+        color: grade_summary.vc_class.map_or_else(
+            || item_grade_into_color(&grade_detail.vc_grade),
+            |class| item_class_into_color(&class),
+        ),
         rank: grade_detail.vc_grade,
         grade: grade_summary
             .vc_score

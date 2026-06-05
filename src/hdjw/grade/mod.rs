@@ -141,7 +141,7 @@ pub async fn get_grade_detail(
                     value
                         .as_str()
                         .map(|s| s.to_string())
-                        .or(value.as_number().map(|num| num.to_string()))
+                        .or_else(|| value.as_number().map(|num| num.to_string()))
                         .ok_or_else(|| parse_err(&raw_data))
                         .map(|ok_value| (key, ok_value))
                 })
