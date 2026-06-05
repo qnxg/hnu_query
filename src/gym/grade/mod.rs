@@ -160,7 +160,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         rank: grade_detail.short_run_grade,
         grade: grade_summary
             .short_run_score
-            .unwrap_or(grade_detail.short_run + "秒"),
+            .unwrap_or_else(|| grade_detail.short_run + "秒"),
         score: grade_detail.short_run_score,
     };
     let bmi = GradeItem {
@@ -170,10 +170,9 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
                 item_class_into_color(&class)
             }),
         rank: grade_detail.bmi_grade,
-        grade: grade_summary.bmi_score.unwrap_or(format!(
-            "{}厘米/{}千克",
-            grade_detail.height, grade_detail.weight
-        )),
+        grade: grade_summary
+            .bmi_score
+            .unwrap_or_else(|| format!("{}厘米/{}千克", grade_detail.height, grade_detail.weight)),
         score: grade_detail.bmi_score,
     };
     let jump = GradeItem {
@@ -185,7 +184,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         rank: grade_detail.jump_grade,
         grade: grade_summary
             .jump_score
-            .unwrap_or(grade_detail.jump + "厘米"),
+            .unwrap_or_else(|| grade_detail.jump + "厘米"),
         score: grade_detail.jump_score,
     };
     let pull_and_sit = GradeItem {
@@ -196,7 +195,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         rank: grade_detail.pull_and_sit_grade,
         grade: grade_summary
             .pull_and_sit_score
-            .unwrap_or(format!("{}次", grade_detail.pull_and_sit)),
+            .unwrap_or_else(|| format!("{}次", grade_detail.pull_and_sit)),
         score: grade_detail.pull_and_sit_score + grade_detail.extra_score_pull_or_sit_up,
     };
     let run = GradeItem {
@@ -206,7 +205,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
                 item_class_into_color(&class)
             }),
         rank: grade_detail.run_grade,
-        grade: grade_summary.run_score.unwrap_or({
+        grade: grade_summary.run_score.unwrap_or_else(|| {
             let total_seconds: u32 = grade_detail.run.parse().unwrap_or(0);
             let minutes = total_seconds / 60;
             let seconds = total_seconds - minutes * 60;
@@ -226,7 +225,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         rank: grade_detail.sit_and_reach_grade,
         grade: grade_summary
             .sit_and_reach_score
-            .unwrap_or(grade_detail.sit_and_reach + "厘米"),
+            .unwrap_or_else(|| grade_detail.sit_and_reach + "厘米"),
         score: grade_detail.sit_and_reach_score,
     };
     let vc = GradeItem {
@@ -238,7 +237,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         rank: grade_detail.vc_grade,
         grade: grade_summary
             .vc_score
-            .unwrap_or(format!("{}毫升", grade_detail.vc)),
+            .unwrap_or_else(|| format!("{}毫升", grade_detail.vc)),
         score: grade_detail.vc_score,
     };
     let res = Grade {
@@ -246,9 +245,15 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
         stu_id: grade_detail.student_num,
         grade: grade_detail.total_grade,
         score: grade_detail.total_score,
-        report_desc: grade_summary.report_desc.unwrap_or("暂无".to_string()),
-        report_status: grade_summary.report_status.unwrap_or("暂无".to_string()),
-        report_type: grade_summary.report_type.unwrap_or("暂无".to_string()),
+        report_desc: grade_summary
+            .report_desc
+            .unwrap_or_else(|| "暂无".to_string()),
+        report_status: grade_summary
+            .report_status
+            .unwrap_or_else(|| "暂无".to_string()),
+        report_type: grade_summary
+            .report_type
+            .unwrap_or_else(|| "暂无".to_string()),
         eye,
         short_run,
         bmi,
