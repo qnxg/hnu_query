@@ -38,14 +38,10 @@ pub async fn raw_user_info(xgxt_token: &XgxtToken) -> Result<Value, crate::Error
     raw_with_url(xgxt_token, USER_INFO_URL).await
 }
 
-pub async fn raw_in_school_info(
-    xgxt_token: &XgxtToken,
-) -> Result<Value, crate::Error<Infallible>> {
+pub async fn raw_in_school_info(xgxt_token: &XgxtToken) -> Result<Value, crate::Error<Infallible>> {
     raw_with_url(xgxt_token, IN_SCHOOL_INFO_URL).await
 }
 
-pub async fn raw_contact_info(
-    xgxt_token: &XgxtToken,
-) -> Result<Value, crate::Error<Infallible>> {
+pub async fn raw_contact_info(xgxt_token: &XgxtToken) -> Result<Value, crate::Error<Infallible>> {
     raw_with_url(xgxt_token, CONTACT_INFO_URL).await
 }
