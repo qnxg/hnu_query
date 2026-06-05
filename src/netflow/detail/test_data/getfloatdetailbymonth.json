@@ -1,0 +1,33 @@
+{
+  "code": 0,
+  "data": {
+    "UserCode": "202506050175",
+    "AllDownload": 1751143.21,
+    "AllUpload": 155597061.0,
+    "AllTotal": 1948767711.0,
+    "FloatDetailList": [
+      {
+        "App": "/网络游戏/steam平台",
+        "Download": 678507.29,
+        "Upload": 24926.9,
+        "Total": 703434.19,
+        "Per": 0.37
+      },
+      {
+        "App": "/基础协议/SSL",
+        "Download": 529585.36,
+        "Upload": 71065.3,
+        "Total": 600650.66,
+        "Per": 0.32
+      },
+      {
+        "App": "/基础服务/微软基础服务/加密服务流量",
+        "Download": 252739.01,
+        "Upload": 23580.15,
+        "Total": 276319.16,
+        "Per": 0.15
+      }
+    ]
+  },
+  "msg": "成功"
+}

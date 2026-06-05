@@ -1,9 +1,7 @@
+mod parse;
 mod raw;
 
-use crate::{
-    error::parse_err,
-    netflow::{login::NetflowToken, user_info::raw::raw_user_info_data},
-};
+use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -30,16 +28,8 @@ pub enum UnlockStatus {
 pub async fn get_unlock_status(
     netflow_token: &NetflowToken,
 ) -> Result<UnlockStatus, crate::Error<Infallible>> {
-    let raw_data = raw_user_info_data(netflow_token).await?;
-    let is_locked = raw_data
-        .get("IsLocked")
-        .and_then(|v| v.as_i64())
-        .ok_or(parse_err(&raw_data.to_string()))?;
-    match is_locked {
-        0 => Ok(UnlockStatus::Unlocked),
-        1 => Ok(UnlockStatus::Locked),
-        _ => Ok(UnlockStatus::Unknown),
-    }
+    let raw_data = raw::get_user_info(netflow_token).await?;
+    parse::unlock_status(raw_data)
 }
 
 #[cfg(test)]
