@@ -1,31 +1,12 @@
-use crate::error::{MapParseErr, parse_err};
+use crate::error::MapParseErr;
 use chrono::NaiveDateTime;
-use serde::Deserialize;
-use serde_json::Value;
 use std::convert::Infallible;
 
 use super::OrderItem;
+use crate::netflow::order::raw::RawOrderItem;
 
-#[derive(Deserialize, Debug)]
-#[expect(non_snake_case)]
-struct RawOrderItem {
-    pub Download: Option<f64>,
-    pub Month: String,
-    pub RealOverTraffic: f64,
-    pub ShouldPay: f64,
-    pub UpdateTime: String,
-    pub Upload: Option<f64>,
-}
-
-/// 将 [`super::raw::get_order_list`] 的返回数据解析为 [`Vec<OrderItem>`]
-pub fn orders(raw_data: Value) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
-    let raw_converted = raw_data
-        .get("data")
-        .map(|v| serde_json::from_value::<Vec<RawOrderItem>>(v.clone()).parse_err(&v.to_string()))
-        .transpose()?
-        .ok_or(parse_err(&raw_data.to_string()))?;
-
-    raw_converted
+pub fn orders(raw_data: Vec<RawOrderItem>) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
+    raw_data
         .into_iter()
         .map(|item| {
             Ok(OrderItem {
@@ -52,7 +33,8 @@ mod tests {
 
     #[test]
     fn test_parse_order() -> TestResult<()> {
-        let raw_data: Value = serde_json::from_str(include_str!("test_data/getpagedlist.json"))?;
+        let raw_data: Vec<RawOrderItem> =
+            serde_json::from_str(include_str!("test_data/getpagedlist.json"))?;
         let orders = orders(raw_data)?;
 
         assert_eq!(orders.len(), 3);

@@ -1,42 +1,15 @@
-use crate::error::{MapParseErr, parse_err};
-use serde::Deserialize;
-use serde_json::Value;
 use std::convert::Infallible;
 
 use super::{Detail, DetailItem};
+use crate::netflow::detail::raw::RawDetail;
 
-#[derive(Deserialize, Debug)]
-#[expect(non_snake_case)]
-struct RawDetail {
-    pub AllDownload: f64,
-    pub AllTotal: f64,
-    pub AllUpload: f64,
-    pub FloatDetailList: Vec<RawDetailItem>,
-}
-
-#[derive(Deserialize, Debug)]
-#[expect(non_snake_case)]
-struct RawDetailItem {
-    pub App: String,
-    pub Download: f64,
-    pub Per: f64,
-    pub Total: f64,
-    pub Upload: f64,
-}
-
-/// 解析 [`super::raw::get_float_detail_by_month`] 或 [`super::raw::get_float_detail_by_day`] 的返回数据为 [`Detail`]
-pub fn detail(raw_data: Value) -> Result<Detail, crate::Error<Infallible>> {
-    let raw_converted = raw_data
-        .get("data")
-        .map(|v| serde_json::from_value::<RawDetail>(v.clone()).parse_err(&v.to_string()))
-        .transpose()?
-        .ok_or(parse_err(&raw_data.to_string()))?;
-
+/// 将 [`super::raw::get_float_detail_by_month`] 或 [`super::raw::get_float_detail_by_day`] 的返回数据转换为 [`Detail`]
+pub fn detail(raw_data: RawDetail) -> Result<Detail, crate::Error<Infallible>> {
     Ok(Detail {
-        total: raw_converted.AllTotal,
-        upload: raw_converted.AllUpload,
-        download: raw_converted.AllDownload,
-        items: raw_converted
+        total: raw_data.AllTotal,
+        upload: raw_data.AllUpload,
+        download: raw_data.AllDownload,
+        items: raw_data
             .FloatDetailList
             .into_iter()
             .map(|item| DetailItem {
@@ -55,10 +28,11 @@ mod tests {
     use crate::test::TestResult;
 
     use super::*;
+    use crate::netflow::detail::raw::RawDetail;
 
     #[test]
     fn test_convert_detail() -> TestResult<()> {
-        let raw_data: Value =
+        let raw_data: RawDetail =
             serde_json::from_str(include_str!("test_data/getfloatdetailbymonth.json"))?;
 
         let detail = detail(raw_data)?;

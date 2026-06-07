@@ -4,7 +4,9 @@ use std::convert::Infallible;
 
 use super::UnlockStatus;
 
-/// 从 [`super::raw::get_user_info`] 中提取锁定状态
+/// # Parameters
+///
+/// - `raw_data`: 由 [super::raw::get_user_info] 返回的原始数据
 pub fn unlock_status(raw_data: Value) -> Result<UnlockStatus, crate::Error<Infallible>> {
     let is_locked = raw_data
         .get("data")

@@ -1,25 +1,7 @@
-use crate::error::{MapParseErr, parse_err};
-use serde::Deserialize;
-use serde_json::Value;
 use std::convert::Infallible;
 
 use super::ThisMonthInfo;
-
-#[derive(Deserialize, Debug)]
-#[expect(non_snake_case)]
-struct RawThisMonthInfo {
-    pub allBasePackageAmount: f64,
-    pub allExtendPackageAmount: f64,
-    pub allTraffic: String,
-    pub basePackageUsed: f64,
-    pub basePackageUsedPer: f64,
-    pub downloadTraffic: String,
-    pub extendPackageUsed: f64,
-    pub extendPackageUsedPer: f64,
-    pub surplusBasePackage: f64,
-    pub surplusExtendPackage: f64,
-    pub uploadTraffic: String,
-}
+use crate::netflow::this_month::raw::RawThisMonthInfo;
 
 fn try_add_gb_suffix(s: &mut String) {
     if !s.ends_with("GB") {
@@ -27,26 +9,19 @@ fn try_add_gb_suffix(s: &mut String) {
     }
 }
 
-/// 将 [`super::raw::get_traffic_info_by_this_month`] 的返回数据解析为 [`ThisMonthInfo`]
-pub fn this_month(raw_data: Value) -> Result<ThisMonthInfo, crate::Error<Infallible>> {
-    let raw_converted = raw_data
-        .get("data")
-        .map(|v| serde_json::from_value::<RawThisMonthInfo>(v.clone()).parse_err(&v.to_string()))
-        .transpose()?
-        .ok_or(parse_err(&raw_data.to_string()))?;
-
+pub fn this_month(raw_data: RawThisMonthInfo) -> Result<ThisMonthInfo, crate::Error<Infallible>> {
     let mut res = ThisMonthInfo {
-        total_usage: raw_converted.allTraffic,
-        upload_usage: raw_converted.uploadTraffic,
-        download_usage: raw_converted.downloadTraffic,
-        base_package_amount: raw_converted.allBasePackageAmount,
-        base_package_usage: raw_converted.basePackageUsed,
-        base_package_usage_percentage: raw_converted.basePackageUsedPer,
-        base_package_surplus: raw_converted.surplusBasePackage,
-        extend_package_amount: raw_converted.allExtendPackageAmount,
-        extend_package_usage: raw_converted.extendPackageUsed,
-        extend_package_usage_percentage: raw_converted.extendPackageUsedPer,
-        extend_package_surplus: raw_converted.surplusExtendPackage,
+        total_usage: raw_data.allTraffic,
+        upload_usage: raw_data.uploadTraffic,
+        download_usage: raw_data.downloadTraffic,
+        base_package_amount: raw_data.allBasePackageAmount,
+        base_package_usage: raw_data.basePackageUsed,
+        base_package_usage_percentage: raw_data.basePackageUsedPer,
+        base_package_surplus: raw_data.surplusBasePackage,
+        extend_package_amount: raw_data.allExtendPackageAmount,
+        extend_package_usage: raw_data.extendPackageUsed,
+        extend_package_usage_percentage: raw_data.extendPackageUsedPer,
+        extend_package_surplus: raw_data.surplusExtendPackage,
     };
     try_add_gb_suffix(&mut res.total_usage);
     try_add_gb_suffix(&mut res.upload_usage);
@@ -63,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_extract_this_month() -> TestResult<()> {
-        let raw_data: Value =
+        let raw_data: RawThisMonthInfo =
             serde_json::from_str(include_str!("test_data/gettrafficinfobythismonth.json"))?;
 
         let info = this_month(raw_data)?;
