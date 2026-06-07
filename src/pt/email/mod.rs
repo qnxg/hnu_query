@@ -1,6 +1,7 @@
+mod parse;
 mod raw;
 
-use crate::pt::{email::raw::raw_unread_email_data, login::PtToken};
+use crate::pt::login::PtToken;
 use std::convert::Infallible;
 
 /// 获取未读邮件数
@@ -17,8 +18,8 @@ use std::convert::Infallible;
 pub async fn get_unread_email_count(
     pt_token: &PtToken,
 ) -> Result<Option<u32>, crate::Error<Infallible>> {
-    let res = raw_unread_email_data(pt_token).await?;
-    Ok(res.unReadCount)
+    let raw_data = raw::get_email_unread_count(pt_token).await?;
+    parse::email_unread_count(raw_data)
 }
 
 #[cfg(test)]

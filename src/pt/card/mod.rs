@@ -1,12 +1,7 @@
+mod parse;
 mod raw;
 
-use crate::{
-    error::MapParseErr,
-    pt::{
-        card::raw::{raw_card_history_data, raw_card_info_data},
-        login::PtToken,
-    },
-};
+use crate::pt::login::PtToken;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -76,11 +71,8 @@ pub struct CardHistoryItem {
 ///
 /// 校园卡信息
 pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<Infallible>> {
-    let res = raw_card_info_data(pt_token).await?;
-    Ok(CardInfo {
-        id: res.account,
-        balance: res.balance.parse::<f64>().parse_err(&res.balance)? / 100.0,
-    })
+    let raw_data = raw::get_card_user_info(pt_token).await?;
+    parse::card_info(raw_data)
 }
 
 /// 获取校园卡消费历史
@@ -105,42 +97,8 @@ pub async fn get_card_history(
         CardHistoryType::Consumption => "15",
         CardHistoryType::Recharge => "16",
     };
-    let raw_data = raw_card_history_data(pt_token, year, month, trancode).await?;
-    let raw_items = raw_data.webTrjnDTO.unwrap_or_default();
-    let mut items = Vec::with_capacity(raw_items.len());
-    for item in raw_items {
-        let date_time = NaiveDateTime::parse_from_str(&item.effectdate, "%Y/%m/%d %H:%M:%S")
-            .parse_err_with_reason(&item.effectdate, "date_time")?;
-        let journal_time = NaiveDateTime::parse_from_str(&item.jndatetime, "%Y/%m/%d %H:%M:%S")
-            .parse_err_with_reason(&item.jndatetime, "journal_time")?;
-        let now_balance = item
-            .nowAmt
-            .trim()
-            // 可能会有 1,359.30 这种情况
-            .replace([',', ' '], "")
-            .parse::<f64>()
-            .parse_err_with_reason(&item.nowAmt, "now_balance")?;
-        let amount = item
-            .fTranAmt
-            .parse::<f64>()
-            .parse_err_with_reason(&item.fTranAmt, "amount")?;
-        items.push(CardHistoryItem {
-            date_time,
-            journal_time,
-            status: item.jourName,
-            id: item.usedcardnum,
-            now_balance,
-            amount,
-            location: item.sysname1.map(|s| s.trim().to_string()),
-            name: item.tranname,
-        });
-    }
-    let res = CardHistory {
-        total: raw_data.amt / 100.0,
-        count: raw_data.count as u32,
-        items,
-    };
-    Ok(res)
+    let raw_data = raw::get_acc_history(pt_token, year, month, trancode).await?;
+    parse::card_history(raw_data)
 }
 
 #[cfg(test)]
