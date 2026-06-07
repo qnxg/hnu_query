@@ -13,13 +13,13 @@ pub const UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID: &str = "02a70e11bc89b40dc2ef6ed14
 ///
 /// # Arguments
 ///
-/// - `stu_id`: 学号
+/// - `ca_token`: 有效的 [CaToken]
 /// - `template_id`: 模板 id
 ///
 /// # Returns
 ///
-/// 可信电子凭证文件的 pdf 文本原始数据
-pub async fn raw_certification_data(
+/// 可信电子凭证文件的 PDF 文本原始数据
+pub async fn certification_pdf_text(
     ca_token: &CaToken,
     template_id: &str,
 ) -> Result<String, crate::Error<Infallible>> {
@@ -60,12 +60,12 @@ pub async fn raw_certification_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?;
-    let bytes = res.bytes().await.unexpected_err()?;
-    let pdf = pdf_extract::extract_text_from_mem(&bytes).map_err(|e| {
+    let pdf_bytes = res.bytes().await.unexpected_err()?;
+    let text_extracted = pdf_extract::extract_text_from_mem(&pdf_bytes).map_err(|e| {
         parse_err(&format!(
             "failed to extract PDF text ({} bytes): {e}",
-            bytes.len()
+            pdf_bytes.len()
         ))
     })?;
-    Ok(pdf)
+    Ok(text_extracted)
 }
