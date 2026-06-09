@@ -1,5 +1,5 @@
 use crate::{
-    cas::login::{AccountIssue, CasToken},
+    cas::{error::TokenExpired, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, request::cookie_parser},
 };
@@ -15,8 +15,6 @@ const INITIAL_AUTH_URL: &str = "https://deepseek.hnu.edu.cn:5556/auth?client_id=
 const OAUTH_LOGIN_URL: &str = "https://maas.nscc-cs.cn/api/oauth-login";
 
 /// AI 系统的令牌
-///
-/// `headers` 包含 `Authorization: Bearer <token>` 和 `Cookie: session=...`
 #[derive(Debug, Clone)]
 pub struct AiToken {
     headers: HeaderMap,
@@ -68,10 +66,10 @@ impl AiToken {
     ///
     /// # Errors
     ///
-    /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
-    ) -> Result<Self, crate::Error<AccountIssue>> {
+    ) -> Result<Self, crate::Error<TokenExpired>> {
         let mut current_url = INITIAL_AUTH_URL.to_string();
         let mut all_cookies = cas_token.cookie().to_string();
         let mut cas_authenticated = false;
@@ -111,29 +109,25 @@ impl AiToken {
                 // 注意：不能使用 all_cookies，因为 CAS 返回的 200 登录页面会在
                 // Set-Cookie 中写入新的 JSESSIONID，这个未认证 session 会覆盖掉
                 // TGT cookie 导致 TokenExpired。应该使用原始的 cas_token cookie。
-                let temp_token =
-                    CasToken::from_cookie_unchecked(cas_token.cookie(), cas_token.stu_id());
-                let ticket_url = temp_token
-                    .get_ticket_url(&current_url)
-                    .await
-                    .unexpected_err()?;
+                let temp_token = cas_token.clone();
+                let ticket_url = temp_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
-                return Err(format!(
+                Err(format!(
                     "未预期的HTTP状态码 {}，URL: {}",
                     status, current_url
                 ))
-                .unexpected_err();
+                .unexpected_err()?;
             }
         }
 
         if extract_code(&current_url).is_none() {
-            return Err(format!(
+            Err(format!(
                 "重定向次数超过限制，无法完成登录，当前URL: {}",
                 current_url
             ))
-            .unexpected_err();
+            .unexpected_err()?;
         }
 
         // Phase 2: 从 callback URL 提取 code，POST 到 oauth-login 换 token

@@ -3,7 +3,7 @@ use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::client,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::convert::Infallible;
 
@@ -12,7 +12,7 @@ const TOKENS_URL: &str = "https://maas.nscc-cs.cn/api/tokens";
 const APPLY_TOKEN_URL: &str = "https://maas.nscc-cs.cn/api/apply-token";
 
 /// Token 信息
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TokenInfo {
     pub token_name: String,
     pub id: u64,

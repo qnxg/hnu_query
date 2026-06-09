@@ -39,8 +39,6 @@ pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
 
 /// 删除指定 token
 ///
-/// **!!! 删除成功后应重新获取 token 列表**
-///
 /// # Parameters
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
@@ -54,8 +52,6 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<I
 }
 
 /// 创建新的 token
-///
-/// **!!! 创建成功后应重新获取 token 列表**
 ///
 /// # Parameters
 ///
