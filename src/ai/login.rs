@@ -4,7 +4,7 @@ use crate::{
     utils::{client, request::cookie_parser},
 };
 use reqwest::{
-    StatusCode,
+    StatusCode, Url,
     header::{AUTHORIZATION, COOKIE, HeaderMap, LOCATION, SET_COOKIE},
 };
 use serde_json::Value;
@@ -20,25 +20,24 @@ pub struct AiToken {
     headers: HeaderMap,
 }
 
-/// 将相对路径的 Location 解析为绝对 URL
+/// 将 302 重定向的 `Location` 解析为绝对 URL（`Location` 可能是**绝对路径**也可能是**相对路径**）
 fn resolve_location(current_url: &str, location: &str) -> Result<String, String> {
+    // 已经是绝对 URL，直接使用
     if location.starts_with("http://") || location.starts_with("https://") {
         return Ok(location.to_string());
     }
+    // 不支持不以 / 开头的相对路径
     if !location.starts_with('/') {
         return Err(format!("Location 不是绝对路径且没有前导 /: {}", location));
     }
-    let after_proto = match current_url.find("://") {
-        Some(pos) => &current_url[pos + 3..],
-        None => return Ok(format!("{}{}", current_url.trim_end_matches('/'), location)),
-    };
-    match after_proto.find('/') {
-        Some(path_start) => {
-            let origin_end = current_url.len() - after_proto.len() + path_start;
-            Ok(format!("{}{}", &current_url[..origin_end], location))
-        }
-        None => Ok(format!("{}{}", current_url.trim_end_matches('/'), location)),
-    }
+    // 从 current_url 提取 origin，拼接 location
+    let url = Url::parse(current_url).map_err(|e| format!("无效的 current_url: {}", e))?;
+    Ok(format!(
+        "{}://{}{}",
+        url.scheme(),
+        url.authority(),
+        location
+    ))
 }
 
 /// 从 URL query string 中提取 `code` 参数
