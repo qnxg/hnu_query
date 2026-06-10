@@ -51,14 +51,11 @@ fn resolve_location(current_url: &str, location: &str) -> Result<String, String>
 
 /// 从 URL query string 中提取 `code` 参数
 fn extract_code(url: &str) -> Option<String> {
-    url.split('?').nth(1)?.split('&').find_map(|pair| {
-        let mut parts = pair.splitn(2, '=');
-        if parts.next()? == "code" {
-            parts.next().map(|s| s.to_string())
-        } else {
-            None
-        }
-    })
+    let parsed = Url::parse(url).ok()?;
+    parsed
+        .query_pairs()
+        .find(|(key, _)| key == "code")
+        .map(|(_, value)| value.into_owned())
 }
 
 impl AiToken {
@@ -125,8 +122,7 @@ impl AiToken {
                 // 会覆盖掉 cas_token 中已认证的 TGT cookie，导致 get_ticket_url 拿到的
                 // 不是已登录用户的 ticket，进而返回 TokenExpired。所以必须用原始的
                 // cas_token cookie 来做这一步。
-                let temp_token = cas_token.clone();
-                let ticket_url = temp_token.get_ticket_url(&current_url).await?;
+                let ticket_url = cas_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
