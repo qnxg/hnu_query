@@ -71,7 +71,7 @@ impl AiToken {
     ///
     /// # Errors
     ///
-    /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [TokenExpired] 错误
+    /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [cas::error::TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
