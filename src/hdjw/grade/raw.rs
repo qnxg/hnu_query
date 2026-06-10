@@ -14,7 +14,7 @@ const GRADE_DETAIL_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/kscj/pscj_list.do?z
 
 /// 教务 `考试成绩 > 课程成绩` 返回数据单项
 #[derive(Deserialize, Debug)]
-pub struct GradeInfoRes {
+pub struct RawGradeInfo {
     // 未知字段
     // pub cj0708id: String,
     // 学年学期信息（暂时不用）
@@ -25,7 +25,7 @@ pub struct GradeInfoRes {
     pub kc_mc: String,
     // 开课学院（暂时不用）
     // pub ksdw: String,
-    //  似乎和 xnxqid 重复
+    // 似乎和 xnxqid 重复
     // pub xqmc: String,
     /// 学分
     pub xf: f32,
@@ -43,7 +43,7 @@ pub struct GradeInfoRes {
     // pub zcjstr: String,
     // 未知字段
     // pub kz: u8,
-    ///  课程性质（通识必修/专业核心等）
+    /// 课程性质（通识必修/专业核心等）
     pub kcxzmc: String,
     // 未知字段
     // pub xs0101id: String,
@@ -61,11 +61,11 @@ pub struct GradeInfoRes {
     pub cjbs: Option<String>,
 }
 
-pub async fn raw_grade_data(
+pub async fn get_cjcx_list(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
-) -> Result<Vec<GradeInfoRes>, crate::Error<TokenExpired>> {
+) -> Result<Vec<RawGradeInfo>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
     let raw_res = client
         .get(format!("{}&kksj={}-{}-{}", GRADE_URL, xn, xn + 1, xq))
@@ -77,13 +77,13 @@ pub async fn raw_grade_data(
         .unexpected_err()?
         .extract_data()
         .await?;
-    let res: Vec<GradeInfoRes> =
+    let res: Vec<RawGradeInfo> =
         serde_json::from_value(raw_res["data"].clone()).parse_err(&raw_res.to_string())?;
     Ok(res)
 }
 
 /// 返回的原始数据是 html 格式
-pub async fn raw_grade_detail_data(
+pub async fn get_pscj_list(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<String, crate::Error<TokenExpired>> {
