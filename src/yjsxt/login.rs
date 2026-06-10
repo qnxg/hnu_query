@@ -58,7 +58,7 @@ impl YjsxtToken {
             .split("/gmis/")
             .nth(1)
             .and_then(|s| s.split('/').next())
-            .ok_or(parse_err(redirection))?
+            .ok_or_else(|| parse_err(redirection))?
             .to_string();
         let new_url = format!("http://yjsxt.hnu.edu.cn{}", redirection);
         client

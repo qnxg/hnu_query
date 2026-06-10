@@ -129,10 +129,13 @@ pub async fn get_class_table(
         for (i, time) in detail_times.into_iter().enumerate() {
             let caps = re
                 .captures(time)
-                .ok_or(parse_err_with_reason(&item.sktime, "上课时间: day"))?;
-            let day = match caps.get(1).and_then(|v| v.as_str().chars().next()).ok_or(
-                parse_err_with_reason(&item.sktime, "上课时间: day: 没有匹配到星期字符"),
-            )? {
+                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: day"))?;
+            let day = match caps
+                .get(1)
+                .and_then(|v| v.as_str().chars().next())
+                .ok_or_else(|| {
+                    parse_err_with_reason(&item.sktime, "上课时间: day: 没有匹配到星期字符")
+                })? {
                 '一' => 1,
                 '二' => 2,
                 '三' => 3,
@@ -151,7 +154,7 @@ pub async fn get_class_table(
             let mut time_list = HashSet::new();
             for time_range in caps
                 .get(2)
-                .ok_or(parse_err_with_reason(&item.sktime, "上课时间: time"))?
+                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: time"))?
                 .as_str()
                 .split('、')
             {
@@ -159,7 +162,7 @@ pub async fn get_class_table(
                 let time_l = parts
                     .first()
                     .and_then(|v| v.parse::<u8>().ok())
-                    .ok_or(parse_err_with_reason(&item.sktime, "上课时间: time"))?;
+                    .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: time"))?;
                 let time_r = match parts.get(1) {
                     Some(v) => v
                         .parse::<u8>()
@@ -172,7 +175,7 @@ pub async fn get_class_table(
             let mut week_list = HashSet::new();
             for week_range in caps
                 .get(3)
-                .ok_or(parse_err_with_reason(&item.sktime, "上课时间: week"))?
+                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: week"))?
                 .as_str()
                 .split(',')
             {
@@ -180,7 +183,7 @@ pub async fn get_class_table(
                 let week_l = parts
                     .first()
                     .and_then(|v| v.parse::<u8>().ok())
-                    .ok_or(parse_err_with_reason(&item.sktime, "上课时间: week"))?;
+                    .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: week"))?;
                 let week_r = match parts.get(1) {
                     Some(v) => v
                         .parse::<u8>()
@@ -191,7 +194,7 @@ pub async fn get_class_table(
             }
             let place = places
                 .get(i)
-                .ok_or(parse_err_with_reason(&item.skddmc, "上课地点"))?;
+                .ok_or_else(|| parse_err_with_reason(&item.skddmc, "上课地点"))?;
             week_list.iter().for_each(|&week| {
                 schedule
                     .entry((week, day, place.to_string()))

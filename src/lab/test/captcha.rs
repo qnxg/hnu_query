@@ -34,7 +34,7 @@ impl CaptchaResolver for TestCaptchaResolver {
         } else {
             Err(format!(
                 "验证码服务错误: {}",
-                res.error.unwrap_or("未知错误".to_string())
+                res.error.unwrap_or_else(|| "未知错误".to_string())
             )
             .into())
         }

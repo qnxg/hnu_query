@@ -32,6 +32,6 @@ pub async fn raw_electricity_data(
         .get("data")
         .and_then(|data| data.get("Balance"))
         .and_then(|balance| balance.as_str())
-        .ok_or(parse_err(&json_str))?
+        .ok_or_else(|| parse_err(&json_str))?
         .to_string())
 }
