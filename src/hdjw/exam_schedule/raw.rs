@@ -27,7 +27,7 @@ pub struct ExamScheduleItem {
     pub zwh: Option<String>,
 }
 
-pub async fn raw_exam_schedule_data(
+pub async fn get_xsksap_list(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
