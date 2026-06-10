@@ -9,9 +9,18 @@ use reqwest::{
 };
 use serde_json::Value;
 
-// 登录入口，OAuth2 authorize 端点
+// AI 系统的认证架构与其他系统不同，走的是 OAuth2 Authorization Code 流程：
+//
+//   deepseek.hnu (OAuth2 authorize) → CAS (身份认证) → deepseek.hnu (签发 code) → maas (换 bearer token)
+//
+// 其他系统只需一步 CAS 直连：cas_token.get_ticket_url(固定URL)
+// 因为那些系统本身就是 CAS client，CAS 认证后 ticket 直接回到目标系统即可。
+// 而 AI 系统的认证入口是 deepseek.hnu 的 OAuth2 authorize endpoint，CAS 只是其身份认证的后端
+// OAuth2 的 code 必须由 deepseek.hnu 签发，无法跳过 deepseek.hnu 直接构造 CAS URL。
+
+// OAuth2 authorization endpoint
 const INITIAL_AUTH_URL: &str = "https://deepseek.hnu.edu.cn:5556/auth?client_id=openclaw&response_type=code&redirect_uri=https%3A%2F%2Fmaas.nscc-cs.cn%2Fcallback&scope=openid%20profile%20email";
-// maas 平台 OAuth2 token 端点，通过 code 得到 bearer token
+// maas 平台 OAuth2 token endpoint，用 authorization code 交换 bearer token
 const OAUTH_LOGIN_URL: &str = "https://maas.nscc-cs.cn/api/oauth-login";
 
 /// AI 系统的令牌
@@ -73,7 +82,10 @@ impl AiToken {
         let mut all_cookies = cas_token.cookie().to_string();
         let mut cas_authenticated = false;
 
-        // Phase 1: 跟随 302/303 链，到达 maas callback
+        // Phase 1: 跟随 OAuth2 authorize 链路的 302/303 重定向，直到抵达 maas callback。
+        // 不能手动构造 CAS URL 然后直接 get_ticket_url ，那样即使 CAS 认证成功，
+        // ticket 也不知道该回到哪里去（没有 OAuth2 authorize endpoint 来接收并签发 code）。
+        // 所以这里必须从 INITIAL_AUTH_URL 开始，沿着服务器返回的 Location 自动跟到底。
         for _ in 0..10 {
             let res = client
                 .get(&current_url)
@@ -104,10 +116,15 @@ impl AiToken {
             } else if current_url.contains("maas.nscc-cs.cn") {
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
-                // 重定向链中遇到 CAS 登录页，需要带上 CAS cookie 去请求 ticket URL。
-                // 注意：不能使用 all_cookies，因为 CAS 返回的 200 登录页面会在
-                // Set-Cookie 中写入新的 JSESSIONID，这个未认证 session 会覆盖掉
-                // TGT cookie 导致 TokenExpired。应该使用原始的 cas_token cookie。
+                // OAuth2 authorize 链路中遇到了 CAS 登录页（HTTP 200），说明 deepseek.hnu
+                // 把浏览器重定向到了 CAS 做身份认证。这里就是整个流程中 CAS 介入的节点：
+                // 用 cas_token 向 CAS 证明身份，换取 ticket，然后继续 OAuth2 链路。
+                //
+                // 注意：不能使用沿途积累的 all_cookies，因为 CAS 返回的 200 登录页面
+                // 会在 Set-Cookie 中写入一个新的、未认证的 JSESSIONID ，这个新 session
+                // 会覆盖掉 cas_token 中已认证的 TGT cookie，导致 get_ticket_url 拿到的
+                // 不是已登录用户的 ticket，进而返回 TokenExpired。所以必须用原始的
+                // cas_token cookie 来做这一步。
                 let temp_token = cas_token.clone();
                 let ticket_url = temp_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
