@@ -1,5 +1,5 @@
 use crate::{
-    cas::{error::TokenExpired, login::CasToken},
+    cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, request::cookie_parser},
 };
@@ -74,7 +74,7 @@ impl AiToken {
     /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [TokenExpired] 错误
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
-    ) -> Result<Self, crate::Error<TokenExpired>> {
+    ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let mut current_url = INITIAL_AUTH_URL.to_string();
         let mut all_cookies = cas_token.cookie().to_string();
         let mut cas_authenticated = false;
@@ -167,7 +167,7 @@ impl AiToken {
         let oauth_json: Value = serde_json::from_str(&oauth_text).parse_err(&oauth_text)?;
         let bearer_token = oauth_json["data"]["token"]
             .as_str()
-            .ok_or(parse_err(&oauth_text))?;
+            .ok_or_else(|| parse_err(&oauth_text))?;
 
         let mut headers = HeaderMap::new();
         headers.insert(

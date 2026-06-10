@@ -2,7 +2,7 @@ mod raw;
 
 use crate::{
     ai::{login::AiToken, token::raw::*},
-    error::parse_err,
+    error::{MapUnexpectedErr, parse_err},
 };
 use std::convert::Infallible;
 
@@ -46,7 +46,7 @@ pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
 pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<Infallible>> {
     let success = raw_delete_token(token, id).await?;
     if !success {
-        return Err(parse_err("删除 token 失败，服务器返回 success=false"));
+        return Err("创建 token 失败，服务器返回 success=false".to_string()).unexpected_err()?;
     }
     Ok(())
 }

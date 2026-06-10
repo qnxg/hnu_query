@@ -25,6 +25,6 @@ pub async fn raw_user_info_data(token: &AiToken) -> Result<usize, crate::Error<I
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
     let total_granted = res["data"]["total_granted"]
         .as_u64()
-        .ok_or(parse_err(&json_str))? as usize;
+        .ok_or_else(|| parse_err(&json_str))? as usize;
     Ok(total_granted)
 }

@@ -54,7 +54,9 @@ pub async fn raw_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
         .await
         .unexpected_err()?;
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
-    let key = res["data"]["key"].as_str().ok_or(parse_err(&json_str))?;
+    let key = res["data"]["key"]
+        .as_str()
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(key.to_string())
 }
 
@@ -72,7 +74,9 @@ pub async fn raw_delete_token(token: &AiToken, id: u64) -> Result<bool, crate::E
         .await
         .unexpected_err()?;
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
-    let success = res["success"].as_bool().ok_or(parse_err(&json_str))?;
+    let success = res["success"]
+        .as_bool()
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(success)
 }
 
@@ -95,6 +99,8 @@ pub async fn raw_create_token(
         .await
         .unexpected_err()?;
     let res: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
-    let success = res["success"].as_bool().ok_or(parse_err(&json_str))?;
+    let success = res["success"]
+        .as_bool()
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(success)
 }
