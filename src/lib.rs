@@ -15,6 +15,7 @@
 #![warn(clippy::unused_async)]
 #![warn(clippy::todo, reason = "在`git commit`之前，请确认代码中没有`todo!()`")]
 
+pub mod ai;
 pub mod ca;
 mod error;
 pub mod gym;
