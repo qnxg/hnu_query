@@ -91,10 +91,7 @@ impl TFAToken {
     /// 发送短信验证码
     pub async fn send_sms(&self) -> Result<SMSResult, crate::Error<AccountIssue>> {
         let res = client
-            .get(format!(
-                "https://cas.hnu.edu.cn/cas/v2/services/sedsms?mobile={}",
-                self.phone,
-            ))
+            .get("https://cas.hnu.edu.cn/cas/syz/services/sedsms?reloginType=reloginPhone")
             .header(COOKIE, self.cookie.clone())
             .send()
             .await
