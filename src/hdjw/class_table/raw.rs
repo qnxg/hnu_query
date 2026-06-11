@@ -18,7 +18,7 @@ const CLASS_TABLE_EXTRA: &str = "http://hdjw.hnu.edu.cn/jsxsd/xskb/xskb_list.do?
 /// 还有其他一些具体学时信息的字段，懒得搞了
 #[derive(Deserialize, Debug)]
 #[expect(unused)]
-pub struct CourseInfo {
+pub struct RawCourseInfo {
     /// 课程代码
     pub kch: String,
     /// 课程名称
@@ -60,7 +60,7 @@ pub struct CourseInfo {
 
 /// 教务 `教学运行 > 我的课表 > 无课表课程` 返回数据单项
 #[derive(Deserialize, Debug)]
-pub struct ExtraCourseInfo {
+pub struct RawExtraCourseInfo {
     /// 课程代码
     pub kch: String,
     /// 课程名称
@@ -82,19 +82,16 @@ pub struct ExtraCourseInfo {
 }
 
 /// 获取课表信息
-pub async fn raw_class_table_data(
+pub async fn get_xskb_list(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
-) -> Result<Vec<CourseInfo>, crate::Error<TokenExpired>> {
+) -> Result<Vec<RawCourseInfo>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
     let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
-            CLASS_TABLE_URL,
-            xn,
-            xn + 1,
-            xq
+            CLASS_TABLE_URL, xn, xn + 1, xq
         ))
         .headers(headers)
         .send()
@@ -109,7 +106,7 @@ pub async fn raw_class_table_data(
         Some(0) => Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
         Some(_) => {
             // 取 data 字段返回
-            let res: Vec<CourseInfo> =
+            let res: Vec<RawCourseInfo> =
                 serde_json::from_value(res["data"].clone()).parse_err(&res.to_string())?;
 
             Ok(res)
@@ -118,19 +115,16 @@ pub async fn raw_class_table_data(
 }
 
 /// 获取无课表课程
-pub async fn raw_class_table_extra_data(
+pub async fn get_xskb_list_extra(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
-) -> Result<Vec<ExtraCourseInfo>, crate::Error<TokenExpired>> {
+) -> Result<Vec<RawExtraCourseInfo>, crate::Error<TokenExpired>> {
     let headers = hdjw_token.headers().clone();
     let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
-            CLASS_TABLE_EXTRA,
-            xn,
-            xn + 1,
-            xq
+            CLASS_TABLE_EXTRA, xn, xn + 1, xq
         ))
         .headers(headers)
         .send()
@@ -145,7 +139,7 @@ pub async fn raw_class_table_extra_data(
         Some(0) => Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
         Some(_) => {
             // 取 data 字段返回
-            let res: Vec<ExtraCourseInfo> =
+            let res: Vec<RawExtraCourseInfo> =
                 serde_json::from_value(res["data"].clone()).parse_err(&res.to_string())?;
             Ok(res)
         }
