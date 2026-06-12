@@ -7,7 +7,7 @@ use serde_json::Value;
 
 const GRADE_RANK_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/xscjsq/cjpmcx_list.do";
 
-pub async fn raw_rank_data(
+pub async fn get_cjpmcx_list(
     hdjw_token: &HdjwToken,
     selection: &str,
     range: &str,
