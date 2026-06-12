@@ -5,6 +5,7 @@ use crate::{
 };
 use reqwest::{StatusCode, header::LOCATION};
 use urlencoding::decode;
+
 const YJSXT_FROM_CAS_URL: &str =
     "http://cas.hnu.edu.cn/cas/login?service=http://yjsxt.hnu.edu.cn/gmis/oauthLogin/hndxnew?ywdm=";
 
