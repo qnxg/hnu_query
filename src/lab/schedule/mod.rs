@@ -72,7 +72,7 @@ pub async fn get_lab_schedule(
             .next()
             .map(|v| NaiveDate::parse_from_str(v, "%Y/%m/%d").parse_err_with_reason(v, "date"))
             .transpose()?
-            .ok_or(parse_err_with_reason(&item.ClassDate, "date"))?;
+            .ok_or_else(|| parse_err_with_reason(&item.ClassDate, "date"))?;
         let time = NaiveTime::parse_from_str(&item.StartTime, "%H:%M")
             .parse_err_with_reason(&item.StartTime, "time")?;
         let tmp = LabSchedule {

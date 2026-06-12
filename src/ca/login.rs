@@ -59,10 +59,7 @@ impl CaToken {
         }
         let token = json["result"]["token"]
             .as_str()
-            .ok_or(parse_err_with_reason(
-                &json_str,
-                "Ca 系统返回的 token 字段不存在",
-            ))?;
+            .ok_or_else(|| parse_err_with_reason(&json_str, "Ca 系统返回的 token 字段不存在"))?;
         let cookie = format!("X-Access-Token={token}");
         let mut headers = HeaderMap::new();
         headers.insert("X-Access-Token", token.parse().parse_err(token)?);

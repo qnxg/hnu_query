@@ -1,9 +1,10 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapUnexpectedErr, parse_err},
+    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::client,
 };
 use reqwest::{StatusCode, header::LOCATION};
+use urlencoding::decode;
 
 const YJSXT_FROM_CAS_URL: &str =
     "http://cas.hnu.edu.cn/cas/login?service=http://yjsxt.hnu.edu.cn/gmis/oauthLogin/hndxnew?ywdm=";
@@ -55,19 +56,32 @@ impl YjsxtToken {
             .to_str()
             .unexpected_err()?;
         let id = redirection
+            // TODO 这么解析不太好，后续改为使用 url 解析库
             .split("/gmis/")
             .nth(1)
             .and_then(|s| s.split('/').next())
-            .ok_or(parse_err(redirection))?
+            .ok_or_else(|| parse_err(redirection))?
             .to_string();
         let new_url = format!("http://yjsxt.hnu.edu.cn{}", redirection);
-        client
+        let res = client
             .get(&new_url)
             .send()
             .await
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        // 若是使用本科生账号登录研究生系统时，会被重定向到类似地址
+        // http://yjsxt.hnu.edu.cn/gmis/(S(1031xasdwyr03t2evudmrbbel))/oauthLogin/hndxn....
+        // 按前面的逻辑依然可以截取出/gmis/后面的 id，但是实际上会跳转报错页面
+        if let Some(location) = res.headers().get(LOCATION) {
+            let location_str = location.to_str().unexpected_err()?;
+            if location_str.contains("/home/err") {
+                // TODO 这么解析不太好
+                let msg = location_str.split("msg=").nth(1).unwrap_or("");
+                let msg = decode(msg).parse_err_with_reason(msg, "url解码失败")?;
+                return Err(msg).unexpected_err();
+            }
+        }
         Ok(Self { id })
     }
     /// 从 id 创建 [YjsxtToken]

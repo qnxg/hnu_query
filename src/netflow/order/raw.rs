@@ -40,6 +40,6 @@ pub async fn get_order_list(
         .get("data")
         .map(|v| serde_json::from_value(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(data)
 }

@@ -58,7 +58,7 @@ pub async fn get_card_user_info(
         .get("data")
         .map(|v| serde_json::from_value(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(data)
 }
 
@@ -89,7 +89,7 @@ pub async fn get_acc_history(
         .parse_err(&csrf_json_str)?
         .get("data")
         .and_then(|v| v.as_str().map(|s| s.to_string()))
-        .ok_or(parse_err(&csrf_json_str))?;
+        .ok_or_else(|| parse_err(&csrf_json_str))?;
 
     let form_data = [
         ("beginDate", begin_date.as_str()),
@@ -116,6 +116,6 @@ pub async fn get_acc_history(
         .get("data")
         .map(|v| serde_json::from_value(v.clone()).parse_err(&json_str))
         .transpose()?
-        .ok_or(parse_err(&json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
     Ok(data)
 }

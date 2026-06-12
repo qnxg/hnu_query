@@ -98,5 +98,8 @@ pub async fn get_pscj_list(
         .unexpected_err()?
         .extract_data()
         .await?;
-    Ok(res.as_str().ok_or(parse_err(&res.to_string()))?.to_string())
+    Ok(res
+        .as_str()
+        .ok_or_else(|| parse_err(&res.to_string()))?
+        .to_string())
 }
