@@ -1,9 +1,7 @@
+mod parse;
 mod raw;
 
-use crate::{
-    error::{parse_err, parse_err_with_reason},
-    hdjw::{error::TokenExpired, login::HdjwToken},
-};
+use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
 
 /// 空教室信息
@@ -65,64 +63,8 @@ pub async fn get_empty_classroom(
         .collect::<Vec<_>>()
         .join(",");
     let raw_data =
-        raw::raw_empty_classroom_data(hdjw_token, xn, xq, week, day, &time_str, building_id)
-            .await?;
-    let data = raw_data
-        .as_array()
-        .and_then(|v| v.get(4))
-        .and_then(|v| v.as_array())
-        .ok_or(parse_err(&raw_data.to_string()))?;
-    let mut res = Vec::new();
-    for item in data {
-        let item = item.as_array().ok_or(parse_err(&item.to_string()))?;
-        let mut is_free = true;
-        // 需要每一节课均为空才会被认为是空教室
-        for i in 1..=time.len() {
-            if !item
-                .get(i)
-                .ok_or(parse_err_with_reason(
-                    &format!("{:?}", item),
-                    "空教室占用情况",
-                ))?
-                .is_null()
-            {
-                is_free = false;
-                break;
-            }
-        }
-        if !is_free {
-            continue;
-        }
-
-        let (Some(room_name), Some(seat_count_str), Some(room_type)) = (
-            item.first().and_then(|v| v.as_str()),
-            item.get(2 + time.len()).and_then(|v| v.as_str()),
-            item.get(3 + time.len()).and_then(|v| v.as_str()),
-        ) else {
-            return Err(parse_err_with_reason(&format!("{:?}", item), "空教室信息"));
-        };
-
-        if seat_count_str.len() < 3
-            || !seat_count_str.starts_with('(')
-            || !seat_count_str.ends_with(')')
-        {
-            return Err(parse_err_with_reason(seat_count_str, "座位数"));
-        }
-        let [Ok(seat_count), Ok(exam_seat_count)] = seat_count_str[1..seat_count_str.len() - 1]
-            .split('/')
-            .map(|x| x.parse::<u32>())
-            .collect::<Vec<_>>()[..]
-        else {
-            return Err(parse_err_with_reason(seat_count_str, "座位数"));
-        };
-        res.push(EmptyClassroom {
-            room_name: room_name.to_string(),
-            room_type: room_type.to_string(),
-            seat_count,
-            exam_seat_count,
-        });
-    }
-    Ok(res)
+        raw::get_jsjy_query2(hdjw_token, xn, xq, week, day, &time_str, building_id).await?;
+    parse::empty_classroom(raw_data, time)
 }
 
 #[cfg(test)]
