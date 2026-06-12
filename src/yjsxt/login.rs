@@ -61,13 +61,22 @@ impl YjsxtToken {
             .ok_or_else(|| parse_err(redirection))?
             .to_string();
         let new_url = format!("http://yjsxt.hnu.edu.cn{}", redirection);
-        client
+        let res = client
             .get(&new_url)
             .send()
             .await
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        // 若是使用本科生账号登录研究生系统时，会被重定向到类似地址
+        // http://yjsxt.hnu.edu.cn/gmis/(S(1031xvawyr03t2evudmrbbel))/oauthLogin/hndxn....
+        // 按前面的逻辑依然可以截取出/gmis/后面的 id，但是实际上会跳转报错页面
+        if let Some(location) = res.headers().get(LOCATION) {
+            let location_str = location.to_str().unexpected_err()?;
+            if location_str.contains("/home/err") {
+                return Err("研究生系统内没有此人，或者发生了其他未知错误").unexpected_err();
+            }
+        }
         Ok(Self { id })
     }
     /// 从 id 创建 [YjsxtToken]
