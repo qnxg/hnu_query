@@ -4,7 +4,7 @@ use crate::{
     utils::client,
 };
 use reqwest::{StatusCode, header::LOCATION};
-
+use urlencoding::decode;
 const YJSXT_FROM_CAS_URL: &str =
     "http://cas.hnu.edu.cn/cas/login?service=http://yjsxt.hnu.edu.cn/gmis/oauthLogin/hndxnew?ywdm=";
 
@@ -74,7 +74,9 @@ impl YjsxtToken {
         if let Some(location) = res.headers().get(LOCATION) {
             let location_str = location.to_str().unexpected_err()?;
             if location_str.contains("/home/err") {
-                return Err("研究生系统内没有此人，或者发生了其他未知错误").unexpected_err();
+                let msg = location_str.split("msg=").nth(1).unwrap_or("");
+                let msg = decode(msg).expect("UTF-8");
+                return Err(format!("研究生系统报错信息:{msg}")).unexpected_err();
             }
         }
         Ok(Self { id })
