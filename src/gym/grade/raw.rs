@@ -29,7 +29,7 @@ const GRADE_DETAIL_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_st
 ///
 /// 仅包含了项目的成绩和等级，没有包含项目具体的数据，也没有总的数据
 ///
-/// see also [`GradeDetail`]
+/// see also [`RawGradeDetail`]
 #[derive(Deserialize, Debug)]
 pub struct RawGradeSummary {
     #[serde(rename = "50m_class")]
