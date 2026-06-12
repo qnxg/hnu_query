@@ -121,7 +121,9 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
 /// # Parameters
 ///
 /// - `raw_data`: 由 [`super::raw::get_xskb_list`] 返回的数据
-pub fn class_table(raw_data: Vec<RawCourseInfo>) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
+pub fn class_table(
+    raw_data: Vec<RawCourseInfo>,
+) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let mut courses = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         let schedule = course_schedule(&item)?;

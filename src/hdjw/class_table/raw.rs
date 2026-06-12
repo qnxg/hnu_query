@@ -91,7 +91,10 @@ pub async fn get_xskb_list(
     let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
-            CLASS_TABLE_URL, xn, xn + 1, xq
+            CLASS_TABLE_URL,
+            xn,
+            xn + 1,
+            xq
         ))
         .headers(headers)
         .send()
@@ -124,7 +127,10 @@ pub async fn get_xskb_list_extra(
     let res = client
         .get(format!(
             "{}&xnxq01id={}-{}-{}",
-            CLASS_TABLE_EXTRA, xn, xn + 1, xq
+            CLASS_TABLE_EXTRA,
+            xn,
+            xn + 1,
+            xq
         ))
         .headers(headers)
         .send()
