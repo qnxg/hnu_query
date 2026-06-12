@@ -1,4 +1,3 @@
-use super::parse::none_to_zero;
 use crate::{
     error::{MapNetworkErr, MapUnexpectedErr},
     gym::{
@@ -8,7 +7,20 @@ use crate::{
     },
     utils::client,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+
+/// If the value is None, return "0" instead.
+pub fn none_to_zero<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer);
+    if opt.is_err() {
+        Ok(Some("0".to_string()))
+    } else {
+        Ok(opt?)
+    }
+}
 
 const GRADE_SUMMARY_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/public/index.php/index/Report/getStudentScore";
 const GRADE_DETAIL_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/public/index.php/index/Report/getEyeDetails";
