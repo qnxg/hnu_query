@@ -1,9 +1,7 @@
+mod parse;
 mod raw;
 
-use crate::{
-    error::MapParseErr,
-    gym::{error::TokenExpired, login::GymToken},
-};
+use crate::gym::{error::TokenExpired, login::GymToken};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -66,17 +64,7 @@ pub async fn get_appointment(
             &raw_item.test_time,
         )
         .await?;
-        let temp = Appointment {
-            name: raw_item.class_name,
-            desc: raw_detail.class_desc,
-            show_date: raw_item.show_time,
-            date: NaiveDate::parse_from_str(&raw_item.class_time, "%Y-%m-%d")
-                .parse_err(&raw_item.class_time)?,
-            time: raw_item.test_time,
-            test_type: raw_detail.appo_type,
-            status: raw_item.button_status,
-        };
-        res.push(temp);
+        res.push(parse::appointment_item(raw_item, raw_detail)?);
     }
     Ok(res)
 }

@@ -13,7 +13,7 @@ const DETAIL_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_
 const APPOINT_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/public/index.php/index/Appoint/getStudentClass";
 
 #[derive(Deserialize, Debug)]
-pub struct AppointmentItem {
+pub struct RawAppointmentItem {
     pub class_id: u32,
     pub button_status: i32,
     pub class_name: String,
@@ -26,14 +26,14 @@ pub struct AppointmentItem {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct AppointmentDetail {
+pub struct RawAppointmentDetail {
     pub class_desc: String,
     pub appo_type: i32,
 }
 
 pub async fn raw_appointment_list_data(
     gym_token: &GymToken,
-) -> Result<Vec<AppointmentItem>, crate::Error<TokenExpired>> {
+) -> Result<Vec<RawAppointmentItem>, crate::Error<TokenExpired>> {
     let gym_headers = gym_token.headers().clone();
 
     client
@@ -44,7 +44,7 @@ pub async fn raw_appointment_list_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .extract_data::<Vec<AppointmentItem>, TokenExpired>()
+        .extract_data::<Vec<RawAppointmentItem>, TokenExpired>()
         .await?
         .check_cache()?
         .into_result()
@@ -60,7 +60,7 @@ pub async fn raw_appointment_detail_data(
     class_id: u32,
     class_time: &str,
     test_time: &str,
-) -> Result<AppointmentDetail, crate::Error<TokenExpired>> {
+) -> Result<RawAppointmentDetail, crate::Error<TokenExpired>> {
     let gym_headers = gym_token.headers().clone();
     client
         .post(DETAIL_URL)
@@ -75,7 +75,7 @@ pub async fn raw_appointment_detail_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .extract_data::<AppointmentDetail, TokenExpired>()
+        .extract_data::<RawAppointmentDetail, TokenExpired>()
         .await?
         .check_cache()?
         .into_result()

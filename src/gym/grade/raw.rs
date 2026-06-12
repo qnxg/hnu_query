@@ -1,8 +1,8 @@
+use super::parse::none_to_zero;
 use crate::{
     error::{MapNetworkErr, MapUnexpectedErr},
     gym::{
         error::TokenExpired,
-        grade::utils::none_to_zero,
         login::GymToken,
         raw::{GymResponse, GymResponseExtractor},
     },
@@ -19,7 +19,7 @@ const GRADE_DETAIL_URL: &str = "http://gymos.hnu.edu.cn/bdlp_api_fitness_test_st
 ///
 /// see also [`GradeDetail`]
 #[derive(Deserialize, Debug)]
-pub struct GradeSummary {
+pub struct RawGradeSummary {
     #[serde(rename = "50m_class")]
     pub short_run_class: Option<String>,
     // #[serde(rename = "50m_grade")]
@@ -66,7 +66,7 @@ pub struct GradeSummary {
 ///
 /// 同时还包含了视力成绩，总成绩，姓名学号等数据
 #[derive(Deserialize, Debug)]
-pub struct GradeDetail {
+pub struct RawGradeDetail {
     pub eyesight_right: String,
     pub eyesight_left: String,
     pub eye_mirror_right: String,
@@ -118,7 +118,7 @@ pub struct GradeDetail {
 pub async fn raw_grade_summary_data(
     gym_token: &GymToken,
     xn: u16,
-) -> Result<GradeSummary, crate::Error<TokenExpired>> {
+) -> Result<RawGradeSummary, crate::Error<TokenExpired>> {
     let gym_headers = gym_token.headers().clone();
     client
         .post(GRADE_SUMMARY_URL)
@@ -129,7 +129,7 @@ pub async fn raw_grade_summary_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .extract_data::<GradeSummary, TokenExpired>()
+        .extract_data::<RawGradeSummary, TokenExpired>()
         .await?
         .check_cache()?
         .into_result()
@@ -138,7 +138,7 @@ pub async fn raw_grade_summary_data(
 pub async fn raw_grade_detail_data(
     gym_token: &GymToken,
     xn: u16,
-) -> Result<GradeDetail, crate::Error<TokenExpired>> {
+) -> Result<RawGradeDetail, crate::Error<TokenExpired>> {
     let gym_headers = gym_token.headers().clone();
     client
         .post(GRADE_DETAIL_URL)
@@ -149,7 +149,7 @@ pub async fn raw_grade_detail_data(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .extract_data::<GradeDetail, TokenExpired>()
+        .extract_data::<RawGradeDetail, TokenExpired>()
         .await?
         .check_cache()?
         .into_result()
