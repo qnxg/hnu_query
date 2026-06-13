@@ -28,7 +28,7 @@ pub struct ExamSchedule {
     ///
     /// `date` 和 `time` 会同时为 `None` 或同时为 `Some`
     pub date: Option<NaiveDate>,
-    /// 考试的时间，为一个时间段，如 `14:00~16:00`
+    /// 考试的时间，为一个结构体[TimeRange]，形如{ start_time: "08:00", end_time: "11:00" }
     ///
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     ///
