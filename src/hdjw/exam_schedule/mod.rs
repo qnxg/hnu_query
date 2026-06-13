@@ -33,11 +33,18 @@ pub struct ExamSchedule {
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     ///
     /// `date` 和 `time` 会同时为 `None` 或同时为 `Some`
-    pub time: Option<String>,
+    pub time: Option<TimeRange>,
     /// 考试的座位号
     ///
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     pub seat: Option<String>,
+}
+
+/// 时间区间
+#[derive(Serialize, Debug, Deserialize, Clone)]
+pub struct TimeRange {
+    pub start_time: String,
+    pub end_time: String,
 }
 
 /// 获取考试安排
@@ -69,7 +76,12 @@ pub async fn get_exam_schedule(
                     return Err(parse_err(&kssj));
                 };
                 let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").parse_err(date)?;
-                (Some(date), Some(time.to_string()))
+                let (start_time, end_time) = time.split_once('-')
+                    .or_else(|| time.split_once('~'))
+                    .map(|(s, e)| (s.to_string(), e.to_string()))
+                    .ok_or_else(|| parse_err(time))?;
+                let time = TimeRange { start_time, end_time };
+                (Some(date), Some(time))
             }
             None => (None, None),
         };
