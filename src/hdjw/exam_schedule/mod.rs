@@ -26,25 +26,24 @@ pub struct ExamSchedule {
     ///
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     ///
-    /// `date` 和 `time` 会同时为 `None` 或同时为 `Some`
+    /// `date` 、 `start_time` 、 `end_time` 会同时为 `None` 或同时为 `Some`
     pub date: Option<NaiveDate>,
-    /// 考试的时间，为一个结构体[TimeRange]，形如{ start_time: "08:00", end_time: "11:00" }
+    /// 考试的开始时间
     ///
-    /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
+    /// 一些比如体育理论这样的课程，没有该信息，则这三个字段为 `None`
     ///
-    /// `date` 和 `time` 会同时为 `None` 或同时为 `Some`
-    pub time: Option<TimeRange>,
+    /// `date` 、 `start_time` 、 `end_time` 会同时为 `None` 或同时为 `Some`
+    pub start_time: Option<String>,
+    /// 考试的结束时间
+    ///
+    /// 一些比如体育理论这样的课程，没有该信息，则这三个字段为 `None`
+    ///
+    /// `date` 、 `start_time` 、 `end_time` 会同时为 `None` 或同时为 `Some`
+    pub end_time: Option<String>,
     /// 考试的座位号
     ///
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     pub seat: Option<String>,
-}
-
-/// 时间区间
-#[derive(Serialize, Debug, Deserialize, Clone)]
-pub struct TimeRange {
-    pub start_time: String,
-    pub end_time: String,
 }
 
 /// 获取考试安排
@@ -70,20 +69,20 @@ pub async fn get_exam_schedule(
     let raw_data = raw_exam_schedule_data(hdjw_token, xn, xq).await?;
     let mut res = Vec::with_capacity(raw_data.len());
     for item in raw_data {
-        let (date, time) = match item.kssj {
+        let (date, start_time, end_time) = match item.kssj {
             Some(kssj) => {
                 let [date, time] = kssj.split(' ').collect::<Vec<_>>()[..] else {
                     return Err(parse_err(&kssj));
                 };
                 let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").parse_err(date)?;
-                let (start_time, end_time) = time.split_once('-')
+                let (start_time, end_time) = time
+                    .split_once('-')
                     .or_else(|| time.split_once('~'))
                     .map(|(s, e)| (s.to_string(), e.to_string()))
                     .ok_or_else(|| parse_err(time))?;
-                let time = TimeRange { start_time, end_time };
-                (Some(date), Some(time))
+                (Some(date), Some(start_time), Some(end_time))
             }
-            None => (None, None),
+            None => (None, None, None),
         };
 
         res.push(ExamSchedule {
@@ -92,7 +91,8 @@ pub async fn get_exam_schedule(
             area: item.ksxq,
             classroom: item.js_mc,
             date,
-            time,
+            start_time,
+            end_time,
             seat: item.zwh,
         });
     }
