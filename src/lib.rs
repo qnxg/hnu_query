@@ -17,6 +17,7 @@
 
 pub mod ai;
 pub mod ca;
+pub mod cg;
 mod error;
 pub mod gym;
 pub mod hdjw;
