@@ -223,6 +223,9 @@ impl CgToken {
 mod tests {
     use crate::cg::test::get_cg_token;
 
+    /// 此测试仅验证登录流程能否拿到 token，不检测 token 是否过期。
+    /// 若缓存中的 token 已过期，测试仍会通过。如需验证有效性，运行
+    /// `test_get_course_list` 或 `test_get_assignment_list`。
     #[tokio::test]
     #[ignore]
     async fn test_login() -> crate::test::TestResult<()> {
