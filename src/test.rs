@@ -32,7 +32,7 @@ pub static TEST_MONTH: LazyLock<u8> = LazyLock::new(|| test_env_parse("TEST_MONT
 
 pub static TEST_DAY: LazyLock<u8> = LazyLock::new(|| test_env_parse("TEST_DAY"));
 
-pub static TEST_CAS_CACHE: LazyLock<bool> = LazyLock::new(|| {
-    let v = env_var("TEST_CAS_CACHE");
+pub static TEST_CACHE: LazyLock<bool> = LazyLock::new(|| {
+    let v = env_var("TEST_CACHE");
     v == "true" || v == "1"
 });
