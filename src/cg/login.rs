@@ -115,6 +115,15 @@ impl CgSession {
             ("captchaCode", captcha_code),
         ];
 
+        // 在 self.headers 被 move 之前提取原始 Cookie
+        let original_cookies: Vec<String> = self
+            .headers
+            .get_all(COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .flat_map(|s| s.split("; ").map(String::from))
+            .collect();
+
         let res = client
             .post(format!("{}{}", BASE_URL, LOGIN_URL))
             .headers(self.headers)
@@ -144,8 +153,10 @@ impl CgSession {
                 };
             }
 
-            // 登录成功，提取 Cookie
-            let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
+            // 登录成功，合并原有 Cookie 和响应新下发的 Cookie
+            let mut cookies = original_cookies;
+            cookies.extend(cookie_parser(res.headers().get_all(SET_COOKIE)));
+            let cookies = cookies.join("; ");
             let mut headers = HeaderMap::new();
             if !cookies.is_empty() {
                 headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
