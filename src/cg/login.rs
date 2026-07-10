@@ -132,12 +132,11 @@ impl CgSession {
                 .to_str()
                 .unexpected_err()?;
 
-            if let Some(err_code) = location.split("loginErr=").nth(1) {
+            if let Some(err_code) = location.split("loginErr=").nth(1)
+                && err_code != "0"
+            {
                 return match err_code {
-                    "0" => Err(crate::Error::Other(LoginError::LoginFailed(
-                        "未知错误（loginErr=0）".to_string(),
-                    ))),
-                    "5" => Err(crate::Error::Other(LoginError::PasswordError)),
+                    "1" => Err(crate::Error::Other(LoginError::PasswordError)),
                     "6" => Err(crate::Error::Other(LoginError::CaptchaError)),
                     _ => Err(crate::Error::Other(LoginError::LoginFailed(format!(
                         "未知错误码: {err_code}"
