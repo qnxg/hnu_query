@@ -1,10 +1,7 @@
 mod fetch;
 mod parse;
 
-use crate::{
-    ai::login::AiToken,
-    error::{MapUnexpectedErr, parse_err},
-};
+use crate::{ai::login::AiToken, error::MapUnexpectedErr};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -71,7 +68,7 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Erro
     let json_str = fetch::create_token(token, name).await?;
     let success = parse::check_action_success(&json_str)?;
     if !success {
-        return Err(parse_err("创建 token 失败，服务器返回 success=false"));
+        return Err("创建 token 失败，服务器返回 success=false".to_string()).unexpected_err()?;
     }
     Ok(())
 }

@@ -75,7 +75,6 @@ impl PtToken {
 
 #[cfg(test)]
 mod tests {
-
     use crate::pt::test::get_pt_token;
 
     #[tokio::test]

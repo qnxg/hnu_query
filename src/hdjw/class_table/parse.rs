@@ -133,10 +133,8 @@ fn extract_week_list(s: &str, context: &str) -> Result<HashSet<u8>, crate::Error
 
 /// 解析上课时间地点
 fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Error<TokenExpired>> {
-    static SKTIME_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"周(.)第(.*)节.*\{第(.*)周\}")
-            .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
-    });
+    static SKTIME_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"周(.)第(.*)节.*\{第(.*)周\}").expect("创建正则表达式失败"));
     let places: Vec<_> = raw.skddmc.split(';').collect();
     let detail_times = raw.sktime.split(';');
     // 第几周+周几+地点作为 key，节次作为 value，进行去重

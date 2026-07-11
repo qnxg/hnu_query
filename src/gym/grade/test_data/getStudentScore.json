@@ -30,5 +30,6 @@
     "run_class": "red",
     "lack_show_score_msg": 0
   },
-  "status": 1
+  "status": 1,
+  "info": "查询成功"
 }

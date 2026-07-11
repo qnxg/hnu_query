@@ -55,5 +55,6 @@
     "eye_ametropia_right_detail": "未测",
     "eye_ametropia_left_detail": "未测"
   },
-  "status": 1
+  "status": 1,
+  "info": "查询成功"
 }

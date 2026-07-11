@@ -90,7 +90,7 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
             .build()
-            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+            .expect("构建正则表达式失败")
     });
     let caps = REGEX
         .captures(&raw_data)
@@ -167,9 +167,8 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_grade() -> TestResult<()> {

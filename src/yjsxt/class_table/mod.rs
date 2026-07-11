@@ -38,8 +38,8 @@ pub struct CourseSchedule {
 ///
 /// # Arguments
 ///
-/// * `yjsxt_token` - 研究生系统的令牌，可以通过 [YjsxtToken::acquire_by_cas_login] 获取
-/// * `semester_id` - 学期id，可以通过 [get_semester](super::get_semester) 获取
+/// - `yjsxt_token` - 研究生系统的令牌，可以通过 [YjsxtToken::acquire_by_cas_login] 获取
+/// - `semester_id` - 学期id，可以通过 [get_semester](super::get_semester) 获取
 ///
 /// # Returns
 ///

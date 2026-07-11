@@ -37,7 +37,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_termcode() -> TestResult<()> {
+    async fn test_get_semester() -> TestResult<()> {
         let yjsxt_token = get_yjsxt_token().await?;
         let semesters = get_semester(&yjsxt_token).await?;
         println!("{:?}", semesters);

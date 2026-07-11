@@ -94,12 +94,13 @@ impl CaToken {
 
 #[cfg(test)]
 mod tests {
-    use crate::ca::test::get_ca_token;
+    use crate::{ca::test::get_ca_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    async fn test_get_ca_token() {
-        let ca_token = get_ca_token().await;
+    async fn test_get_ca_token() -> TestResult<()> {
+        let ca_token = get_ca_token().await?;
         println!("{:#?}", ca_token);
+        Ok(())
     }
 }

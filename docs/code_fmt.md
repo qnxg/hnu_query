@@ -5,8 +5,8 @@
 - 一般情况下，所有公开出去的结构体应满足下面条件之一，以确保大多数结构体都可以序列化成文本然后缓存（详见 [`cache.md`](./cache.md)）：
   - 实现了 `Serialize` 和 `Deserialize`
   - 提供了类似 `from_xxx` / `from_xxx_unchecked` 的方法，可以根据该方法构造结构体；该方法需要的参数应能通过结构体上公开的方法获取
-- 所有的结构体 / 枚举都应该实现 `Debug`。一般情况下所有的结构体 / 枚举都应该实现 `Clone`
-- 业务结果类型通常同时 derive：`Serialize, Deserialize, Debug, Clone`
+- 所有公开出去的结构体 / 枚举都应该实现 `Debug`。一般情况下所有公开出去的结构体 / 枚举都应该实现 `Clone`
+- 业务结果类型通常同时 derive：`Serialize, Deserialize, Debug, Clone`（顺序随便无所谓）
 - Token 类型一般**不**实现 `Serialize` 和 `Deserialize`，而是提供 `from_*_unchecked`
 
 ## 2. 错误处理
@@ -19,14 +19,14 @@
   - 有时解析失败可能并非抛出了什么错误导致，而是某些条件不满足，对于这种情况我们可以手动调用函数 `parse_err` / `parse_err_with_reason` 来直接构造解析错误
 - 域内特有的错误放在该系统的 `error.rs`（如 `TokenExpired`）。某个接口的特定错误放在功能子模块内（如 `LoginIssue`、`AccountIssue`）
 - 没有特定错误时，`E` 使用 `std::convert::Infallible`
-- 不应该使用 `unwrap`，已经配置 `clippy` 规则进行禁止。会 panic 的地方（比如 `assert` 和 `expect`），仅用于全局单例初始化（如正则表达式构建）或是文档明确声明会 panic 的前置条件
+- 不应该使用 `unwrap`，已经配置 `clippy` 规则进行禁止。会 panic 的地方（比如 `assert` 和 `expect`），仅用于全局单例初始化（如正则表达式构建）或是文档明确声明会 panic 的前置条件。如果根据代码逻辑，某个代码写了看似会 panic 的地方实际不会执行，那么就无需写到函数的文档注释。
 
 ## 3. 公开性
 
 - 所有文件遵循只有提供给外部使用的东西才设置为 `pub`
 - 对于 `parse.rs`，如果解析过程需要先转为一个中间结构体，那么这个中间的结构体不应该 `pub`，里面的字段也不能被 `pub`，除非解析过程只能将数据解析一部分，需要 `mod.rs` 再次请求其他的数据来进一步解析（比如 `crate::gym::get_appointment`）
 - 对于各个系统的 `mod.rs`，需要把各个功能子模块给 `pub` 出去，同时 `pub use` 这些子模块提供的函数，不 `pub use` 子模块的结构体
-- 测试函数不应该 `pub`
+- 测试函数（非辅助类函数，而是带 `#[test]` 或 `#[tokio::test]` 的函数）不应该 `pub`
 
 ## 4. 命名
 
@@ -47,7 +47,7 @@
 - 所有涉及到产生实际请求（网络 IO）的测试，应该标注为 `#[ignore]`。测试用到的参数，应该可以通过 `.env` 配置（见 [`test.md`](./test.md)）
 - 测试函数应该返回 `TestResult`
 - 测试数据应放到 `test_data` 文件夹下
-- 一些可以共用的测试辅助函数和测试用的环境变量的加载放在 `test.rs` 中。测试用的环境变量使用 `crate::test::test_env_parse` 来加载，并定义为一个使用 `LazyLock` 包裹的 `static` 变量
+- 一些可以共用的测试辅助函数和测试用的环境变量的加载放在 `test.rs` 中，测试用的环境变量使用 `crate::test::test_env_parse` 来加载，并定义为一个使用 `LazyLock` 包裹的 `static` 变量。如果测试用的环境变量只会在一个地方使用，那么不必设为 `static` 变量，如果不涉及到将字符串转换为其他类型，那么也不必使用 `test_env_parse`，直接使用 `env!(...)` 即可。
 - 测试函数一般放在被测试函数所在的同一个代码文件的末尾定义的 `mod tests` 中。`mod tests`
 - 和测试相关的模块/函数都应设置 `#[cfg(test)]`
 - 如果新增了一些接口，需要在对应的功能子模块的 `mod.rs` 中添加测试函数，该测试函数应该可以根据环境变量提供的参数发送实际请求，同时输出你新增加的接口的运行结果。同时还需要在 `test_data` 文件夹下放置学校对应系统响应的原始数据，并在 `parse.rs` 中添加测试函数，解析你添加的测试数据，并对解析结果进行 `assert`。同时不要忘记更新 [`test.md`](./test.md)
