@@ -44,15 +44,15 @@ mod tests {
     #[test]
     fn test_check_action_success() -> TestResult<()> {
         let json_str = include_str!("test_data/apply-token.json");
-        let success = check_action_success(&json_str).unwrap();
-        assert_eq!(success, true);
+        let success = check_action_success(json_str)?;
+        assert!(success);
         Ok(())
     }
 
     #[test]
     fn test_token_list() -> TestResult<()> {
         let json_str = include_str!("test_data/tokens.json");
-        let tokens = token_list(&json_str).unwrap();
+        let tokens = token_list(json_str)?;
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].token_name, "hello");
         assert_eq!(tokens[0].id, 3296);
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn test_token_key() -> TestResult<()> {
         let json_str = include_str!("test_data/key.json");
-        let key = token_key(&json_str).unwrap();
+        let key = token_key(json_str)?;
         assert_eq!(key, "zF0Asilc5eRnGbwafZ5gDzIH");
         Ok(())
     }

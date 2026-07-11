@@ -19,7 +19,7 @@ mod tests {
     #[test]
     fn test_remaining_quota() -> TestResult<()> {
         let json_str = include_str!("test_data/user-info.json");
-        let remaining_quota = remaining_quota(&json_str).unwrap();
+        let remaining_quota = remaining_quota(json_str)?;
         assert_eq!(remaining_quota, 114514);
         Ok(())
     }
