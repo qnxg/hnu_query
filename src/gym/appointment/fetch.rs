@@ -22,7 +22,7 @@ pub async fn appointment_list(gym_token: &GymToken) -> Result<String, crate::Err
 }
 
 /// `class_id`, `class_time`, `test_time` 均为 [super::parse::appointment_list]
-/// 返回的 [RawAppointment] 中的字段
+/// 返回的 RawAppointment 中的字段
 pub async fn appointment_detail(
     gym_token: &GymToken,
     class_id: u32,

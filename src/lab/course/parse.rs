@@ -19,7 +19,7 @@ struct RawCourse {
     CourseID: String,
 }
 
-/// `json_str` 为 [`super::fetch::raw_course_list_data`] 返回的数据
+/// `json_str` 为 [super::fetch::course_list] 返回的数据
 pub fn course_list(json_str: &str) -> Result<Vec<Course>, crate::Error<Infallible>> {
     let raw_data = serde_json::from_str::<Value>(json_str)
         .parse_err(json_str)?

@@ -31,7 +31,7 @@ fn rank_detail(value: &Value) -> Result<RankDetail, crate::Error<TokenExpired>> 
     })
 }
 
-/// `raw_data` 是由 [`super::fetch::get_cjpmcx_list`] 返回的原始数据
+/// `json_str` 是由 [super::fetch::rank] 返回的原始数据
 pub fn rank(json_str: &str) -> Result<Rank, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("data") {

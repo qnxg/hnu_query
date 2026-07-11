@@ -17,7 +17,7 @@ pub fn preview_file_name(json_str: &str) -> Result<String, crate::Error<Infallib
         .ok_or_else(|| parse_err(json_str))
 }
 
-/// `pdf_bytes` 可接收来自 [super::fetch::certification_pdf] 的返回值
+/// `pdf_bytes` 可接收来自 [super::fetch::file] 的返回值
 pub fn rank(pdf_bytes: Bytes) -> Result<Rank, crate::Error<Infallible>> {
     let text_extracted = pdf_extract::extract_text_from_mem(&pdf_bytes).map_err(|e| {
         parse_err(&format!(
