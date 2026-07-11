@@ -38,7 +38,7 @@ jobs:
           args: --all-targets
 
       - name: Test Documentation
-        run: cargo doc --document-private-items
+        run: cargo doc --no-deps --document-private-items
 
       - name: Check Code Format
         run: cargo fmt --check
