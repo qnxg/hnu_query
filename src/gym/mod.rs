@@ -2,7 +2,7 @@ pub mod appointment;
 pub mod error;
 pub mod grade;
 pub mod login;
-mod raw;
+mod parse;
 
 #[cfg(test)]
 mod test;

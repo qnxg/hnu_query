@@ -1,11 +1,28 @@
-use crate::error::MapParseErr;
+use super::OrderItem;
+use crate::error::{MapParseErr, parse_err};
 use chrono::NaiveDateTime;
+use serde::Deserialize;
+use serde_json::Value;
 use std::convert::Infallible;
 
-use super::OrderItem;
-use crate::netflow::order::raw::RawOrderItem;
+#[derive(Deserialize, Debug)]
+#[expect(non_snake_case)]
+struct RawOrderItem {
+    Download: Option<f64>,
+    Month: String,
+    RealOverTraffic: f64,
+    ShouldPay: f64,
+    UpdateTime: String,
+    Upload: Option<f64>,
+}
 
-pub fn orders(raw_data: Vec<RawOrderItem>) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
+pub fn order(json_str: &str) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
+    let raw_data = serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
+        .map(|v| serde_json::from_value::<Vec<RawOrderItem>>(v.clone()).parse_err(json_str))
+        .transpose()?
+        .ok_or_else(|| parse_err(json_str))?;
     raw_data
         .into_iter()
         .map(|item| {
@@ -25,17 +42,13 @@ pub fn orders(raw_data: Vec<RawOrderItem>) -> Result<Vec<OrderItem>, crate::Erro
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
-
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
+    use chrono::NaiveDate;
 
     #[test]
     fn test_parse_order() -> TestResult<()> {
-        let raw_data: Vec<RawOrderItem> =
-            serde_json::from_str(include_str!("test_data/getpagedlist.json"))?;
-        let orders = orders(raw_data)?;
+        let orders = order(include_str!("test_data/getpagedlist.json"))?;
 
         assert_eq!(orders.len(), 3);
         // 仅测试第一项通过即可

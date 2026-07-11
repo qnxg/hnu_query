@@ -1,12 +1,9 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::MapParseErr,
-    lab::{grade::raw::raw_virtual_lab_score_data, login::LabToken},
-};
-use raw::{raw_lab_score_data, raw_lab_score_detail_data, raw_lab_score_structure_data};
+use crate::lab::login::LabToken;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::Infallible};
+use std::convert::Infallible;
 use tokio::try_join;
 
 /// 实验成绩
@@ -49,51 +46,16 @@ pub async fn get_lab_grade(
     course_id: &str,
     semester_id: &str,
 ) -> Result<Vec<LabGrade>, crate::Error<Infallible>> {
-    let (lab_score, lab_score_detail, lab_score_structure) = try_join!(
-        raw_lab_score_data(lab_token, course_id, semester_id),
-        raw_lab_score_detail_data(lab_token, course_id),
-        raw_lab_score_structure_data(lab_token, course_id),
+    let (lab_grade_str, lab_grade_detail_str, lab_grade_structure_str) = try_join!(
+        fetch::lab_grade(lab_token, course_id, semester_id),
+        fetch::lab_grade_detail(lab_token, course_id),
+        fetch::lab_grade_structure(lab_token, course_id),
     )?;
-    let score_structure_map: HashMap<i32, String> = lab_score_structure
-        .into_iter()
-        .map(|item| (item.LabScoreStructureID, item.LabScoreStructureName))
-        .collect();
-    let mut lab_map: HashMap<i32, usize> = HashMap::new();
-    let mut res = Vec::new();
-    // 过滤还没有成绩的实验和虚拟实验
-    for item in lab_score
-        .into_iter()
-        .filter(|i| !i.LabScore.is_empty() && !i.ClassRoom.contains("虚拟"))
-    {
-        let lab_id = item.LabID.parse::<i32>().parse_err(&item.LabID)?;
-        res.push(LabGrade {
-            lab_name: item.LabName,
-            score: item.LabScore,
-            attendance: if item.AttendanceName.is_empty() {
-                None
-            } else {
-                Some(item.AttendanceName)
-            },
-            details: Vec::new(),
-        });
-        lab_map.insert(lab_id, res.len() - 1);
-    }
-    for item in lab_score_detail
-        .into_iter()
-        .filter(|i| i.LabStructureScore.is_some())
-    {
-        if let Some(index) = lab_map.get(&item.LabID)
-            && let Some(structure_name) = score_structure_map.get(&item.LabScoreStructureID)
-        {
-            // labs 和 lab_map 保证了一一对应关系，这里不会有 None
-            let lab = res.get_mut(*index).expect("根据实验 id 获得的 index 无效");
-            lab.details.push(LabGradeDetailItem {
-                name: structure_name.clone(),
-                score: item.LabStructureScore,
-            });
-        }
-    }
-    Ok(res)
+    parse::lab_grade(
+        &lab_grade_str,
+        &lab_grade_detail_str,
+        &lab_grade_structure_str,
+    )
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -118,23 +80,8 @@ pub struct VirtualLabGrade {
 pub async fn get_virtual_lab_grade(
     lab_token: &LabToken,
 ) -> Result<Vec<VirtualLabGrade>, crate::Error<Infallible>> {
-    let spider_res = raw_virtual_lab_score_data(lab_token).await?;
-    let mut res = Vec::new();
-    for item in spider_res.into_iter() {
-        let tmp = VirtualLabGrade {
-            lab_name: item.LabName,
-            score: if item.LabScore.is_empty() {
-                None
-            } else {
-                Some(item.LabScore)
-            },
-        };
-        res.push(tmp);
-    }
-    // 可能会有重复的，需要去重
-    res.sort_by(|a, b| a.lab_name.cmp(&b.lab_name));
-    res.dedup_by(|a, b| a.lab_name == b.lab_name);
-    Ok(res)
+    let json_str = fetch::virtual_lab_grade(lab_token).await?;
+    parse::virtual_lab_grade(&json_str)
 }
 
 #[cfg(test)]

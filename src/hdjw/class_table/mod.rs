@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
@@ -108,8 +108,8 @@ pub async fn get_class_table(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = raw::get_xskb_list(hdjw_token, xn, xq).await?;
-    parse::class_table(raw_data)
+    let raw_data = fetch::get_xskb_list(hdjw_token, xn, xq).await?;
+    parse::class_table(&raw_data)
 }
 
 /// 获取无课表课程信息
@@ -132,8 +132,8 @@ pub async fn get_class_table_extra(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
-    let raw_data = raw::get_xskb_list_extra(hdjw_token, xn, xq).await?;
-    parse::class_table_extra(raw_data)
+    let json_str = fetch::get_xskb_list_extra(hdjw_token, xn, xq).await?;
+    parse::class_table_extra(&json_str)
 }
 
 #[cfg(test)]

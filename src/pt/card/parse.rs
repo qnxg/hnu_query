@@ -1,13 +1,55 @@
-use crate::{
-    error::MapParseErr,
-    pt::card::raw::{RawCardHistory, RawCardInfo},
-};
+use super::{CardHistory, CardHistoryItem, CardInfo};
+use crate::error::{MapParseErr, parse_err};
 use chrono::NaiveDateTime;
+use serde::Deserialize;
+use serde_json::Value;
 use std::convert::Infallible;
 
-use super::{CardHistory, CardHistoryItem, CardInfo};
+#[derive(Deserialize, Debug)]
+struct RawCardInfo {
+    account: u32,
+    balance: String,
+}
 
-pub fn card_info(raw_data: RawCardInfo) -> Result<CardInfo, crate::Error<Infallible>> {
+#[derive(Deserialize, Debug)]
+#[expect(non_snake_case)]
+struct RawCardHistory {
+    amt: f64,
+    count: f64,
+    webTrjnDTO: Option<Vec<RawCardHistoryItem>>,
+}
+
+#[derive(Deserialize, Debug)]
+#[expect(non_snake_case)]
+struct RawCardHistoryItem {
+    fTranAmt: String,
+    jndatetime: String,
+    effectdate: String,
+    jourName: String,
+    usedcardnum: u32,
+    nowAmt: String,
+    sysname1: Option<String>,
+    tranname: String,
+}
+
+/// `json_str` 为 [super::fetch::csrf_token] 的返回数据
+pub fn csrf_token(json_str: &str) -> Result<String, crate::Error<Infallible>> {
+    serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .ok_or_else(|| parse_err(json_str))
+}
+
+/// `json_str` 为 [super::fetch::card_info] 的返回数据
+pub fn card_info(json_str: &str) -> Result<CardInfo, crate::Error<Infallible>> {
+    let raw_data = serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
+        .map(|v| serde_json::from_value::<RawCardInfo>(v.clone()).parse_err(json_str))
+        .transpose()?
+        .ok_or_else(|| parse_err(json_str))?;
+
     let raw_balance = raw_data
         .balance
         .parse::<f64>()
@@ -19,7 +61,14 @@ pub fn card_info(raw_data: RawCardInfo) -> Result<CardInfo, crate::Error<Infalli
     })
 }
 
-pub fn card_history(raw_data: RawCardHistory) -> Result<CardHistory, crate::Error<Infallible>> {
+/// `json_str` 为 [super::fetch::card_history] 的返回数据
+pub fn card_history(json_str: &str) -> Result<CardHistory, crate::Error<Infallible>> {
+    let raw_data = serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
+        .map(|v| serde_json::from_value::<RawCardHistory>(v.clone()).parse_err(json_str))
+        .transpose()?
+        .ok_or_else(|| parse_err(json_str))?;
     let raw_items = raw_data.webTrjnDTO.unwrap_or_default();
     let mut items = Vec::with_capacity(raw_items.len());
     for item in raw_items {
@@ -59,30 +108,23 @@ pub fn card_history(raw_data: RawCardHistory) -> Result<CardHistory, crate::Erro
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
-
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
+    use chrono::NaiveDate;
 
     #[test]
     fn test_card_info() -> TestResult<()> {
-        let raw_data: RawCardInfo =
-            serde_json::from_str(include_str!("test_data/getCardUserInfo.json"))?;
-        let info = card_info(raw_data)?;
-
+        let info = card_info(include_str!("test_data/getCardUserInfo.json"))?;
         assert_eq!(info.id, 123456);
         assert_eq!(info.balance, 75.28);
-
         Ok(())
     }
 
     #[test]
     fn test_card_history_consumption() -> TestResult<()> {
-        let raw_data: RawCardHistory = serde_json::from_str(include_str!(
+        let history = card_history(include_str!(
             "test_data/getAccHisConsubDzzfLog_Consumption.json"
         ))?;
-        let history = card_history(raw_data)?;
 
         assert_eq!(history.count, 7);
         assert_eq!(history.total, -51.0);
@@ -114,10 +156,9 @@ mod tests {
 
     #[test]
     fn test_card_history_recharge() -> TestResult<()> {
-        let raw_data: RawCardHistory = serde_json::from_str(include_str!(
+        let history = card_history(include_str!(
             "test_data/getAccHisConsubDzzfLog_Recharge.json"
         ))?;
-        let history = card_history(raw_data)?;
 
         assert_eq!(history.count, 3);
         assert_eq!(history.total, 50.00);

@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
@@ -54,8 +54,8 @@ pub async fn get_grade(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
-    let raw_data = raw::get_cjcx_list(hdjw_token, xn, xq).await?;
-    parse::grade(raw_data)
+    let raw_data = fetch::get_cjcx_list(hdjw_token, xn, xq).await?;
+    parse::grade(&raw_data)
 }
 
 /// 课程成绩的组成部分
@@ -89,8 +89,8 @@ pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
-    let raw_data = raw::get_pscj_list(hdjw_token, jx0404id).await?;
-    parse::grade_detail(&raw_data)
+    let html = fetch::get_pscj_list(hdjw_token, jx0404id).await?;
+    parse::grade_detail(&html)
 }
 
 #[cfg(test)]

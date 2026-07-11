@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::gym::{error::TokenExpired, login::GymToken};
 use chrono::NaiveDate;
@@ -54,17 +54,18 @@ pub struct Appointment {
 pub async fn get_appointment(
     gym_token: &GymToken,
 ) -> Result<Vec<Appointment>, crate::Error<TokenExpired>> {
-    let raw_data = raw::raw_appointment_list_data(gym_token).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for raw_item in raw_data {
-        let raw_detail = raw::raw_appointment_detail_data(
+    let json_str = fetch::appointment_list(gym_token).await?;
+    let raw_list = parse::appointment_list(&json_str)?;
+    let mut res = Vec::with_capacity(raw_list.len());
+    for raw_item in raw_list {
+        let json_str = fetch::appointment_detail(
             gym_token,
             raw_item.class_id,
             &raw_item.class_time,
             &raw_item.test_time,
         )
         .await?;
-        res.push(parse::appointment_item(raw_item, raw_detail)?);
+        res.push(parse::appointment_item(raw_item, &json_str)?);
     }
     Ok(res)
 }
@@ -76,7 +77,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_appointment() -> TestResult<()> {
+    async fn test_get_appointment() -> TestResult<()> {
         let gym_token = get_gym_token().await?;
         let appointment = get_appointment(&gym_token).await?;
         println!("{:#?}", appointment);

@@ -1,11 +1,8 @@
 mod dormitory;
+mod fetch;
 mod parse;
-mod raw;
 
-use crate::xgxt::{
-    login::XgxtToken,
-    personal_info::raw::{raw_contact_info, raw_in_school_info, raw_user_info},
-};
+use crate::xgxt::login::XgxtToken;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -103,16 +100,16 @@ pub enum Gender {
 pub async fn get_person_info(
     xgxt_token: &XgxtToken,
 ) -> Result<PersonalInfo, crate::Error<Infallible>> {
-    let raw_data_list = try_join!(
-        raw_user_info(xgxt_token),
-        raw_in_school_info(xgxt_token),
-        raw_contact_info(xgxt_token),
+    let json_str_list = try_join!(
+        fetch::user_info(xgxt_token),
+        fetch::in_school_info(xgxt_token),
+        fetch::contact_info(xgxt_token),
     )
     .map(|(a, b, c)| vec![a, b, c])?;
 
     let mut entries = HashMap::<String, String>::new();
-    for raw_data in raw_data_list {
-        entries.extend(parse::extract_xgxt_entry(raw_data)?);
+    for json_str in json_str_list {
+        entries.extend(parse::extract_xgxt_entry(&json_str)?);
     }
 
     parse::person_info(entries)

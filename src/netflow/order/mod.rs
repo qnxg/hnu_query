@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::netflow::login::NetflowToken;
 use chrono::NaiveDateTime;
@@ -45,8 +45,8 @@ pub struct OrderItem {
 pub async fn get_order(
     netflow_token: &NetflowToken,
 ) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
-    let raw_data = raw::get_order_list(netflow_token).await?;
-    parse::orders(raw_data)
+    let json_str = fetch::order(netflow_token).await?;
+    parse::order(&json_str)
 }
 
 #[cfg(test)]

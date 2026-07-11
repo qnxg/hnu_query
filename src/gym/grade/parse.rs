@@ -1,11 +1,123 @@
 use super::{EyeGrade, Grade, GradeItem};
-use crate::gym::{
-    error::TokenExpired,
-    grade::{
-        GradeItemColor,
-        raw::{RawGradeDetail, RawGradeSummary},
-    },
+use crate::{
+    error::MapParseErr,
+    gym::{error::TokenExpired, grade::GradeItemColor},
 };
+use serde::{Deserialize, Deserializer};
+
+/// If the value is None, return "0" instead.
+fn none_to_zero<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer);
+    if opt.is_err() {
+        Ok(Some("0".to_string()))
+    } else {
+        Ok(opt?)
+    }
+}
+
+/// 体测的摘要成绩
+///
+/// 仅包含了项目的成绩和等级，没有包含项目具体的数据，也没有总的数据
+///
+/// see also [`RawGradeDetail`]
+#[derive(Deserialize, Debug)]
+struct RawGradeSummary {
+    #[serde(rename = "50m_class")]
+    short_run_class: Option<String>,
+    // #[serde(rename = "50m_grade")]
+    // short_run_grade: String,
+    #[serde(rename = "50m_score")]
+    #[serde(deserialize_with = "none_to_zero")]
+    short_run_score: Option<String>,
+    bmi_class: Option<String>,
+    // bmi_grade: String,
+    #[serde(deserialize_with = "none_to_zero")]
+    bmi_score: Option<String>,
+    jump_class: Option<String>,
+    // jump_grade: String,
+    #[serde(deserialize_with = "none_to_zero")]
+    jump_score: Option<String>,
+    // lack_show_score_msg: f64,
+    pull_and_sit_class: Option<String>,
+    // pull_and_sit_grade: String,
+    #[serde(deserialize_with = "none_to_zero")]
+    pull_and_sit_score: Option<String>,
+    run_class: Option<String>,
+    // run_grade: String,
+    #[serde(deserialize_with = "none_to_zero")]
+    run_score: Option<String>,
+    sit_and_reach_class: Option<String>,
+    #[serde(deserialize_with = "none_to_zero")]
+    sit_and_reach_score: Option<String>,
+    // student_name: String,
+    // student_num: String,
+    // total_grade: String,
+    // total_score: f64,
+    vc_class: Option<String>,
+    // vc_grade: String,
+    #[serde(deserialize_with = "none_to_zero")]
+    vc_score: Option<String>,
+    report_desc: Option<String>,
+    report_status: Option<String>,
+    report_type: Option<String>,
+}
+
+/// 体测的详细成绩
+///
+/// 包含了项目成绩的具体数据和成绩，但是没有包含项目成绩的等级
+///
+/// 同时还包含了视力成绩，总成绩，姓名学号等数据
+#[derive(Deserialize, Debug)]
+struct RawGradeDetail {
+    eyesight_right: String,
+    eyesight_left: String,
+    eye_mirror_right: String,
+    eye_mirror_left: String,
+    eye_ametropia_right: String,
+    eye_ametropia_left: String,
+    bmi_score: i32,
+    vc_score: i32,
+    jump_score: i32,
+    sit_and_reach_score: i32,
+    pull_and_sit_score: i32,
+    #[serde(rename = "50m_score")]
+    short_run_score: i32,
+    run_score: i32,
+    total_score: f64,
+    total_grade: String,
+    extra_score_pull_or_sit_up: i32,
+    extra_score_run: i32,
+    eyesight_right_detail: String,
+    eyesight_left_detail: String,
+    eye_mirror_right_detail: String,
+    eye_mirror_left_detail: String,
+    eye_ametropia_right_detail: String,
+    eye_ametropia_left_detail: String,
+    student_name: String,
+    student_num: String,
+    bmi_grade: String,
+    jump: String,
+    jump_grade: String,
+    pull_and_sit: i32,
+    pull_and_sit_grade: String,
+    #[serde(rename = "50m")]
+    short_run: String,
+    #[serde(rename = "50m_grade")]
+    short_run_grade: String,
+    run: String,
+    run_grade: String,
+    sit_and_reach: String,
+    sit_and_reach_grade: String,
+    vc: i32,
+    vc_grade: String,
+    height: String,
+    weight: String,
+    // TODO 添加更新时间
+    // update_at: String,
+}
 
 fn item_grade_into_color(grade: &str) -> GradeItemColor {
     if ["不及格", "缺项", "肥胖", "超重"].contains(&grade) {
@@ -25,9 +137,15 @@ fn item_class_into_color(class: &str) -> GradeItemColor {
 
 #[expect(clippy::too_many_lines, reason = "REFACTOR ME")]
 pub fn grade(
-    grade_summary: RawGradeSummary,
-    grade_detail: RawGradeDetail,
+    grade_summary_str: &str,
+    grade_detail_str: &str,
 ) -> Result<Grade, crate::Error<TokenExpired>> {
+    let grade_summary_json = crate::gym::parse::gym_response(grade_summary_str)?;
+    let grade_detail_json = crate::gym::parse::gym_response(grade_detail_str)?;
+    let grade_detail =
+        serde_json::from_value::<RawGradeDetail>(grade_detail_json).parse_err(grade_detail_str)?;
+    let grade_summary = serde_json::from_value::<RawGradeSummary>(grade_summary_json)
+        .parse_err(grade_summary_str)?;
     let eye = EyeGrade {
         eyesight_right: grade_detail.eyesight_right,
         eyesight_left: grade_detail.eyesight_left,
@@ -157,18 +275,15 @@ pub fn grade(
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_grade() -> TestResult<()> {
-        let raw_grade_summary: RawGradeSummary =
-            serde_json::from_str(include_str!("test_data/getStudentScore.json"))?;
-        let raw_grade_details: RawGradeDetail =
-            serde_json::from_str(include_str!("test_data/getEyeDetails.json"))?;
+        let grade_summary_str = include_str!("test_data/getStudentScore.json");
+        let grade_str = include_str!("test_data/getEyeDetails.json");
 
-        let grade = grade(raw_grade_summary, raw_grade_details)?;
+        let grade = grade(grade_summary_str, grade_str)?;
 
         assert_eq!(grade.name, "林政和");
         assert_eq!(grade.stu_id, "202506050175");

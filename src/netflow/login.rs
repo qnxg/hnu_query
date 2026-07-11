@@ -91,7 +91,6 @@ impl NetflowToken {
 
 #[cfg(test)]
 mod test {
-
     use crate::netflow::test::get_netflow_token;
 
     #[tokio::test]

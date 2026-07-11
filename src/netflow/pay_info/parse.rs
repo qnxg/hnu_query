@@ -1,21 +1,33 @@
+use crate::error::{MapParseErr, parse_err};
+use serde::Deserialize;
+use serde_json::Value;
 use std::convert::Infallible;
 
-use crate::netflow::pay_info::raw::RawPayInfo;
+#[derive(Deserialize, Debug)]
+#[expect(non_snake_case)]
+pub struct RawPayInfo {
+    pub Total: f64,
+}
 
-pub fn overdue_payment(raw_data: RawPayInfo) -> Result<f64, crate::Error<Infallible>> {
+/// `json_str` 为 [super::fetch::pay_info] 的返回数据
+pub fn overdue_payment(json_str: &str) -> Result<f64, crate::Error<Infallible>> {
+    let raw_data = serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
+        .map(|v| serde_json::from_value::<RawPayInfo>(v.clone()).parse_err(json_str))
+        .transpose()?
+        .ok_or_else(|| parse_err(json_str))?;
     Ok(raw_data.Total)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_extract_overdue_payment() -> TestResult<()> {
-        let raw_data: RawPayInfo = serde_json::from_str(include_str!("test_data/getpayinfo.json"))?;
-        let result = overdue_payment(raw_data)?;
+        let result = overdue_payment(include_str!("test_data/getpayinfo.json"))?;
         assert_eq!(result, 0.0);
 
         Ok(())

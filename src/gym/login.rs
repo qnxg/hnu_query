@@ -130,7 +130,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_gym_token_by_cas_login() -> TestResult<()> {
+    async fn test_get_gym_token_by_cas_login() -> TestResult<()> {
         let gym_token = get_gym_token_by_cas_login().await?;
         println!("{:#?}", gym_token);
         Ok(())
@@ -138,7 +138,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_gym_token_by_direct_login() -> TestResult<()> {
+    async fn test_get_gym_token_by_direct_login() -> TestResult<()> {
         let gym_token = get_gym_token_by_direct_login().await?;
         println!("{:#?}", gym_token);
         Ok(())

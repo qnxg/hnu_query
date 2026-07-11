@@ -1,7 +1,6 @@
+use super::{Rank, RankDetail};
 use crate::{error::parse_err, hdjw::error::TokenExpired};
 use serde_json::Value;
-
-use super::{Rank, RankDetail};
 
 /// 湖大的教务系统的字段返回类型难说，此函数用于尝试所有可能的类型
 fn parse_number(value: &Value) -> Option<String> {
@@ -32,10 +31,13 @@ fn rank_detail(value: &Value) -> Result<RankDetail, crate::Error<TokenExpired>> 
     })
 }
 
-/// # Parameters
-///
-/// - `raw_data`: 由 [`super::raw::get_cjpmcx_list`] 返回的原始数据
-pub fn rank(raw_data: Value) -> Result<Rank, crate::Error<TokenExpired>> {
+/// `raw_data` 是由 [`super::fetch::get_cjpmcx_list`] 返回的原始数据
+pub fn rank(json_str: &str) -> Result<Rank, crate::Error<TokenExpired>> {
+    let json = crate::hdjw::parse::hdjw_response(json_str)?;
+    let raw_data = match json.get("data") {
+        Some(data @ Value::Object(_)) => data.clone(),
+        _ => return Err(parse_err(json_str)),
+    };
     Ok(Rank {
         all: raw_data.get("allPm").map(rank_detail).transpose()?,
         must: raw_data.get("bxkcPm").map(rank_detail).transpose()?,
@@ -45,9 +47,8 @@ pub fn rank(raw_data: Value) -> Result<Rank, crate::Error<TokenExpired>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_parse_number() {
@@ -58,8 +59,7 @@ mod tests {
 
     #[test]
     fn test_rank() -> TestResult<()> {
-        let raw_data: Value = serde_json::from_str(include_str!("test_data/cjpmcx_list.json"))?;
-        let rank = rank(raw_data)?;
+        let rank = rank(include_str!("test_data/cjpmcx_list.json"))?;
 
         let core = rank
             .core
@@ -94,8 +94,7 @@ mod tests {
 
     #[test]
     fn test_rank_empty() -> TestResult<()> {
-        let raw_data: Value = serde_json::from_str("{}")?;
-        let rank = rank(raw_data)?;
+        let rank = rank("{}")?;
 
         assert!(rank.core.is_none());
         assert!(rank.must.is_none());

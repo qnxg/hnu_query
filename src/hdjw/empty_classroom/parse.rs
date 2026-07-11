@@ -1,18 +1,18 @@
+use super::EmptyClassroom;
 use crate::{
     error::{parse_err, parse_err_with_reason},
     hdjw::error::TokenExpired,
 };
-use serde_json::Value;
-
-use super::EmptyClassroom;
 
 /// # Parameters
 ///
-/// - `raw_data`: 由 [`super::raw::get_jsjy_query2`] 返回的原始数据
+/// - `json_str` 为 [`super::fetch::get_jsjy_query2`] 返回的数据
+/// - `time` 为选中的节次。只会将选中的节次的空教室信息解析出来
 pub fn empty_classroom(
-    raw_data: Value,
+    json_str: &str,
     time: &[u8],
 ) -> Result<Vec<EmptyClassroom>, crate::Error<TokenExpired>> {
+    let raw_data = crate::hdjw::parse::hdjw_response(json_str)?;
     let data = raw_data
         .as_array()
         .and_then(|v| v.get(4))
@@ -73,14 +73,11 @@ pub fn empty_classroom(
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_empty_classroom() -> TestResult<()> {
-        let raw_data: Value = serde_json::from_str(include_str!("test_data/jsjy_query2.json"))?;
-
         fn assert_classrooms(empty_classrooms: &[EmptyClassroom], expected: Vec<&str>) {
             let mut empty_classrooms_names: Vec<&String> =
                 empty_classrooms.iter().map(|r| &r.room_name).collect();
@@ -89,7 +86,7 @@ mod tests {
             assert_eq!(empty_classrooms_names, expected)
         }
 
-        let rooms = empty_classroom(raw_data.clone(), &[1, 2, 3, 4, 5])?;
+        let rooms = empty_classroom(include_str!("test_data/jsjy_query2.json"), &[1, 2, 3, 4, 5])?;
         assert_classrooms(&rooms, vec!["综B103", "综B104", "综B105", "综B109"]);
 
         // 教室信息在此处测试，单个通过即认为 OK

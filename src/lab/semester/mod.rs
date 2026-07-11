@@ -1,6 +1,7 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{error::parse_err, lab::login::LabToken};
+use crate::lab::login::LabToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -23,28 +24,10 @@ pub struct Semester {
 ///
 /// # Returns
 ///
-/// 返回一个包含所有大物实验平台的学期信息的列表
+/// 返回一个包含大物实验平台所有学期信息的列表
 pub async fn get_semester(lab_token: &LabToken) -> Result<Vec<Semester>, crate::Error<Infallible>> {
-    let raw_data = raw::raw_semester_data(lab_token).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        let [xn_str, _, xq_str] = item
-            .text
-            .split(|c| ['-', '_', ' '].contains(&c))
-            .collect::<Vec<&str>>()[..]
-        else {
-            return Err(parse_err(&item.text));
-        };
-        let (Ok(xn), Ok(xq)) = (xn_str.parse::<u16>(), xq_str.parse::<u8>()) else {
-            return Err(parse_err(&item.text));
-        };
-        res.push(Semester {
-            xn,
-            xq,
-            id: item.id,
-        });
-    }
-    Ok(res)
+    let json_str = fetch::raw_semester_data(lab_token).await?;
+    parse::semester(&json_str)
 }
 
 #[cfg(test)]

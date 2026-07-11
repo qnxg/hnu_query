@@ -1,14 +1,33 @@
+use super::ExamSchedule;
 use crate::{
     error::{MapParseErr, parse_err},
-    hdjw::{error::TokenExpired, exam_schedule::raw::ExamScheduleItem},
+    hdjw::error::TokenExpired,
 };
 use chrono::NaiveDate;
+use serde::Deserialize;
 
-use super::ExamSchedule;
+// 带 Option 的字段应该是类似于体育理论这样考试安排信息很不全的课程
+#[derive(Deserialize, Debug)]
+struct RawExamSchedule {
+    /// 课程代码
+    kch: String,
+    /// 课程名称
+    kskcmc: String,
+    /// 考试校区
+    ksxq: Option<String>,
+    /// 考试的教室
+    js_mc: Option<String>,
+    /// 考试时间（已经是一个时间区间了）
+    kssj: Option<String>,
+    /// 座位号
+    zwh: Option<String>,
+}
 
-pub fn exam_schedule(
-    raw_data: Vec<ExamScheduleItem>,
-) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
+/// `json_str` 为 [`super::fetch::get_xsksap_list`] 返回的数据
+pub fn exam_schedule(json_str: &str) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
+    let json = crate::hdjw::parse::hdjw_response(json_str)?;
+    let raw_data =
+        serde_json::from_value::<Vec<RawExamSchedule>>(json["data"].clone()).parse_err(json_str)?;
     let mut res = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         let (date, time) = match item.kssj {
@@ -37,16 +56,12 @@ pub fn exam_schedule(
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_exam_schedule() -> TestResult<()> {
-        let raw_data: Vec<ExamScheduleItem> =
-            serde_json::from_str(include_str!("test_data/xsksap_list.json"))?;
-
-        let schedules = exam_schedule(raw_data)?;
+        let schedules = exam_schedule(include_str!("test_data/xsksap_list.json"))?;
 
         assert_eq!(schedules.len(), 6);
 

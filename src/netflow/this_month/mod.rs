@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
@@ -70,8 +70,8 @@ pub struct ThisMonthInfo {
 pub async fn get_this_month_info(
     netflow_token: &NetflowToken,
 ) -> Result<ThisMonthInfo, crate::Error<Infallible>> {
-    let raw_data = raw::get_traffic_info_by_this_month(netflow_token).await?;
-    parse::this_month(raw_data)
+    let raw_data = fetch::this_month_info(netflow_token).await?;
+    parse::this_month_info(&raw_data)
 }
 
 #[cfg(test)]

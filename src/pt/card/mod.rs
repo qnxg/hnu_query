@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::pt::login::PtToken;
 use chrono::NaiveDateTime;
@@ -71,8 +71,8 @@ pub struct CardHistoryItem {
 ///
 /// 校园卡信息
 pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<Infallible>> {
-    let raw_data = raw::get_card_user_info(pt_token).await?;
-    parse::card_info(raw_data)
+    let json_str = fetch::card_info(pt_token).await?;
+    parse::card_info(&json_str)
 }
 
 /// 获取校园卡消费历史
@@ -97,8 +97,10 @@ pub async fn get_card_history(
         CardHistoryType::Consumption => "15",
         CardHistoryType::Recharge => "16",
     };
-    let raw_data = raw::get_acc_history(pt_token, year, month, trancode).await?;
-    parse::card_history(raw_data)
+    let json_str = fetch::csrf_token(pt_token).await?;
+    let csrf_token = parse::csrf_token(&json_str)?;
+    let json_str = fetch::card_history(pt_token, &csrf_token, year, month, trancode).await?;
+    parse::card_history(&json_str)
 }
 
 #[cfg(test)]

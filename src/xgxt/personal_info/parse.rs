@@ -8,16 +8,17 @@ use std::convert::Infallible;
 /// 将学工系统接口返回数据中的 `data.groupFields[0].fields` 数组解析为一个 `HashMap`。
 /// 具体格式可参考 test_data/ 目录中的样例文件。
 pub fn extract_xgxt_entry(
-    data: Value,
+    json_str: &str,
 ) -> Result<HashMap<String, String>, crate::Error<Infallible>> {
     let mut parsed_entries = HashMap::<String, String>::new();
-
-    data.get("data")
+    serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
+        .get("data")
         .and_then(|data| data.get("groupFields"))
         .and_then(|group_field_list| group_field_list.get(0))
         .and_then(|group_field_item| group_field_item.get("fields"))
         .and_then(|fields| fields.as_array())
-        .ok_or(parse_err(&data.to_string()))?
+        .ok_or(parse_err(json_str))?
         .iter()
         .for_each(|field| {
             if let Some(field_name) = field.get("fieldName")
@@ -134,17 +135,15 @@ mod test {
 
     #[test]
     fn test_parse_person_info() -> TestResult<()> {
-        let raw_data_list = vec![
+        let json_str_list = vec![
             include_str!("test_data/user_info.json").to_string(),
             include_str!("test_data/in_school_info.json").to_string(),
             include_str!("test_data/contact_info.json").to_string(),
-        ]
-        .into_iter()
-        .map(|s| serde_json::from_str(&s));
+        ];
 
         let mut entries = HashMap::<String, String>::new();
-        for raw_data in raw_data_list {
-            entries.extend(extract_xgxt_entry(raw_data?)?);
+        for json_str in json_str_list {
+            entries.extend(extract_xgxt_entry(&json_str)?);
         }
 
         let info = person_info(entries)?;

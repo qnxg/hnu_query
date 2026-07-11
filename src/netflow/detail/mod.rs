@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
@@ -65,8 +65,8 @@ pub async fn get_month_detail(
     year: u16,
     month: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let raw_data = raw::get_float_detail_by_month(network_token, year, month).await?;
-    parse::detail(raw_data)
+    let json_str = fetch::detail_by_month(network_token, year, month).await?;
+    parse::detail(&json_str)
 }
 
 /// 获取日流量明细
@@ -87,8 +87,8 @@ pub async fn get_day_detail(
     month: u8,
     day: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let raw_data = raw::get_float_detail_by_day(network_token, year, month, day).await?;
-    parse::detail(raw_data)
+    let json_str = fetch::detail_by_day(network_token, year, month, day).await?;
+    parse::detail(&json_str)
 }
 
 #[cfg(test)]

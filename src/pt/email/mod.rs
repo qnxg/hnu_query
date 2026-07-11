@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::pt::login::PtToken;
 use std::convert::Infallible;
@@ -18,8 +18,8 @@ use std::convert::Infallible;
 pub async fn get_unread_email_count(
     pt_token: &PtToken,
 ) -> Result<Option<u32>, crate::Error<Infallible>> {
-    let raw_data = raw::get_email_unread_count(pt_token).await?;
-    parse::email_unread_count(raw_data)
+    let json_str = fetch::unread_email_count(pt_token).await?;
+    parse::email_unread_count(&json_str)
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
@@ -28,8 +28,8 @@ pub enum UnlockStatus {
 pub async fn get_unlock_status(
     netflow_token: &NetflowToken,
 ) -> Result<UnlockStatus, crate::Error<Infallible>> {
-    let raw_data = raw::get_user_info(netflow_token).await?;
-    parse::unlock_status(raw_data)
+    let json_str = fetch::user_info(netflow_token).await?;
+    parse::unlock_status(&json_str)
 }
 
 #[cfg(test)]

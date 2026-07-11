@@ -1,13 +1,35 @@
-use crate::error::parse_err;
+use super::Rank;
+use crate::error::{MapParseErr, parse_err};
+use bytes::Bytes;
 use regex::RegexBuilder;
+use serde_json::Value;
 use std::convert::Infallible;
 
-use super::Rank;
+/// `json_str` 可接收来自 [super::fetch::preview_file] 的返回值
+pub fn preview_file_name(json_str: &str) -> Result<String, crate::Error<Infallible>> {
+    let json: Value = serde_json::from_str(json_str).parse_err(json_str)?;
+    if json.get("code").and_then(|v| v.as_u64()) != Some(200) {
+        return Err(parse_err(json_str));
+    }
+    json.get("message")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| parse_err(json_str))
+}
 
-/// # Parameters
-///
-/// - `pdf_text`: 由 [super::raw::certification_pdf_text] 从 PDF 中提取的文本内容
-pub fn rank(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> {
+/// `pdf_bytes` 可接收来自 [super::fetch::certification_pdf] 的返回值
+pub fn rank(pdf_bytes: Bytes) -> Result<Rank, crate::Error<Infallible>> {
+    let text_extracted = pdf_extract::extract_text_from_mem(&pdf_bytes).map_err(|e| {
+        parse_err(&format!(
+            "failed to extract PDF text ({} bytes): {e}",
+            pdf_bytes.len()
+        ))
+    })?;
+    rank_with_pdf_text(&text_extracted)
+}
+
+// 单独抽这样的一个函数是为了测试。为了隐私，测试数据不直接提供 pdf 原始数据，而是提供的已经提取出文本的数据。
+fn rank_with_pdf_text(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> {
     let regex = RegexBuilder::new(r"平均学分绩点排名 ([0-9/]+).*平均学分绩点 ([0-9.]+).*核心课程平均学分绩点排名 ([0-9/]+).*必修课平均学分绩点 ([0-9.]+).*课程算术平均成绩排名 ([0-9/]+).*算术平均分 ([0-9.]+).*核心课程算术平均成绩排名 ([0-9/]+).*必修课算术平均分 ([0-9.]+).*学分加权平均成绩排名 ([0-9/]+).*加权平均分 ([0-9.]+).*核心课程学分加权平均成绩排名 ([0-9/]+).*必修课加权平均分 ([0-9.]+)")
         .dot_matches_new_line(true)
         .build()
@@ -54,14 +76,13 @@ pub fn rank(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_parse_grade_rank() -> TestResult<()> {
         let pdf_text = include_str!("test_data/grade_rank_pdf_extracted.txt");
-        let rank = rank(pdf_text)?;
+        let rank = rank_with_pdf_text(pdf_text)?;
 
         assert_eq!(rank.all_gpa_rank, "30/90");
         assert_eq!(rank.all_gpa, "4.0");

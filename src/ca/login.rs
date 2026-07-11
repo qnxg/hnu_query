@@ -98,7 +98,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_ca_token() {
+    async fn test_get_ca_token() {
         let ca_token = get_ca_token().await;
         println!("{:#?}", ca_token);
     }

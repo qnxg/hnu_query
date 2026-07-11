@@ -1,11 +1,7 @@
+mod fetch;
 mod parse;
-mod raw;
 
-use crate::gym::{
-    error::TokenExpired,
-    grade::raw::{raw_grade_detail_data, raw_grade_summary_data},
-    login::GymToken,
-};
+use crate::gym::{error::TokenExpired, login::GymToken};
 use serde::{Deserialize, Serialize};
 use tokio::try_join;
 
@@ -125,11 +121,11 @@ pub enum GradeItemColor {
 ///
 /// 如果提供的 `gym_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [GymToken]
 pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Error<TokenExpired>> {
-    let (grade_summary, grade_detail) = try_join!(
-        raw_grade_summary_data(gym_token, xn),
-        raw_grade_detail_data(gym_token, xn),
+    let (grade_summary_str, grade_detail_str) = try_join!(
+        fetch::grade_summary(gym_token, xn),
+        fetch::grade_detail(gym_token, xn),
     )?;
-    parse::grade(grade_summary, grade_detail)
+    parse::grade(&grade_summary_str, &grade_detail_str)
 }
 
 #[cfg(test)]

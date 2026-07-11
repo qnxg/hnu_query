@@ -135,7 +135,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_hdjw_token() {
+    async fn test_get_hdjw_token() {
         let hdjw_token = get_hdjw_token().await;
         println!("{:#?}", hdjw_token);
     }

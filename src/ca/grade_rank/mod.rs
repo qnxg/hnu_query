@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::ca::login::CaToken;
 use serde::{Deserialize, Serialize};
@@ -58,9 +58,11 @@ pub struct Rank {
 ///
 /// 可信电子凭证中的成绩排名信息
 pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Infallible>> {
-    let pdf_text =
-        raw::certification_pdf_text(ca_token, raw::UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
-    parse::rank(&pdf_text)
+    let file_name =
+        fetch::preview_file(ca_token, fetch::UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
+    let file_name = parse::preview_file_name(&file_name)?;
+    let pdf_bytes = fetch::file(ca_token, &file_name).await?;
+    parse::rank(pdf_bytes)
 }
 
 #[cfg(test)]
@@ -70,7 +72,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade_rank() -> TestResult<()> {
+    async fn test_get_grade_rank() -> TestResult<()> {
         let ca_token = get_ca_token().await?;
         let grade_rank = get_grade_rank(&ca_token).await?;
         println!("{:#?}", grade_rank);

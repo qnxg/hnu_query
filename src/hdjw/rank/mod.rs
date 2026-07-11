@@ -1,5 +1,5 @@
+mod fetch;
 mod parse;
-mod raw;
 
 use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
@@ -128,7 +128,7 @@ pub async fn get_rank(
         .map(|(xn, xq)| format!("{}-{}-{}", xn, xn + 1, xq))
         .collect::<Vec<_>>()
         .join(",");
-    let raw_data = raw::get_cjpmcx_list(
+    let json_str = fetch::get_cjpmcx_list(
         hdjw_token,
         &selection,
         range.as_str(),
@@ -136,7 +136,7 @@ pub async fn get_rank(
         display.as_str(),
     )
     .await?;
-    parse::rank(raw_data)
+    parse::rank(&json_str)
 }
 
 #[cfg(test)]
@@ -149,7 +149,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_rank() -> TestResult<()> {
+    async fn test_get_rank() -> TestResult<()> {
         let hdjw_token = get_hdjw_token().await?;
         let selection = vec![(*TEST_XN, *TEST_XQ)];
         let rank = get_rank(

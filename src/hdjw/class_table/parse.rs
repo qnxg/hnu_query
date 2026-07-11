@@ -1,15 +1,79 @@
+use super::{Course, CourseSchedule, ExtraCourse};
 use crate::{
-    error::{MapParseErr, parse_err_with_reason},
-    hdjw::{
-        class_table::raw::{RawCourseInfo, RawExtraCourseInfo},
-        error::TokenExpired,
-    },
+    error::{MapParseErr, parse_err, parse_err_with_reason},
+    hdjw::error::TokenExpired,
 };
 use regex::Regex;
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-use super::{Course, CourseSchedule, ExtraCourse};
+/// 教务 `教学运行 > 我的课表 > 有课表课程` 返回数据单项
+/// 还有其他一些具体学时信息的字段，懒得搞了
+#[derive(Deserialize, Debug)]
+#[expect(unused)]
+struct RawCourseInfo {
+    /// 课程代码
+    kch: String,
+    /// 课程名称
+    kc_mc: String,
+    /// 教师名称
+    jg0101mc: Option<String>,
+    /// 教师工号（暂时不用）
+    jsgh: Option<String>,
+    kt_mc: String, // 上课班级
+    /// 课堂容量（暂时不用）
+    pkrs: u16,
+    /// 上课人数
+    xkrs: u16,
+    /// 课程性质（通识必修/专业核心等）
+    kcxz: String,
+    /// 课程类别（必修/选修等）
+    kclb: String,
+    /// 通知单编号（暂时不用）
+    jx0404id: String,
+    /// 分组名称，这里当作课程的备注信息
+    fzmc: Option<String>,
+    /// 上课时间
+    sktime: String,
+    /// 上课地点
+    skddmc: String,
+    /// 上课校区
+    skxqmc: String,
+    /// 开课院系（暂时不用）
+    kkyx: String,
+    /// 周学时（暂时不用）
+    zhouxs: String,
+    /// 学分
+    xf: f32,
+    /// 总学时（暂时不用）
+    zxs: u16,
+    /// 考核方式（暂时不用）
+    khfs: String,
+}
+
+/// 教务 `教学运行 > 我的课表 > 无课表课程` 返回数据单项
+#[derive(Deserialize, Debug)]
+struct RawExtraCourseInfo {
+    /// 课程代码
+    kch: String,
+    /// 课程名称
+    kc_mc: String,
+    /// 教师名称
+    jg0101mc: String,
+    /// 分组名称
+    fzmc: Option<String>,
+    /// 课程性质（通识必修/专业核心等）
+    kcxz: String,
+    /// 上课班级
+    kt_mc: String,
+    /// 上课人数
+    xkrs: u16,
+    /// 上课校区
+    skxqmc: String,
+    /// 学分
+    xf: f32,
+}
 
 fn day_to_u8(c: char) -> Result<u8, crate::Error<TokenExpired>> {
     match c {
@@ -118,12 +182,15 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
         .collect())
 }
 
-/// # Parameters
-///
-/// - `raw_data`: 由 [`super::raw::get_xskb_list`] 返回的数据
-pub fn class_table(
-    raw_data: Vec<RawCourseInfo>,
-) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
+/// `json_str` 为 [`super::fetch::get_xskb_list`] 返回的数据
+pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
+    let json = crate::hdjw::parse::hdjw_response(json_str)?;
+    let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
+        None => return Err(parse_err(json_str)),
+        Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
+        Some(_) => serde_json::from_value::<Vec<RawCourseInfo>>(json["data"].clone())
+            .parse_err(json_str)?,
+    };
     let mut courses = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         let schedule = course_schedule(&item)?;
@@ -147,9 +214,14 @@ pub fn class_table(
 /// # Parameters
 ///
 /// - `raw_data`: 由 [`super::raw::get_xskb_list_extra`] 返回的数据
-pub fn class_table_extra(
-    raw_data: Vec<RawExtraCourseInfo>,
-) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
+pub fn class_table_extra(json_str: &str) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
+    let json = crate::hdjw::parse::hdjw_response(json_str)?;
+    let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
+        None => return Err(parse_err(json_str)),
+        Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
+        Some(_) => serde_json::from_value::<Vec<RawExtraCourseInfo>>(json["data"].clone())
+            .parse_err(json_str)?,
+    };
     let mut courses = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         courses.push(ExtraCourse {
@@ -169,9 +241,8 @@ pub fn class_table_extra(
 
 #[cfg(test)]
 mod tests {
-    use crate::test::TestResult;
-
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
     fn test_day_to_u8() -> TestResult<()> {
@@ -211,9 +282,7 @@ mod tests {
     #[test]
     #[expect(clippy::too_many_lines)]
     fn test_class_table() -> TestResult<()> {
-        let raw_data: Vec<RawCourseInfo> =
-            serde_json::from_str(include_str!("test_data/xskb_list.json"))?;
-        let courses = class_table(raw_data)?;
+        let courses = class_table(include_str!("test_data/xskb_list.json"))?;
 
         fn sorted(mut v: Vec<u8>) -> Vec<u8> {
             v.sort();
@@ -354,9 +423,7 @@ mod tests {
 
     #[test]
     fn test_class_table_extra() -> TestResult<()> {
-        let raw_data: Vec<RawExtraCourseInfo> =
-            serde_json::from_str(include_str!("test_data/xskb_list_extra.json"))?;
-        let courses = class_table_extra(raw_data)?;
+        let courses = class_table_extra(include_str!("test_data/xskb_list_extra.json"))?;
 
         assert_eq!(courses.len(), 1);
 

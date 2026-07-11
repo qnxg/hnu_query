@@ -1,13 +1,13 @@
 use crate::{
-    error::{parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err, parse_err_with_reason},
     xgxt::personal_info::Dormitory,
 };
 use serde_json::Value;
 use std::convert::Infallible;
 
-/// 将宿舍信息解析为电量查询系统接受的类型，返回 (park, build, room)
+/// 将学工系统返回的宿舍信息解析为电量查询系统接受的类型，返回 (park, build, room)
 #[expect(clippy::too_many_lines, reason = "REFACTOR ME")]
-pub fn convert_wxpay_dormitory(
+pub fn convert_dormitory(
     dormitory: Dormitory,
 ) -> Result<(u8, String, String), crate::Error<Infallible>> {
     let park = dormitory.park().expect("参数 dormitory 必须成功解析");
@@ -152,25 +152,27 @@ pub fn convert_wxpay_dormitory(
     Ok((park_id, build_id.to_string(), room_id))
 }
 
-/// 从 [`crate::wxpay::electricity::raw::check_room_no`] 的返回值中解析余额
-pub fn balance(data: Value) -> Result<String, crate::Error<Infallible>> {
-    Ok(data
+/// `json_str` 为 [super::fetch::electricity] 的返回数据
+pub fn electricity(json_str: &str) -> Result<String, crate::Error<Infallible>> {
+    let res = serde_json::from_str::<Value>(json_str)
+        .parse_err(json_str)?
         .get("data")
         .and_then(|data| data.get("Balance"))
         .and_then(|balance| balance.as_str())
-        .ok_or(parse_err(&data.to_string()))?
-        .to_string())
+        .ok_or(parse_err(json_str))?
+        .to_string();
+    Ok(res)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::TestResult;
 
     #[test]
-    fn test_balance() {
-        let raw_data = serde_json::from_str(include_str!("test_data/checkRoomNo.json"))
-            .expect("准备测试数据时发生意外错误");
-        let balance = balance(raw_data);
-        assert_eq!(balance.expect("余额解析失败"), "283.75度".to_string());
+    fn test_balance() -> TestResult<()> {
+        let res = electricity(include_str!("test_data/checkRoomNo.json"))?;
+        assert_eq!(res, "283.75度".to_string());
+        Ok(())
     }
 }
