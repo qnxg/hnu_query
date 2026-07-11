@@ -1,9 +1,9 @@
 use super::Rank;
 use crate::error::{MapParseErr, parse_err};
 use bytes::Bytes;
-use regex::RegexBuilder;
+use regex::{Regex, RegexBuilder};
 use serde_json::Value;
-use std::convert::Infallible;
+use std::{convert::Infallible, sync::LazyLock};
 
 /// `json_str` 可接收来自 [super::fetch::preview_file] 的返回值
 pub fn preview_file_name(json_str: &str) -> Result<String, crate::Error<Infallible>> {
@@ -30,12 +30,14 @@ pub fn rank(pdf_bytes: Bytes) -> Result<Rank, crate::Error<Infallible>> {
 
 // 单独抽这样的一个函数是为了测试。为了隐私，测试数据不直接提供 pdf 原始数据，而是提供的已经提取出文本的数据。
 fn rank_with_pdf_text(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> {
-    let regex = RegexBuilder::new(r"平均学分绩点排名 ([0-9/]+).*平均学分绩点 ([0-9.]+).*核心课程平均学分绩点排名 ([0-9/]+).*必修课平均学分绩点 ([0-9.]+).*课程算术平均成绩排名 ([0-9/]+).*算术平均分 ([0-9.]+).*核心课程算术平均成绩排名 ([0-9/]+).*必修课算术平均分 ([0-9.]+).*学分加权平均成绩排名 ([0-9/]+).*加权平均分 ([0-9.]+).*核心课程学分加权平均成绩排名 ([0-9/]+).*必修课加权平均分 ([0-9.]+)")
-        .dot_matches_new_line(true)
-        .build()
-        .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
+    static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+        RegexBuilder::new(r"平均学分绩点排名 ([0-9/]+).*平均学分绩点 ([0-9.]+).*核心课程平均学分绩点排名 ([0-9/]+).*必修课平均学分绩点 ([0-9.]+).*课程算术平均成绩排名 ([0-9/]+).*算术平均分 ([0-9.]+).*核心课程算术平均成绩排名 ([0-9/]+).*必修课算术平均分 ([0-9.]+).*学分加权平均成绩排名 ([0-9/]+).*加权平均分 ([0-9.]+).*核心课程学分加权平均成绩排名 ([0-9/]+).*必修课加权平均分 ([0-9.]+)")
+            .dot_matches_new_line(true)
+            .build()
+            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+    });
 
-    let caps = regex
+    let caps = REGEX
         .captures(pdf_text)
         .ok_or(parse_err(pdf_text))?
         .iter()

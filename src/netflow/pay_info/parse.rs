@@ -5,8 +5,8 @@ use std::convert::Infallible;
 
 #[derive(Deserialize, Debug)]
 #[expect(non_snake_case)]
-pub struct RawPayInfo {
-    pub Total: f64,
+struct RawPayInfo {
+    Total: f64,
 }
 
 /// `json_str` 为 [super::fetch::pay_info] 的返回数据

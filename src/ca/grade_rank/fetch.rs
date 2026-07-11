@@ -6,9 +6,6 @@ use crate::{
 use bytes::Bytes;
 use std::{convert::Infallible, time::Duration};
 
-/// 本科生主修所有课程的中文成绩单
-pub const UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID: &str = "02a70e11bc89b40dc2ef6ed14851ce25";
-
 pub async fn preview_file(
     ca_token: &CaToken,
     template_id: &str,

@@ -1,7 +1,8 @@
-use crate::cas::login::CasToken;
-use crate::error::{MapNetworkErr, MapUnexpectedErr, parse_err_with_reason};
-use crate::utils::request::cookie_parser;
-use crate::{cas::login::AccountIssue, utils::client};
+use crate::{
+    cas::login::{AccountIssue, CasToken},
+    error::{MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
+    utils::{client, request::cookie_parser},
+};
 use regex::RegexBuilder;
 use reqwest::StatusCode;
 use reqwest::header::{COOKIE, SET_COOKIE};

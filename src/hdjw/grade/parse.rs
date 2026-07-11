@@ -3,10 +3,10 @@ use crate::{
     error::{MapParseErr, parse_err},
     hdjw::error::TokenExpired,
 };
-use regex::RegexBuilder;
+use regex::{Regex, RegexBuilder};
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 /// 教务 `考试成绩 > 课程成绩` 返回数据单项
 #[derive(Deserialize, Debug)]
@@ -86,12 +86,13 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
     // 不要直接 to_string()，
     // 否则会把整段 HTML 当作 JSON 字符串再序列化，导致内部引号变成 \"
     let raw_data = json.as_str().ok_or_else(|| parse_err(html))?.to_string();
-    let regex =
+    static REGEX: LazyLock<Regex> = LazyLock::new(|| {
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
             .build()
-            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-    let caps = regex
+            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+    });
+    let caps = REGEX
         .captures(&raw_data)
         .ok_or_else(|| parse_err(&raw_data))?
         .iter()

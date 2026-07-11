@@ -5,6 +5,9 @@ use crate::ca::login::CaToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
+/// 本科生主修所有课程的中文成绩单
+const UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID: &str = "02a70e11bc89b40dc2ef6ed14851ce25";
+
 /// 可信电子凭证中的排名
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rank {
@@ -58,8 +61,7 @@ pub struct Rank {
 ///
 /// 可信电子凭证中的成绩排名信息
 pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Infallible>> {
-    let file_name =
-        fetch::preview_file(ca_token, fetch::UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
+    let file_name = fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
     let file_name = parse::preview_file_name(&file_name)?;
     let pdf_bytes = fetch::file(ca_token, &file_name).await?;
     parse::rank(pdf_bytes)

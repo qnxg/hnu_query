@@ -5,8 +5,8 @@ use std::convert::Infallible;
 
 #[derive(Deserialize, Debug)]
 #[expect(non_snake_case)]
-pub struct RawUnreadEmail {
-    pub unReadCount: Option<u32>,
+struct RawUnreadEmail {
+    unReadCount: Option<u32>,
 }
 
 /// `json_str` 为 [super::fetch::unread_email_count] 的返回数据

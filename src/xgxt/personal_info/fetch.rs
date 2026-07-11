@@ -27,7 +27,7 @@ async fn get_with_url(
         .network_err()?
         .error_for_status()
         .unexpected_err()?
-        .json()
+        .text()
         .await
         .unexpected_err()
 }

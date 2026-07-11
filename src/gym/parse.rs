@@ -16,7 +16,12 @@ pub fn gym_response(json_str: &str) -> Result<Value, crate::Error<TokenExpired>>
     let json: Value = serde_json::from_str(json_str).parse_err(json_str)?;
     // 典型的异常response body：
     // {"data":[],"info":"登录失效","status":-1}
-    if json.get("info").and_then(|v| v.as_str()) == Some("登录失效") {
+    if json
+        .get("info")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| parse_err(json_str))?
+        .contains("登录失效")
+    {
         return Err(crate::Error::Other(TokenExpired));
     }
     if json.get("status").and_then(|v| v.as_i64()) != Some(1) {

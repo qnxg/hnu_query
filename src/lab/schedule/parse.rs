@@ -34,6 +34,7 @@ struct RawLabSchedule {
     Email: String,
 }
 
+/// `json_str` 为 [super::fetch::lab_schedule] 的返回数据
 pub fn lab_schedule(json_str: &str) -> Result<Vec<LabSchedule>, crate::Error<Infallible>> {
     let raw_data = serde_json::from_str::<Value>(json_str)
         .parse_err(json_str)?

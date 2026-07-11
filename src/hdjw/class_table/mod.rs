@@ -64,7 +64,7 @@ pub struct CourseSchedule {
 /// 无课表课程信息
 ///
 /// 相比于 `Course`，仅少了 `schedule` 字段
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ExtraCourse {
     /// 课程名称
     pub course_name: String,

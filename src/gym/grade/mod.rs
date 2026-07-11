@@ -138,7 +138,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade() -> TestResult<()> {
+    async fn test_get_grade() -> TestResult<()> {
         let gym_token = get_gym_token().await?;
         let grade = get_grade(&gym_token, *TEST_XN).await?;
         println!("{:#?}", grade);

@@ -14,6 +14,8 @@ pub async fn semester(yjsxt_token: &YjsxtToken) -> Result<String, crate::Error<T
         .send()
         .await
         .network_err()?
+        .error_for_status()
+        .unexpected_err()?
         .check_token_expired()?
         .text()
         .await

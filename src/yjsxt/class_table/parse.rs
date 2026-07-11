@@ -3,12 +3,14 @@ use crate::{
     yjsxt::{
         class_table::{Course, CourseSchedule},
         error::TokenExpired,
-        parse::decrypt_response,
     },
 };
 use regex::Regex;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
 #[derive(Hash, Eq, PartialEq)]
 struct ParsedCourse {
@@ -21,10 +23,13 @@ struct ParsedCourse {
 fn parse_course_info(
     cell_text: &str,
 ) -> Result<(ParsedCourse, HashSet<u8>, String), crate::Error<TokenExpired>> {
-    let class_time_regex = Regex::new(r"上课时间:.*\[([0-9\-]+)周\].*连续周")
-        .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
-    let teacher_and_classroom_regex =
-        Regex::new(r"(.*)\[(.*)\]").unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
+    static CLASS_TIME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"上课时间:.*\[([0-9\-]+)周\].*连续周")
+            .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
+    });
+    static TEACHER_AND_CLASSROOM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(.*)\[(.*)\]").unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
+    });
 
     let parts: Vec<&str> = cell_text.split("<br/>").filter(|s| !s.is_empty()).collect();
 
@@ -58,7 +63,7 @@ fn parse_course_info(
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
-    let class_time = class_time_regex
+    let class_time = CLASS_TIME_REGEX
         .captures(&class_time_str)
         .and_then(|c| c.get(1))
         .and_then(|c| {
@@ -80,7 +85,7 @@ fn parse_course_info(
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
-    let Some(teacher_and_classroom) = teacher_and_classroom_regex
+    let Some(teacher_and_classroom) = TEACHER_AND_CLASSROOM_REGEX
         .captures(&teacher_and_classroom_str)
         .and_then(|c| {
             c.iter()
@@ -112,12 +117,12 @@ fn parse_course_info(
 
 /// `json_str` 为 [super::fetch::class_table] 的返回数据
 pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let decrypted_json_str = decrypt_response(json_str)?;
-    let json = serde_json::from_str::<Value>(&decrypted_json_str).parse_err(&decrypted_json_str)?;
+    let json_str = crate::yjsxt::parse::decrypt_response(json_str)?;
+    let json = serde_json::from_str::<Value>(&json_str).parse_err(&json_str)?;
     let raw_rows = json
         .get("rows")
         .and_then(|rows| rows.as_array())
-        .ok_or_else(|| parse_err(&decrypted_json_str))?;
+        .ok_or_else(|| parse_err(&json_str))?;
 
     // 研究生系统的课表的颗粒度比我们的更细，他们把节次信息也拆掉了
     // 所以我们这里需要把同一个课程，同一周次、周几、上课地点的节次信息合并

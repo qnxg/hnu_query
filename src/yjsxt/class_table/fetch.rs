@@ -23,6 +23,8 @@ pub async fn class_table(
         .send()
         .await
         .network_err()?
+        .error_for_status()
+        .unexpected_err()?
         .check_token_expired()?
         .text()
         .await

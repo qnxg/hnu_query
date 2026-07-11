@@ -16,6 +16,7 @@ struct RawOrderItem {
     Upload: Option<f64>,
 }
 
+/// `json_str` 为 [super::fetch::order] 的返回数据
 pub fn order(json_str: &str) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
     let raw_data = serde_json::from_str::<Value>(json_str)
         .parse_err(json_str)?
