@@ -108,7 +108,7 @@ pub enum GradeItemColor {
 
 /// 获取体测成绩
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `gym_token`: 体测系统的令牌，可以通过 [GymToken::acquire_by_cas_login] 或 [GymToken::acquire_by_direct_login] 获取
 /// - `xn`: 学年，如 `2025`

@@ -6,7 +6,7 @@ use std::convert::Infallible;
 
 /// 获取宿舍电量
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `dormitory`: 宿舍信息，可以通过 [`crate::xgxt::get_person_info`] 获取
 ///

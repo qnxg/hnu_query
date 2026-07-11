@@ -18,7 +18,7 @@ pub struct XgxtToken {
 impl XgxtToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///

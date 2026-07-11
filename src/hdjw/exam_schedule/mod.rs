@@ -58,7 +58,7 @@ pub async fn get_exam_schedule(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
-    let json_str = fetch::get_xsksap_list(hdjw_token, xn, xq).await?;
+    let json_str = fetch::exam_schedule(hdjw_token, xn, xq).await?;
     parse::exam_schedule(&json_str)
 }
 

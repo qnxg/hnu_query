@@ -26,7 +26,7 @@ pub struct Semester {
 ///
 /// 返回一个包含大物实验平台所有学期信息的列表
 pub async fn get_semester(lab_token: &LabToken) -> Result<Vec<Semester>, crate::Error<Infallible>> {
-    let json_str = fetch::raw_semester_data(lab_token).await?;
+    let json_str = fetch::semester(lab_token).await?;
     parse::semester(&json_str)
 }
 

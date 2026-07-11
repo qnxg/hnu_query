@@ -128,7 +128,7 @@ pub async fn get_rank(
         .map(|(xn, xq)| format!("{}-{}-{}", xn, xn + 1, xq))
         .collect::<Vec<_>>()
         .join(",");
-    let json_str = fetch::get_cjpmcx_list(
+    let json_str = fetch::rank(
         hdjw_token,
         &selection,
         range.as_str(),

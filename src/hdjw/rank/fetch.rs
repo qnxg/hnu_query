@@ -6,7 +6,7 @@ use crate::{
 
 const GRADE_RANK_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/xscjsq/cjpmcx_list.do";
 
-pub async fn get_cjpmcx_list(
+pub async fn rank(
     hdjw_token: &HdjwToken,
     selection: &str,
     range: &str,

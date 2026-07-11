@@ -18,7 +18,7 @@ const EMPTY_CLASSROOM_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/kbxx/jsjy_query2
 /// - `day`: 星期几，星期一为 `1`，星期日为 `7`
 /// - `time`: 节次信息
 /// - `building_id`: 楼栋id
-pub async fn get_jsjy_query2(
+pub async fn empty_classroom(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,

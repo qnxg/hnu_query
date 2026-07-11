@@ -16,7 +16,7 @@ pub struct CaToken {
 impl CaToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
@@ -68,7 +68,7 @@ impl CaToken {
     }
     /// 从 [HeaderMap] 创建 [CaToken]
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `headers`: 一个合法的可用作 [CaToken] 的 [HeaderMap]
     ///

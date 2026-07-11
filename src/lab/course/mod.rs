@@ -20,7 +20,7 @@ pub struct Course {
 
 /// 获取课程列表
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `lab_token`: 大物实验平台的令牌，可以通过 [LabToken::acquire_by_login] 获取
 /// - `semester_id`: 学期id，需要通过 [`crate::lab::get_semester`] 获取
@@ -32,7 +32,7 @@ pub async fn get_course_list(
     lab_token: &LabToken,
     semester_id: &str,
 ) -> Result<Vec<Course>, crate::Error<Infallible>> {
-    let json_str = fetch::raw_course_list_data(lab_token, semester_id).await?;
+    let json_str = fetch::course_list(lab_token, semester_id).await?;
     parse::course_list(&json_str)
 }
 

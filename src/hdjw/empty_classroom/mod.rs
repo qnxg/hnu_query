@@ -63,7 +63,7 @@ pub async fn get_empty_classroom(
         .collect::<Vec<_>>()
         .join(",");
     let json_str =
-        fetch::get_jsjy_query2(hdjw_token, xn, xq, week, day, &time_str, building_id).await?;
+        fetch::empty_classroom(hdjw_token, xn, xq, week, day, &time_str, building_id).await?;
     parse::empty_classroom(&json_str, time)
 }
 

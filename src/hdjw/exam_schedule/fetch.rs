@@ -8,7 +8,7 @@ use crate::{
 const EXAM_SCHEDULE_URL: &str =
     "http://hdjw.hnu.edu.cn/jsxsd/xsks/xsksap_list?pageNum=1&pageSize=20&xqlb=";
 
-pub async fn get_xsksap_list(
+pub async fn exam_schedule(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,

@@ -77,7 +77,7 @@ pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<
 
 /// 获取校园卡消费历史
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `pt_token`: 个人门户令牌，可以通过 [PtToken::acquire_by_cas_login] 获取
 /// - `year`: 年份

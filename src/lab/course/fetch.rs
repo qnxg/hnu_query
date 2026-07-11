@@ -7,7 +7,7 @@ use std::{collections::HashMap, convert::Infallible};
 
 const COURSE_LIST_URL: &str = "http://10.62.106.112/XPK/StudentScoreSearch/GetStudentScoreList";
 
-pub async fn raw_course_list_data(
+pub async fn course_list(
     lab_token: &LabToken,
     semester_id: &str,
 ) -> Result<String, crate::Error<Infallible>> {

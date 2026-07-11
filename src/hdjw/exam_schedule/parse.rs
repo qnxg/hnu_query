@@ -23,7 +23,7 @@ struct RawExamSchedule {
     zwh: Option<String>,
 }
 
-/// `json_str` 为 [`super::fetch::get_xsksap_list`] 返回的数据
+/// `json_str` 为 [`super::fetch::exam_schedule`] 返回的数据
 pub fn exam_schedule(json_str: &str) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data =

@@ -11,6 +11,7 @@ struct RawSemester {
     text: String,
 }
 
+/// `json_str` 为 [`super::fetch::semester`] 返回的数据
 pub fn semester(json_str: &str) -> Result<Vec<Semester>, crate::Error<Infallible>> {
     let raw_data = serde_json::from_str::<Vec<RawSemester>>(json_str).parse_err(json_str)?;
     let mut res = Vec::with_capacity(raw_data.len());

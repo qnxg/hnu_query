@@ -32,7 +32,7 @@ pub struct LabGradeDetailItem {
 
 /// 获取某门课程下的实验成绩
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `lab_token`: 大物实验平台的令牌，可以通过 [LabToken::acquire_by_login] 获取
 /// - `course_id`: 课程id，通过 [`crate::lab::get_course_list`] 获取
@@ -70,7 +70,7 @@ pub struct VirtualLabGrade {
 
 /// 获取虚拟实验成绩
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `lab_token`: 大物实验平台的令牌，可以通过 [LabToken::acquire_by_login] 获取
 ///

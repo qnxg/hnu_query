@@ -54,7 +54,7 @@ pub async fn get_grade(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
-    let raw_data = fetch::get_cjcx_list(hdjw_token, xn, xq).await?;
+    let raw_data = fetch::grade(hdjw_token, xn, xq).await?;
     parse::grade(&raw_data)
 }
 
@@ -89,7 +89,7 @@ pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
-    let html = fetch::get_pscj_list(hdjw_token, jx0404id).await?;
+    let html = fetch::grade_detail(hdjw_token, jx0404id).await?;
     parse::grade_detail(&html)
 }
 

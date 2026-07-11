@@ -17,7 +17,7 @@ pub struct Dormitory {
 impl Dormitory {
     /// 从已经解析好的园区和楼栋信息构造 Dormitory
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `park`: 园区
     /// - `build`: 楼栋

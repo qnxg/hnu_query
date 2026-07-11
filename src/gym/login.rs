@@ -21,7 +21,7 @@ pub struct GymToken {
 impl GymToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
@@ -65,7 +65,7 @@ impl GymToken {
     }
     /// 直接通过账号密码登录体测系统
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `stu_id`: 学号
     /// - `password`: 体测系统密码，一般情况下和个人门户密码相同（也不排除有人专门修改了体测系统的密码）
@@ -97,7 +97,7 @@ impl GymToken {
     }
     /// 从 [HeaderMap] 创建 [GymToken]
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `headers`: 一个合法的可用作 [GymToken] 的 [HeaderMap]
     ///

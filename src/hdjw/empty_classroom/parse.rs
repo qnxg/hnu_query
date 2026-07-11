@@ -4,9 +4,9 @@ use crate::{
     hdjw::error::TokenExpired,
 };
 
-/// # Parameters
+/// # Arguments
 ///
-/// - `json_str` 为 [`super::fetch::get_jsjy_query2`] 返回的数据
+/// - `json_str` 为 [`super::fetch::empty_classroom`] 返回的数据
 /// - `time` 为选中的节次。只会将选中的节次的空教室信息解析出来
 pub fn empty_classroom(
     json_str: &str,

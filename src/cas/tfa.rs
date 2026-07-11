@@ -110,7 +110,7 @@ impl TFAToken {
 
     /// 验证当前双因子认证令牌，调用本函数前需要先调用 [TFAToken::send_sms] 发送验证码
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `code`: 验证码
     ///

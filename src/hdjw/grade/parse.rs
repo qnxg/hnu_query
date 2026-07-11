@@ -57,7 +57,7 @@ struct RawGradeInfo {
     cjbs: Option<String>,
 }
 
-/// `json_str` 为 [`super::fetch::get_cjcx_list`] 返回的数据
+/// `json_str` 为 [`super::fetch::grade`] 返回的数据
 pub fn grade(json_str: &str) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data =
@@ -80,7 +80,7 @@ pub fn grade(json_str: &str) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
     Ok(res)
 }
 
-/// `html` 为 [`super::fetch::get_pscj_list`] 返回的数据
+/// `html` 为 [`super::fetch::grade_detail`] 返回的数据
 pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(html)?;
     let raw_data = json.to_string();

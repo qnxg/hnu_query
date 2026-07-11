@@ -86,7 +86,7 @@ pub enum Gender {
 
 /// 从学工系统获取个人信息
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `xgxt_token`: 学工系统令牌，可以通过 [XgxtToken::acquire_by_cas_login] 获取
 ///

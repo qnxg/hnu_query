@@ -11,7 +11,7 @@ const GRADE_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/kscj/cjcx_list?pageNum=1&p
 // 该 URL 缺少 jx0404id 的参数，需要后续再用 format 拼接
 const GRADE_DETAIL_URL: &str = "http://hdjw.hnu.edu.cn/jsxsd/kscj/pscj_list.do?zcj=";
 
-pub async fn get_cjcx_list(
+pub async fn grade(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
@@ -30,7 +30,7 @@ pub async fn get_cjcx_list(
 }
 
 // 返回的原始数据是 html 格式
-pub async fn get_pscj_list(
+pub async fn grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<String, crate::Error<TokenExpired>> {

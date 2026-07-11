@@ -73,7 +73,7 @@ fn parse_lab_grade_structure(
         .ok_or_else(|| parse_err(json_str))
 }
 
-/// # Parameters
+/// # Arguments
 ///
 /// - `lab_grade_str`: 由 [`super::fetch::lab_grade`] 返回的数据
 /// - `lab_grade_detail_str`: 由 [`super::fetch::lab_grade_detail`] 返回的数据

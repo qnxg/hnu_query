@@ -16,7 +16,7 @@ pub struct Semester {
 
 /// 获取研究生系统的学期信息
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `yjsxt_token`: 研究生系统的令牌，可以通过 [YjsxtToken::acquire_by_cas_login] 获取
 ///

@@ -19,7 +19,7 @@ pub struct TokenInfo {
 ///
 /// **注意：token 是可以重名的**
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 ///
@@ -33,7 +33,7 @@ pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Er
 
 /// 获取指定 token 的 key
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `id`: token 的 ID
@@ -48,7 +48,7 @@ pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
 
 /// 删除指定 token
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `id`: 要删除的 token 的 ID
@@ -63,7 +63,7 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<I
 
 /// 创建新的 token
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `name`: token 名称

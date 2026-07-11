@@ -182,7 +182,7 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
         .collect())
 }
 
-/// `json_str` 为 [`super::fetch::get_xskb_list`] 返回的数据
+/// `json_str` 为 [`super::fetch::class_table`] 返回的数据
 pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
@@ -211,9 +211,9 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
     Ok(courses)
 }
 
-/// # Parameters
+/// # Arguments
 ///
-/// - `raw_data`: 由 [`super::raw::get_xskb_list_extra`] 返回的数据
+/// - `raw_data`: 由 [`super::fetch::class_table_extra`] 返回的数据
 pub fn class_table_extra(json_str: &str) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {

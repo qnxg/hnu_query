@@ -30,7 +30,7 @@ struct RawAppointmentDetail {
     appo_type: i32,
 }
 
-/// # Parameters
+/// # Arguments
 ///
 /// - `raw_item` 为 [super::fetch::appointment_list] 返回的 [RawAppointment]
 /// - `detail_str` 为 [super::fetch::appointment_detail] 返回的响应字符串

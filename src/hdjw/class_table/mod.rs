@@ -108,7 +108,7 @@ pub async fn get_class_table(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = fetch::get_xskb_list(hdjw_token, xn, xq).await?;
+    let raw_data = fetch::class_table(hdjw_token, xn, xq).await?;
     parse::class_table(&raw_data)
 }
 
@@ -132,7 +132,7 @@ pub async fn get_class_table_extra(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
-    let json_str = fetch::get_xskb_list_extra(hdjw_token, xn, xq).await?;
+    let json_str = fetch::class_table_extra(hdjw_token, xn, xq).await?;
     parse::class_table_extra(&json_str)
 }
 
