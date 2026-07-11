@@ -1,16 +1,8 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::{MapParseErr, parse_err_with_reason},
-    hdjw::{
-        class_table::raw::{raw_class_table_data, raw_class_table_extra_data},
-        error::TokenExpired,
-        login::HdjwToken,
-    },
-};
-use regex::Regex;
+use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
 /// 课程信息
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,7 +64,7 @@ pub struct CourseSchedule {
 /// 无课表课程信息
 ///
 /// 相比于 `Course`，仅少了 `schedule` 字段
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ExtraCourse {
     /// 课程名称
     pub course_name: String,
@@ -111,122 +103,13 @@ pub struct ExtraCourse {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
-#[expect(clippy::too_many_lines, reason = "REFACTOR ME")]
 pub async fn get_class_table(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = raw_class_table_data(hdjw_token, xn, xq).await?;
-    let mut courses = Vec::with_capacity(raw_data.len());
-    let re = Regex::new(r"周(.)第(.*)节.*\{第(.*)周\}")
-        .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e));
-    for item in raw_data {
-        let places = item.skddmc.split(';').collect::<Vec<_>>();
-        let detail_times = item.sktime.split(';');
-        // 第几周+周几+地点作为 key，节次作为 value，进行去重
-        let mut schedule = HashMap::new();
-        for (i, time) in detail_times.into_iter().enumerate() {
-            let caps = re
-                .captures(time)
-                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: day"))?;
-            let day = match caps
-                .get(1)
-                .and_then(|v| v.as_str().chars().next())
-                .ok_or_else(|| {
-                    parse_err_with_reason(&item.sktime, "上课时间: day: 没有匹配到星期字符")
-                })? {
-                '一' => 1,
-                '二' => 2,
-                '三' => 3,
-                '四' => 4,
-                '五' => 5,
-                '六' => 6,
-                '日' | '七' => 7,
-                day => {
-                    return Err(parse_err_with_reason(
-                        &item.sktime,
-                        &format!("上课时间: day: 未知的星期字符: {}", day),
-                    ));
-                }
-            };
-            // 节次信息首先由 、分割，分割出来的每个部分即可能是一个单个数字，有可能是一个区间范围（由 - 连接）
-            let mut time_list = HashSet::new();
-            for time_range in caps
-                .get(2)
-                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: time"))?
-                .as_str()
-                .split('、')
-            {
-                let parts = time_range.split('-').collect::<Vec<_>>();
-                let time_l = parts
-                    .first()
-                    .and_then(|v| v.parse::<u8>().ok())
-                    .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: time"))?;
-                let time_r = match parts.get(1) {
-                    Some(v) => v
-                        .parse::<u8>()
-                        .parse_err_with_reason(&item.sktime, "上课时间: time")?,
-                    None => time_l,
-                };
-                time_list.extend(time_l..=time_r);
-            }
-            // 周次信息首先由 , 分割，分割出来的每个部分即可能是一个单个数字，有可能是一个区间范围（由 - 连接）
-            let mut week_list = HashSet::new();
-            for week_range in caps
-                .get(3)
-                .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: week"))?
-                .as_str()
-                .split(',')
-            {
-                let parts = week_range.split('-').collect::<Vec<_>>();
-                let week_l = parts
-                    .first()
-                    .and_then(|v| v.parse::<u8>().ok())
-                    .ok_or_else(|| parse_err_with_reason(&item.sktime, "上课时间: week"))?;
-                let week_r = match parts.get(1) {
-                    Some(v) => v
-                        .parse::<u8>()
-                        .parse_err_with_reason(&item.sktime, "上课时间: week")?,
-                    None => week_l,
-                };
-                week_list.extend(week_l..=week_r);
-            }
-            let place = places
-                .get(i)
-                .ok_or_else(|| parse_err_with_reason(&item.skddmc, "上课地点"))?;
-            week_list.iter().for_each(|&week| {
-                schedule
-                    .entry((week, day, place.to_string()))
-                    .or_insert_with(HashSet::<u8>::new)
-                    .extend(time_list.iter());
-            });
-        }
-        let temp = Course {
-            course_name: item.kc_mc,
-            course_id: item.kch,
-            course_type: item.kcxz,
-            class_name: item.kt_mc,
-            area: item.skxqmc,
-            // 教务系统可能会返回空格开头或结尾
-            teacher: item.jg0101mc.map(|s| s.trim().to_string()),
-            credit: item.xf,
-            extra: item.fzmc,
-            people: item.xkrs,
-            schedule: schedule
-                .into_iter()
-                .map(|((week, day, place), time)| CourseSchedule {
-                    week,
-                    day,
-                    place,
-                    time: time.into_iter().collect(),
-                })
-                .collect(),
-        };
-        courses.push(temp);
-    }
-
-    Ok(courses)
+    let raw_data = fetch::class_table(hdjw_token, xn, xq).await?;
+    parse::class_table(&raw_data)
 }
 
 /// 获取无课表课程信息
@@ -249,27 +132,12 @@ pub async fn get_class_table_extra(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
-    let raw_data = raw_class_table_extra_data(hdjw_token, xn, xq).await?;
-    let mut courses = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        let temp = ExtraCourse {
-            course_name: item.kc_mc,
-            course_id: item.kch,
-            course_type: item.kcxz,
-            class_name: item.kt_mc,
-            area: item.skxqmc,
-            teacher: item.jg0101mc,
-            credit: item.xf,
-            extra: item.fzmc,
-            people: item.xkrs,
-        };
-        courses.push(temp);
-    }
-    Ok(courses)
+    let json_str = fetch::class_table_extra(hdjw_token, xn, xq).await?;
+    parse::class_table_extra(&json_str)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
     use crate::test::{TEST_XN, TEST_XQ, TestResult};

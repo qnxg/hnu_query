@@ -1,0 +1,62 @@
+{
+  "data": {
+    "groupFields": [
+      {
+        "fields": [
+          {
+            "fieldName": "手机号码",
+            "defaultValue": "13000000000"
+          },
+          {
+            "fieldName": "微信号",
+            "defaultValue": "my_wechat"
+          },
+          {
+            "fieldName": "QQ号码",
+            "defaultValue": "123456"
+          },
+          {
+            "fieldName": "电子邮箱",
+            "defaultValue": "qnxg@example.com"
+          },
+          {
+            "fieldName": "家庭电话",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "家庭邮编",
+            "defaultValue": "410082"
+          },
+          {
+            "fieldName": "紧急联系人姓名",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "与紧急联系人关系",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "紧急联系人电话",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "家庭地址",
+            "defaultValue": "湖南省长沙市岳麓区麓山南路麓山门"
+          },
+          {
+            "fieldName": "学号",
+            "defaultValue": "202506050175"
+          },
+          {
+            "fieldName": "家庭地址（省市区）",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "家庭详细地址",
+            "defaultValue": ""
+          }
+        ]
+      }
+    ]
+  }
+}

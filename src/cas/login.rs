@@ -61,7 +61,7 @@ impl CasToken {
     }
     /// 从 Cookie 创建令牌
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cookie`: 一个合法的可用作 [CasToken] 的 Cookie 字符串
     /// - `stu_id`: 该 `cookie` 对应的学号
@@ -82,7 +82,7 @@ impl CasToken {
     }
     /// 通过学号和密码登录统一身份认证系统，获取 [CasToken]
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `stu_id`: 学号
     /// - `password`: 密码
@@ -210,7 +210,7 @@ impl CasToken {
 impl CasToken {
     /// 通过统一身份认证系统登录对应的平台，获取回调链接（即 `ticket_url`）
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `service_url`: 登录服务地址
     ///
@@ -256,7 +256,7 @@ impl CasToken {
     /// 登录形如 <http://cas.hnu.edu.cn/application/sso.zf?login=B5712DC2FA281C96E053026B3E0A80A6>
     /// 这样的链接的服务
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `service_url`: 登录服务地址
     ///

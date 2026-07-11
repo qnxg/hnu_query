@@ -1,8 +1,6 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::netflow::detail::raw::Detail as RawDetail;
-use crate::netflow::detail::raw::raw_day_detail_data;
-use crate::netflow::detail::raw::raw_month_detail_data;
 use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -51,25 +49,6 @@ pub struct DetailItem {
     pub percentage: f64,
 }
 
-fn convert(raw_data: RawDetail) -> Detail {
-    Detail {
-        total: raw_data.AllTotal,
-        upload: raw_data.AllUpload,
-        download: raw_data.AllDownload,
-        items: raw_data
-            .FloatDetailList
-            .into_iter()
-            .map(|item| DetailItem {
-                app: item.App,
-                total: item.Total,
-                download: item.Download,
-                upload: item.Upload,
-                percentage: item.Per,
-            })
-            .collect::<Vec<DetailItem>>(),
-    }
-}
-
 /// 获取月流量明细
 ///
 /// # Arguments
@@ -86,10 +65,8 @@ pub async fn get_month_detail(
     year: u16,
     month: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let res = raw_month_detail_data(network_token, year, month)
-        .await
-        .map(convert)?;
-    Ok(res)
+    let json_str = fetch::detail_by_month(network_token, year, month).await?;
+    parse::detail(&json_str)
 }
 
 /// 获取日流量明细
@@ -110,10 +87,8 @@ pub async fn get_day_detail(
     month: u8,
     day: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let res = raw_day_detail_data(network_token, year, month, day)
-        .await
-        .map(convert)?;
-    Ok(res)
+    let json_str = fetch::detail_by_day(network_token, year, month, day).await?;
+    parse::detail(&json_str)
 }
 
 #[cfg(test)]

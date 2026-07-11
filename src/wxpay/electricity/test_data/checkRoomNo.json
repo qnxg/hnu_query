@@ -1,0 +1,14 @@
+{
+  "res": "success",
+  "data": {
+    "ParkNo": "3",
+    "ParkName": "天马园区",
+    "BuildingNo": "42",
+    "BuildingName": "3区13栋",
+    "RoomNo": "375",
+    "Balance": "283.75度",
+    "Money": 0.0,
+    "RechargeType": 2
+  },
+  "msg": "成功"
+}

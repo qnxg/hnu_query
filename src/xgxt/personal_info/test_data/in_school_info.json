@@ -1,0 +1,90 @@
+{
+  "data": {
+    "groupFields": [
+      {
+        "fields": [
+          {
+            "fieldName": "学号",
+            "defaultValue": "202506050175"
+          },
+          {
+            "fieldName": "年级",
+            "defaultValue": "2025"
+          },
+          {
+            "fieldName": "培养层次",
+            "defaultValue": "3"
+          },
+          {
+            "fieldName": "学院",
+            "defaultValue": "0004"
+          },
+          {
+            "fieldName": "专业",
+            "defaultValue": "0605"
+          },
+          {
+            "fieldName": "班级",
+            "defaultValue": "2025060501"
+          },
+          {
+            "fieldName": "学制(年)",
+            "defaultValue": "4"
+          },
+          {
+            "fieldName": "校区",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "培养方式",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "学籍状态",
+            "defaultValue": "01"
+          },
+          {
+            "fieldName": "寝室楼",
+            "defaultValue": "天马三区13栋"
+          },
+          {
+            "fieldName": "寝室号",
+            "defaultValue": "123"
+          },
+          {
+            "fieldName": "床位",
+            "defaultValue": "4"
+          },
+          {
+            "fieldName": "入学时间",
+            "defaultValue": "2025-09-01"
+          },
+          {
+            "fieldName": "是否校外住宿",
+            "defaultValue": "0"
+          },
+          {
+            "fieldName": "校外住宿地址",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "管理部门",
+            "defaultValue": "0004"
+          },
+          {
+            "fieldName": "管理班级",
+            "defaultValue": "2025060501"
+          },
+          {
+            "fieldName": "入学方式",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "校园卡号",
+            "defaultValue": ""
+          }
+        ]
+      }
+    ]
+  }
+}

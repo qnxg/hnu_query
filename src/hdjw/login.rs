@@ -21,7 +21,7 @@ pub struct HdjwToken {
 impl HdjwToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
@@ -105,7 +105,7 @@ impl HdjwToken {
     }
     /// 从 [HeaderMap] 创建 [HdjwToken]
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `headers`: 一个合法的可用作 [HdjwToken] 的 [HeaderMap]
     ///
@@ -130,12 +130,12 @@ impl HdjwToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::hdjw::test::get_hdjw_token;
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_hdjw_token() {
+    async fn test_get_hdjw_token() {
         let hdjw_token = get_hdjw_token().await;
         println!("{:#?}", hdjw_token);
     }

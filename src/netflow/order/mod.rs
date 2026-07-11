@@ -1,9 +1,7 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::MapParseErr,
-    netflow::{login::NetflowToken, order::raw::raw_order_data},
-};
+use crate::netflow::login::NetflowToken;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -47,22 +45,8 @@ pub struct OrderItem {
 pub async fn get_order(
     netflow_token: &NetflowToken,
 ) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
-    let raw_data = raw_order_data(netflow_token).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        let temp = OrderItem {
-            time: item.Month,
-            // 考虑到月流量应当不会超过约 8192TB，此处直接转换不会丢失精度
-            download_usage: item.Download.unwrap_or_default() as usize,
-            upload_usage: item.Upload.unwrap_or_default() as usize,
-            over_usage: item.RealOverTraffic,
-            should_pay: item.ShouldPay,
-            update_time: NaiveDateTime::parse_from_str(&item.UpdateTime, "%Y-%m-%d %H:%M:%S")
-                .parse_err(&item.UpdateTime)?,
-        };
-        res.push(temp);
-    }
-    Ok(res)
+    let json_str = fetch::order(netflow_token).await?;
+    parse::order(&json_str)
 }
 
 #[cfg(test)]

@@ -18,7 +18,7 @@ pub struct YjsxtToken {
 impl YjsxtToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
@@ -86,7 +86,7 @@ impl YjsxtToken {
     }
     /// 从 id 创建 [YjsxtToken]
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `id`: 研究生系统令牌对应的 id，可以通过 [YjsxtToken::id] 获取
     ///
@@ -109,12 +109,12 @@ impl YjsxtToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::yjsxt::test::get_yjsxt_token;
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_yjsxt_token() -> crate::test::TestResult<()> {
+    async fn test_get_yjsxt_token() -> crate::test::TestResult<()> {
         let yjsxt_token = get_yjsxt_token().await?;
         println!("{:#?}", yjsxt_token);
         Ok(())

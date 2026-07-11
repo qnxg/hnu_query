@@ -1,11 +1,8 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::parse_err,
-    hdjw::{error::TokenExpired, login::HdjwToken, rank::raw::raw_rank_data},
-};
+use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// 排名具体信息
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -131,35 +128,7 @@ pub async fn get_rank(
         .map(|(xn, xq)| format!("{}-{}-{}", xn, xn + 1, xq))
         .collect::<Vec<_>>()
         .join(",");
-    fn parse_rank_detail(value: &Value) -> Result<RankDetail, crate::Error<TokenExpired>> {
-        // 湖大的教务系统的字段返回类型难说，我们都试一下
-        fn parse_number(value: &Value) -> Option<String> {
-            value
-                .as_f64()
-                .map(|f| f.to_string())
-                .or_else(|| value.as_i64().map(|i| i.to_string()))
-                .or_else(|| value.as_str().map(|s| s.to_string()))
-        }
-        Ok(RankDetail {
-            arithmetic: parse_number(&value["avgzcj"])
-                .ok_or_else(|| parse_err(&value.to_string()))?,
-            arithmetic_rank: value["avgzcjpm"]
-                .as_str()
-                .map(|s| s.to_string())
-                .ok_or_else(|| parse_err(&value.to_string()))?,
-            weighted: parse_number(&value["pjxfj"]).ok_or_else(|| parse_err(&value.to_string()))?,
-            weighted_rank: value["pjxfjpm"]
-                .as_str()
-                .map(|s| s.to_string())
-                .ok_or_else(|| parse_err(&value.to_string()))?,
-            gpa: parse_number(&value["pjxfjd"]).ok_or_else(|| parse_err(&value.to_string()))?,
-            gpa_rank: value["pjxfjdpm"]
-                .as_str()
-                .map(|s| s.to_string())
-                .ok_or_else(|| parse_err(&value.to_string()))?,
-        })
-    }
-    let raw_data = raw_rank_data(
+    let json_str = fetch::rank(
         hdjw_token,
         &selection,
         range.as_str(),
@@ -167,15 +136,11 @@ pub async fn get_rank(
         display.as_str(),
     )
     .await?;
-    Ok(Rank {
-        all: raw_data.get("allPm").map(parse_rank_detail).transpose()?,
-        must: raw_data.get("bxkcPm").map(parse_rank_detail).transpose()?,
-        core: raw_data.get("hxkcPm").map(parse_rank_detail).transpose()?,
-    })
+    parse::rank(&json_str)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         hdjw::test::get_hdjw_token,
@@ -184,7 +149,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_rank() -> TestResult<()> {
+    async fn test_get_rank() -> TestResult<()> {
         let hdjw_token = get_hdjw_token().await?;
         let selection = vec![(*TEST_XN, *TEST_XQ)];
         let rank = get_rank(

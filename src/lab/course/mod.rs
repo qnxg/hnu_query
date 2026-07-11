@@ -1,4 +1,5 @@
-mod raw;
+mod fetch;
+mod parse;
 
 use crate::lab::login::LabToken;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ pub struct Course {
 
 /// 获取课程列表
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `lab_token`: 大物实验平台的令牌，可以通过 [LabToken::acquire_by_login] 获取
 /// - `semester_id`: 学期id，需要通过 [`crate::lab::get_semester`] 获取
@@ -31,24 +32,12 @@ pub async fn get_course_list(
     lab_token: &LabToken,
     semester_id: &str,
 ) -> Result<Vec<Course>, crate::Error<Infallible>> {
-    let raw_data = raw::raw_course_list_data(lab_token, semester_id).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        res.push(Course {
-            name: item.CourseName,
-            score: if item.CourseFinalScore.is_empty() {
-                None
-            } else {
-                Some(item.CourseFinalScore)
-            },
-            id: item.CourseID,
-        });
-    }
-    Ok(res)
+    let json_str = fetch::course_list(lab_token, semester_id).await?;
+    parse::course_list(&json_str)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         lab::test::{TEST_SEMESTER_ID, get_lab_token},

@@ -1,9 +1,7 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::{MapParseErr, parse_err},
-    hdjw::{error::TokenExpired, exam_schedule::raw::raw_exam_schedule_data, login::HdjwToken},
-};
+use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -60,35 +58,12 @@ pub async fn get_exam_schedule(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
-    let raw_data = raw_exam_schedule_data(hdjw_token, xn, xq).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        let (date, time) = match item.kssj {
-            Some(kssj) => {
-                let [date, time] = kssj.split(' ').collect::<Vec<_>>()[..] else {
-                    return Err(parse_err(&kssj));
-                };
-                let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").parse_err(date)?;
-                (Some(date), Some(time.to_string()))
-            }
-            None => (None, None),
-        };
-
-        res.push(ExamSchedule {
-            course_id: item.kch,
-            course_name: item.kskcmc,
-            area: item.ksxq,
-            classroom: item.js_mc,
-            date,
-            time,
-            seat: item.zwh,
-        });
-    }
-    Ok(res)
+    let json_str = fetch::exam_schedule(hdjw_token, xn, xq).await?;
+    parse::exam_schedule(&json_str)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
     use crate::test::{TEST_XN, TEST_XQ, TestResult};

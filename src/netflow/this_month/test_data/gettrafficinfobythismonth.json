@@ -1,0 +1,17 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "uploadTraffic": "0.14",
+    "downloadTraffic": "1.67",
+    "allTraffic": "1.81",
+    "allExtendPackageAmount": 0.0,
+    "allBasePackageAmount": 40.0,
+    "surplusBasePackage": 38.33,
+    "surplusExtendPackage": 20.0,
+    "basePackageUsed": 1.67,
+    "extendPackageUsed": 0.0,
+    "basePackageUsedPer": 0.04,
+    "extendPackageUsedPer": 0.0
+  }
+}
