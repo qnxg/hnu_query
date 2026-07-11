@@ -1,3 +1,7 @@
 {
-  "expiresIn": -1
+  "error_code": 0,
+  "message": "请求成功！",
+  "data": {
+    "expiresIn": -1
+  }
 }

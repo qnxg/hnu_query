@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_rank_empty() -> TestResult<()> {
-        let rank = rank("{}")?;
+        let rank = rank(r#"{"code": 0, "msg": "", "data": {}}"#)?;
 
         assert!(rank.core.is_none());
         assert!(rank.must.is_none());
