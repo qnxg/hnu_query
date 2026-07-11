@@ -35,3 +35,35 @@ pub fn check_action_success(json_str: &str) -> Result<bool, crate::Error<Infalli
         .ok_or_else(|| parse_err(json_str))?;
     Ok(success)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_check_action_success() -> TestResult<()> {
+        let json_str = include_str!("test_data/apply-token.json");
+        let success = check_action_success(&json_str).unwrap();
+        assert_eq!(success, true);
+        Ok(())
+    }
+
+    #[test]
+    fn test_token_list() -> TestResult<()> {
+        let json_str = include_str!("test_data/tokens.json");
+        let tokens = token_list(&json_str).unwrap();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_name, "hello");
+        assert_eq!(tokens[0].id, 3296);
+        Ok(())
+    }
+
+    #[test]
+    fn test_token_key() -> TestResult<()> {
+        let json_str = include_str!("test_data/key.json");
+        let key = token_key(&json_str).unwrap();
+        assert_eq!(key, "zF0Asilc5eRnGbwafZ5gDzIH");
+        Ok(())
+    }
+}

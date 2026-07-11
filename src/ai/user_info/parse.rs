@@ -10,3 +10,17 @@ pub fn remaining_quota(json_str: &str) -> Result<usize, crate::Error<Infallible>
         .ok_or_else(|| parse_err(json_str))? as usize;
     Ok(total_granted)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_remaining_quota() -> TestResult<()> {
+        let json_str = include_str!("test_data/user-info.json");
+        let remaining_quota = remaining_quota(&json_str).unwrap();
+        assert_eq!(remaining_quota, 114514);
+        Ok(())
+    }
+}
