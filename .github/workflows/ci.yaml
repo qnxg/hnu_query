@@ -5,12 +5,14 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,6 +46,7 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     needs: check
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -71,13 +74,9 @@ jobs:
 
   report:
     name: Report
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs: check
     runs-on: ubuntu-latest
-    environment: report
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,19 +115,12 @@ jobs:
       - name: Generate coverage (lcov)
         run: python3 scripts/coverage.py --lcov --output-path target/ci-report/lcov.info
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: target/ci-report/lcov.info
-          fail_ci_if_error: true
-
       - name: Generate public API diff
         run: |
           python3 scripts/public_api_diff.py \
             --simplified \
             --output target/ci-report/api-diff.txt \
-            "${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+            "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
       - name: Build PR markdown report
         env:
@@ -142,18 +134,9 @@ jobs:
             --codecov-url "https://app.codecov.io/gh/${REPO}/pull/${PR_NUMBER}" \
             --output target/ci-report/pr-report.md
 
-      - name: Find existing report comment
-        uses: peter-evans/find-comment@v3
-        id: find-comment
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: github-actions[bot]
-          body-includes: "<!-- hnu-query-ci-report -->"
-
-      - name: Create or update PR comment
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          body-path: target/ci-report/pr-report.md
-          edit-mode: replace
+          name: pr-report
+          path: target/ci-report/
+          retention-days: 7
