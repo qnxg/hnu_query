@@ -83,7 +83,9 @@ pub fn grade(json_str: &str) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
 /// `html` 为 [`super::fetch::grade_detail`] 返回的数据
 pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(html)?;
-    let raw_data = json.to_string();
+    // 不要直接 to_string()，
+    // 否则会把整段 HTML 当作 JSON 字符串再序列化，导致内部引号变成 \"
+    let raw_data = json.as_str().ok_or_else(|| parse_err(html))?.to_string();
     let regex =
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
@@ -99,10 +101,9 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
         })
         .collect::<Result<Vec<_>, _>>()?;
     let [_, data, map] = caps.try_into().map_err(|_| parse_err(&raw_data))?;
-    let data = serde_json::from_str::<Vec<Value>>(&data).ok();
+    let data = serde_json::from_str::<Vec<Value>>(&data).parse_err(&raw_data)?;
     let data = data
-        .as_ref()
-        .and_then(|v| v.first())
+        .first()
         .and_then(|v| v.as_object())
         .map(|v| {
             v.iter()
