@@ -109,7 +109,7 @@ impl YjsxtToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::yjsxt::test::get_yjsxt_token;
 
     #[tokio::test]

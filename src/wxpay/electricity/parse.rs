@@ -165,7 +165,7 @@ pub fn electricity(json_str: &str) -> Result<String, crate::Error<Infallible>> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::test::TestResult;
 

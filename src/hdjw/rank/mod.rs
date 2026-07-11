@@ -140,7 +140,7 @@ pub async fn get_rank(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         hdjw::test::get_hdjw_token,

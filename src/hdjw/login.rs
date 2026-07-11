@@ -130,7 +130,7 @@ impl HdjwToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::hdjw::test::get_hdjw_token;
 
     #[tokio::test]

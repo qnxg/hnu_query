@@ -128,7 +128,7 @@ pub fn person_info(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::test::TestResult;
 
     use super::*;

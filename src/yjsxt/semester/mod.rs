@@ -31,7 +31,7 @@ pub async fn get_semester(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{test::TestResult, yjsxt::test::get_yjsxt_token};
 

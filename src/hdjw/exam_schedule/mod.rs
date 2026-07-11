@@ -63,7 +63,7 @@ pub async fn get_exam_schedule(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
     use crate::test::{TEST_XN, TEST_XQ, TestResult};

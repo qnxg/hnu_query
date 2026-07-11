@@ -50,7 +50,7 @@ pub async fn get_lab_schedule(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{lab::test::get_lab_token, test::TestResult};
 

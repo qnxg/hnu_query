@@ -31,7 +31,7 @@ pub async fn get_semester(lab_token: &LabToken) -> Result<Vec<Semester>, crate::
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{lab::test::get_lab_token, test::TestResult};
 

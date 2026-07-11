@@ -200,7 +200,7 @@ impl AiToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{ai::test::get_ai_token, test::TestResult};
 
     #[tokio::test]

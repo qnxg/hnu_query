@@ -129,7 +129,7 @@ pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Er
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::get_grade;
     use crate::{
         gym::test::get_gym_token,

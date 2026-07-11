@@ -137,7 +137,7 @@ pub async fn get_class_table_extra(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::hdjw::test::get_hdjw_token;
     use crate::test::{TEST_XN, TEST_XQ, TestResult};

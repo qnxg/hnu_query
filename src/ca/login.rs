@@ -93,7 +93,7 @@ impl CaToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ca::test::get_ca_token;
 
     #[tokio::test]

@@ -71,7 +71,7 @@ pub async fn get_appointment(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::get_appointment;
     use crate::{gym::test::get_gym_token, test::TestResult};
 

@@ -68,7 +68,7 @@ pub async fn get_empty_classroom(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::hdjw::test::{
         TEST_HDJW_BUILDING_ID, TEST_HDJW_DAY_OF_WEEK, TEST_HDJW_TIME, TEST_HDJW_WEEK,

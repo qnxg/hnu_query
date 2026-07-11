@@ -116,7 +116,7 @@ pub async fn get_person_info(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{test::TestResult, xgxt::test::get_xgxt_token};
 

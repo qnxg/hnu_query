@@ -94,7 +94,7 @@ pub async fn get_grade_detail(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         hdjw::test::{TEST_HDJW_JX0404ID, get_hdjw_token},

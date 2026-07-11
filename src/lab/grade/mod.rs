@@ -85,7 +85,7 @@ pub async fn get_virtual_lab_grade(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         lab::test::{TEST_COURSE_ID, TEST_SEMESTER_ID, get_lab_token},

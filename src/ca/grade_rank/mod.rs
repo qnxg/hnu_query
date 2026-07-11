@@ -66,7 +66,7 @@ pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Inf
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::get_grade_rank;
     use crate::{ca::test::get_ca_token, test::TestResult};
 

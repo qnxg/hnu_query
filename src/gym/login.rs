@@ -122,7 +122,7 @@ impl GymToken {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         gym::test::{get_gym_token_by_cas_login, get_gym_token_by_direct_login},
         test::TestResult,
