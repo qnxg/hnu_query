@@ -93,3 +93,34 @@ pub fn lab_schedule(json_str: &str) -> Result<Vec<LabSchedule>, crate::Error<Inf
     }
     Ok(res)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn test_lab_schedule() -> TestResult<()> {
+        let schedules = lab_schedule(include_str!("test_data/LoadTableInfo.json"))?;
+        assert_eq!(schedules.len(), 2);
+        let first = &schedules[0];
+        assert_eq!(first.seat, "3");
+        assert_eq!(first.name, "绪论");
+        assert_eq!(first.course, "普通物理实验AⅠ");
+        assert_eq!(first.teacher, "老师姓名");
+        assert_eq!(first.week, 2);
+        assert_eq!(first.day, 3);
+        assert_eq!(
+            first.date_time,
+            NaiveDate::from_ymd_opt(2026, 3, 11)
+                .expect("this should not panic")
+                .and_hms_opt(19, 0, 0)
+                .expect("this should not panic")
+        );
+        assert_eq!(first.place, "研究生楼A栋111");
+        assert_eq!(first.phone, Some("18888888888".to_string()));
+        assert_eq!(first.email, Some("qnxg@hnu.edu.cn".to_string()));
+        Ok(())
+    }
+}
