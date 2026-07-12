@@ -42,6 +42,7 @@ jobs:
               archive_format: 'zip',
             });
             fs.writeFileSync('pr-report.zip', Buffer.from(zip.data));
+            console.log("func you!");
 
       - name: Unzip artifact
         run: unzip pr-report.zip -d report
