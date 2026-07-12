@@ -52,12 +52,37 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prs = context.payload.workflow_run.pull_requests || [];
-            if (prs.length === 0) {
-              core.warning('workflow_run has no associated pull request');
+            const headSha = context.payload.workflow_run.head_sha;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            let prNumber = null;
+
+            try {
+              const result = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner, repo, commit_sha: headSha,
+              });
+              if (result.data.length > 0) prNumber = result.data[0].number;
+            } catch (e) {
+              core.warning(`listPullRequestsAssociatedWithCommit failed: ${e.message}`);
+            }
+
+            if (!prNumber) {
+              for (let page = 1; page <= 5; page++) {
+                const prs = await github.rest.pulls.list({
+                  owner, repo, state: 'open', per_page: 100, page,
+                });
+                if (prs.data.length === 0) break;
+                const match = prs.data.find(p => p.head.sha === headSha);
+                if (match) { prNumber = match.number; break; }
+              }
+            }
+
+            if (!prNumber) {
+              core.warning(`No open PR associated with commit ${headSha}`);
               return;
             }
-            core.setOutput('number', prs[0].number);
+            core.setOutput('number', prNumber);
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -69,7 +94,7 @@ jobs:
           override_pr: ${{ steps.pr.outputs.number }}
 
       - name: Find existing report comment
-        if: github.event.workflow_run.event == 'pull_request'
+        if: github.event.workflow_run.event == 'pull_request' && steps.pr.outputs.number
         uses: peter-evans/find-comment@v3
         id: find-comment
         with:
@@ -78,7 +103,7 @@ jobs:
           body-includes: "<!-- hnu-query-ci-report -->"
 
       - name: Create or update PR comment
-        if: github.event.workflow_run.event == 'pull_request'
+        if: github.event.workflow_run.event == 'pull_request' && steps.pr.outputs.number
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ steps.pr.outputs.number }}
