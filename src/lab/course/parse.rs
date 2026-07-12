@@ -41,3 +41,20 @@ pub fn course_list(json_str: &str) -> Result<Vec<Course>, crate::Error<Infallibl
     }
     Ok(res)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_course_list() -> TestResult<()> {
+        let courses = course_list(include_str!("test_data/GetStudentScoreList.json"))?;
+        assert_eq!(courses.len(), 1);
+        let first = &courses[0];
+        assert_eq!(first.name, "普通物理实验AⅠ");
+        assert_eq!(first.score, Some("83.8".to_string()));
+        assert_eq!(first.id, "68");
+        Ok(())
+    }
+}

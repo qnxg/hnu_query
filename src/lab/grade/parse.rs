@@ -162,3 +162,88 @@ pub fn virtual_lab_grade(json_str: &str) -> Result<Vec<VirtualLabGrade>, crate::
     res.dedup_by(|a, b| a.lab_name == b.lab_name);
     Ok(res)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_parse_lab_grade() -> TestResult<()> {
+        let raw = parse_lab_grade(include_str!("test_data/GetStudentLabScore.json"))?;
+        assert_eq!(raw.len(), 3);
+        let first = &raw[0];
+        assert_eq!(first.LabName, "绪论");
+        assert_eq!(first.LabScore, "84.4");
+        assert_eq!(first.LabID, "415");
+        assert_eq!(first.AttendanceName, "正常");
+        assert_eq!(first.ClassRoom, "研究生楼");
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_lab_grade_detail() -> TestResult<()> {
+        let raw = parse_lab_grade_detail(include_str!("test_data/ShowScore.json"))?;
+        assert_eq!(raw.len(), 8);
+        let first = &raw[0];
+        assert_eq!(first.LabScoreStructureID, 58);
+        assert_eq!(first.LabID, 415);
+        assert_eq!(first.LabStructureScore, Some(100.0));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_lab_grade_structure() -> TestResult<()> {
+        let raw = parse_lab_grade_structure(include_str!("test_data/GetLabScoreStructure.json"))?;
+        assert_eq!(raw.len(), 4);
+        let first = &raw[0];
+        assert_eq!(first.LabScoreStructureID, 58);
+        assert_eq!(first.LabScoreStructureName, "预习");
+        Ok(())
+    }
+
+    #[test]
+    fn test_lab_grade() -> TestResult<()> {
+        let grades = lab_grade(
+            include_str!("test_data/GetStudentLabScore.json"),
+            include_str!("test_data/ShowScore.json"),
+            include_str!("test_data/GetLabScoreStructure.json"),
+        )?;
+        assert_eq!(grades.len(), 3);
+        // 绪论
+        let lab = &grades[0];
+        assert_eq!(lab.lab_name, "绪论");
+        assert_eq!(lab.score, "84.4");
+        assert_eq!(lab.attendance, Some("正常".to_string()));
+        assert_eq!(lab.details.len(), 4);
+        assert_eq!(lab.details[0].name, "预习");
+        assert_eq!(lab.details[0].score, Some(100.0));
+        assert_eq!(lab.details[1].name, "纪律");
+        assert_eq!(lab.details[1].score, Some(100.0));
+        assert_eq!(lab.details[2].name, "操作");
+        assert_eq!(lab.details[2].score, Some(100.0));
+        assert_eq!(lab.details[3].name, "报告");
+        assert_eq!(lab.details[3].score, Some(44.0));
+        // 物体密度测量
+        let lab = &grades[1];
+        assert_eq!(lab.lab_name, "物体密度测量");
+        assert_eq!(lab.score, "87.5");
+        assert_eq!(lab.attendance, Some("正常".to_string()));
+        assert_eq!(lab.details.len(), 4);
+        assert_eq!(lab.details[0].name, "预习");
+        assert_eq!(lab.details[0].score, Some(75.0));
+        assert_eq!(lab.details[1].name, "纪律");
+        assert_eq!(lab.details[1].score, Some(100.0));
+        assert_eq!(lab.details[2].name, "操作");
+        assert_eq!(lab.details[2].score, Some(80.0));
+        assert_eq!(lab.details[3].name, "报告");
+        assert_eq!(lab.details[3].score, Some(75.0));
+        // 冷却法测量金属的比热容（无成绩组成详情）
+        let lab = &grades[2];
+        assert_eq!(lab.lab_name, "冷却法测量金属的比热容");
+        assert_eq!(lab.score, "84");
+        assert_eq!(lab.attendance, Some("正常".to_string()));
+        assert_eq!(lab.details.len(), 0);
+        Ok(())
+    }
+}

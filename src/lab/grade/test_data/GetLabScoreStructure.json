@@ -1,0 +1,78 @@
+{
+  "IsSuccess": true,
+  "RTNCode": 0,
+  "ErrorInfo": "",
+  "Data": [
+    {
+      "isYuxifen": null,
+      "isBaogaofen": null,
+      "Condition": {
+        "StartRowIndex": 0,
+        "MaximumRows": 0,
+        "OldUpdateTime": "\/Date(-62135596800000)\/"
+      },
+      "LabScoreStructureID": 58,
+      "LabScoreStructureName": "预习",
+      "CourseID": 68,
+      "ScoreWeight": "0.2",
+      "Creator": "sysadmin",
+      "CreateDate": "\/Date(1772686716000)\/",
+      "UpdateBy": "sysadmin",
+      "UpdateDate": "\/Date(1772686716000)\/"
+    },
+    {
+      "isYuxifen": null,
+      "isBaogaofen": null,
+      "Condition": {
+        "StartRowIndex": 0,
+        "MaximumRows": 0,
+        "OldUpdateTime": "\/Date(-62135596800000)\/"
+      },
+      "LabScoreStructureID": 59,
+      "LabScoreStructureName": "纪律",
+      "CourseID": 68,
+      "ScoreWeight": "0.1",
+      "Creator": "sysadmin",
+      "CreateDate": "\/Date(1772686765000)\/",
+      "UpdateBy": "sysadmin",
+      "UpdateDate": "\/Date(1772686765000)\/"
+    },
+    {
+      "isYuxifen": null,
+      "isBaogaofen": null,
+      "Condition": {
+        "StartRowIndex": 0,
+        "MaximumRows": 0,
+        "OldUpdateTime": "\/Date(-62135596800000)\/"
+      },
+      "LabScoreStructureID": 60,
+      "LabScoreStructureName": "操作",
+      "CourseID": 68,
+      "ScoreWeight": "0.3",
+      "Creator": "sysadmin",
+      "CreateDate": "\/Date(1772686948000)\/",
+      "UpdateBy": "sysadmin",
+      "UpdateDate": "\/Date(1772686948000)\/"
+    },
+    {
+      "isYuxifen": null,
+      "isBaogaofen": null,
+      "Condition": {
+        "StartRowIndex": 0,
+        "MaximumRows": 0,
+        "OldUpdateTime": "\/Date(-62135596800000)\/"
+      },
+      "LabScoreStructureID": 61,
+      "LabScoreStructureName": "报告",
+      "CourseID": 68,
+      "ScoreWeight": "0.4",
+      "Creator": "sysadmin",
+      "CreateDate": "\/Date(1772686987000)\/",
+      "UpdateBy": "sysadmin",
+      "UpdateDate": "\/Date(1772686987000)\/"
+    }
+  ],
+  "Url": null,
+  "OtherDate": "",
+  "DataInfo": ""
+}
