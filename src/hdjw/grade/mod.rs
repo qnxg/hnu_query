@@ -1,17 +1,8 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::parse_err,
-    hdjw::{
-        error::TokenExpired,
-        grade::raw::{raw_grade_data, raw_grade_detail_data},
-        login::HdjwToken,
-    },
-};
-use regex::RegexBuilder;
+use crate::hdjw::{error::TokenExpired, login::HdjwToken};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
 
 /// 课程成绩
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -63,24 +54,8 @@ pub async fn get_grade(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
-    let raw_data = raw_grade_data(hdjw_token, xn, xq).await?;
-    let mut res = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
-        let grade = Grade {
-            course_id: item.kch,
-            course_name: item.kc_mc,
-            credit: item.xf,
-            course_type1: item.kcsx,
-            course_type2: item.kcxzmc,
-            gpa: item.jd,
-            score: item.zcj,
-            grade_tag: item.cjbs,
-            grade_type: item.falb,
-            jx0404id: item.jx0404id,
-        };
-        res.push(grade);
-    }
-    Ok(res)
+    let raw_data = fetch::grade(hdjw_token, xn, xq).await?;
+    parse::grade(&raw_data)
 }
 
 /// 课程成绩的组成部分
@@ -114,88 +89,12 @@ pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
-    let raw_data = raw_grade_detail_data(hdjw_token, jx0404id).await?;
-    let regex =
-        RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
-            .dot_matches_new_line(true)
-            .build()
-            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-    let caps = regex
-        .captures(&raw_data)
-        .ok_or_else(|| parse_err(&raw_data))?
-        .iter()
-        .map(|c| {
-            c.map(|v| v.as_str().to_string())
-                .ok_or_else(|| parse_err(&raw_data))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let [_, data, map] = caps.try_into().map_err(|_| parse_err(&raw_data))?;
-    let data = serde_json::from_str::<Vec<Value>>(&data).ok();
-    let data = data
-        .as_ref()
-        .and_then(|v| v.first())
-        .and_then(|v| v.as_object())
-        .map(|v| {
-            v.iter()
-                .map(|(key, value)| {
-                    value
-                        .as_str()
-                        .map(|s| s.to_string())
-                        .or_else(|| value.as_number().map(|num| num.to_string()))
-                        .ok_or_else(|| parse_err(&raw_data))
-                        .map(|ok_value| (key, ok_value))
-                })
-                .collect::<Result<HashMap<_, _>, _>>()
-        })
-        .ok_or_else(|| parse_err(&raw_data))??;
-    // map 是 js obj 格式，不是标准 json，我们需要进行一些处理
-    let map = map
-        .replace("//表头", "")
-        .replace("'", "\"")
-        .replace("field", "\"field\"")
-        .replace("title", "\"title\"")
-        .replace("type", "\"type\"");
-    let map = serde_json::from_str::<Value>(map.as_str()).ok();
-    let map = map
-        .as_ref()
-        .and_then(|v| v.as_array())
-        .map(|v| {
-            v.iter()
-                .filter(|item| item.get("field").and_then(|f| f.as_str()).is_some())
-                .map(|item| {
-                    let key = item.get("field").and_then(|f| f.as_str());
-                    key.zip(item.get("title").and_then(|f| f.as_str()))
-                        .ok_or_else(|| parse_err(&raw_data))
-                })
-                .collect::<Result<HashMap<_, _>, _>>()
-        })
-        .ok_or_else(|| parse_err(&raw_data))??;
-    let res = data
-        .iter()
-        .filter(|(k, _)| k.ends_with("bl"))
-        .map(|(k, v)| {
-            let score = data
-                .get(&k.trim_end_matches("bl").to_string())
-                .ok_or_else(|| parse_err(&raw_data))?;
-            let name = map
-                .get(k.trim_end_matches("bl"))
-                .ok_or_else(|| parse_err(&raw_data))?;
-            let percentage = v;
-            Ok::<_, crate::Error<TokenExpired>>(GradeDetailItem {
-                score: score.clone(),
-                name: name.to_string(),
-                percentage: percentage.clone(),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .filter(|item| item.percentage != "0%")
-        .collect::<Vec<_>>();
-    Ok(res)
+    let html = fetch::grade_detail(hdjw_token, jx0404id).await?;
+    parse::grade_detail(&html)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{
         hdjw::test::{TEST_HDJW_JX0404ID, get_hdjw_token},

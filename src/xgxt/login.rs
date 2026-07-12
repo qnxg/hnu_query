@@ -18,7 +18,7 @@ pub struct XgxtToken {
 impl XgxtToken {
     /// 通过统一身份认证系统登录来获得
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `cas_token`: 统一身份认证系统的令牌，可以通过 [CasToken::acquire_by_login] 创建
     ///
@@ -76,13 +76,13 @@ impl XgxtToken {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::xgxt::test::get_xgxt_token;
+    use crate::{test::TestResult, xgxt::test::get_xgxt_token};
 
     #[tokio::test]
     #[ignore]
-    async fn test_xgxt() {
-        let xgxt_token = get_xgxt_token().await;
+    async fn test_xgxt() -> TestResult<()> {
+        let xgxt_token = get_xgxt_token().await?;
         println!("{:#?}", xgxt_token);
+        Ok(())
     }
 }

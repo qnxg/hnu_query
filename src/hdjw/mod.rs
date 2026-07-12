@@ -4,8 +4,8 @@ pub mod error;
 pub mod exam_schedule;
 pub mod grade;
 pub mod login;
+mod parse;
 pub mod rank;
-mod raw;
 
 #[cfg(test)]
 mod test;

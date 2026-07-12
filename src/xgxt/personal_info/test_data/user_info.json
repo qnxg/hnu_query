@@ -1,0 +1,130 @@
+{
+  "data": {
+    "groupFields": [
+      {
+        "fields": [
+          {
+            "fieldName": "姓名",
+            "defaultValue": "林政和"
+          },
+          {
+            "fieldName": "姓名拼音",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "曾用名",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "性别",
+            "defaultValue": "1"
+          },
+          {
+            "fieldName": "国家/地区",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "证件类型",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "证件号码",
+            "defaultValue": "430104200402237076"
+          },
+          {
+            "fieldName": "政治面貌",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "出生日期",
+            "defaultValue": "2004-02-23"
+          },
+          {
+            "fieldName": "民族",
+            "defaultValue": "01"
+          },
+          {
+            "fieldName": "户口性质",
+            "defaultValue": "01"
+          },
+          {
+            "fieldName": "婚姻状况",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "宗教信仰",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "健康状况",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "体重",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "身高",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "血型",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "是否港澳台侨",
+            "defaultValue": "0"
+          },
+          {
+            "fieldName": "银行卡开户行",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "银行卡号",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "护照号",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "港澳通行证",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "台湾通行证",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "籍贯",
+            "defaultValue": "430104"
+          },
+          {
+            "fieldName": "生源地",
+            "defaultValue": "430104"
+          },
+          {
+            "fieldName": "户口所在地",
+            "defaultValue": "430104"
+          },
+          {
+            "fieldName": "特长",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "研究生导师",
+            "defaultValue": ""
+          },
+          {
+            "fieldName": "学生照片地址",
+            "defaultValue": "exist"
+          },
+          {
+            "fieldName": "学号",
+            "defaultValue": "202506050175"
+          }
+        ]
+      }
+    ]
+  }
+}

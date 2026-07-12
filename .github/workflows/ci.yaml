@@ -5,40 +5,146 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
           components: clippy, rustfmt
-
-      - name: Cargo Cache
-        uses: actions/cache@v3
+      - name: Cargo cache
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
+            ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
-      - name: Clippy
-        uses: clechasseur/rs-clippy-check@v4.0.4
-        with:
-          args: --all-targets
-
-      - name: Test Documentation
-        run: cargo doc --no-deps --document-private-items
-
+      - name: Check compilation
+        run: cargo check --all-targets --all-features
+      - name: Check Cargo.lock
+        run: cargo fetch --locked
+      - name: Check doc
+        run: RUSTDOCFLAGS='-Dwarnings' cargo doc --all-features --no-deps --document-private-items
+      - name: Clippy lints
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Check Code Format
         run: cargo fmt --check
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: check
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+            ${{ runner.os }}-cargo-
+      - name: Run tests
+        run: cargo test
+
+  report:
+    name: Report
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+
+      - name: Install nightly (for rustdoc JSON)
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-report-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-report-
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      # Not in install-action's prebuilt list; cache the cargo-install binary.
+      - name: Install cargo-public-api
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: cargo-public-api
+
+      - name: Prepare report directory
+        run: mkdir -p target/ci-report
+
+      - name: Generate coverage (lcov)
+        run: python3 scripts/coverage.py --lcov --output-path target/ci-report/lcov.info
+
+      - name: Generate public API diff
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 scripts/public_api_diff.py \
+            --simplified \
+            --output target/ci-report/api-diff.txt \
+            "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+      - name: Build PR markdown report
+        if: github.event_name == 'pull_request'
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 scripts/pr_report.py \
+            --lcov target/ci-report/lcov.info \
+            --api-diff target/ci-report/api-diff.txt \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --codecov-url "https://app.codecov.io/gh/${REPO}/pull/${PR_NUMBER}" \
+            --output target/ci-report/pr-report.md
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-report
+          path: target/ci-report/
+          retention-days: 7

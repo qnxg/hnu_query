@@ -44,6 +44,7 @@ cargo test gym:: -- --ignored --nocapture --test-threads 1 # 测试体测系统�
 cargo test netflow:: -- --ignored --nocapture --test-threads 1 # 测试校园网流量相关
 cargo test pt:: -- --ignored --nocapture --test-threads 1 # 测试个人门户相关
 cargo test xgxt:: -- --ignored --nocapture --test-threads 1 # 测试学工系统相关
+cargo test ai:: -- --ignored --nocapture --test-threads 1 # 测试 ai 大模型平台相关
 ```
 
 ### 宿舍相关

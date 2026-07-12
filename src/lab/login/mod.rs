@@ -176,8 +176,7 @@ impl LabToken {
 }
 
 #[cfg(test)]
-mod test {
-
+mod tests {
     use crate::{lab::test::get_lab_token, test::TestResult};
 
     #[tokio::test]

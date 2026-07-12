@@ -1,0 +1,23 @@
+{
+  "code": 0,
+  "data": {
+    "Code": "202506050175",
+    "SecCode": null,
+    "ID": "202506050175",
+    "UUID": null,
+    "UnitCode": null,
+    "UnitName": "工商管理学院",
+    "IdCard": null,
+    "Name": "林政和",
+    "AccessToken": "1234567890abcdefghijklmnopqrstuv",
+    "HeadUrl": null,
+    "Telphone": null,
+    "UserType": "本科生",
+    "RoleCode": null,
+    "LoginTime": "2026-01-02 03:04:05",
+    "OpenId": null,
+    "IsLocked": 0,
+    "DeptName": "工商管理学院"
+  },
+  "msg": "成功"
+}

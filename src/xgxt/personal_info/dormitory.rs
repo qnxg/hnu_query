@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +19,7 @@ pub struct Dormitory {
 impl Dormitory {
     /// 从已经解析好的园区和楼栋信息构造 Dormitory
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `park`: 园区
     /// - `build`: 楼栋
@@ -38,13 +40,13 @@ impl Dormitory {
     ///
     /// 解析成功后有且仅有如下取值：
     ///
-    /// * `南校区`
-    /// * `财院校区`
-    /// * `天马园区`
-    /// * `德智园区`
-    /// * `德智留学生公寓`
-    /// * `望麓桥学生公寓`
-    /// * `牛头山学生公寓`
+    /// - `南校区`
+    /// - `财院校区`
+    /// - `天马园区`
+    /// - `德智园区`
+    /// - `德智留学生公寓`
+    /// - `望麓桥学生公寓`
+    /// - `牛头山学生公寓`
     ///
     /// 如果解析失败，则返回 None
     pub fn park(&self) -> Option<&str> {
@@ -54,33 +56,33 @@ impl Dormitory {
     ///
     /// 解析成功后有且仅有如下取值：
     ///
-    /// * 当园区为`南校区`时：
-    ///     * `7舍` 到 `8舍`
-    ///     * `10舍` 到 `15舍`
-    ///     * `17舍` 到 `19舍`
-    ///     * `南楼`
-    ///     * `培训小楼`
-    /// * 当园区为`财院校区`时：
-    ///     * `1` 到 `3`
-    ///     * `5` 到 `7`
-    ///     * `12`
-    ///     * `A` 到 `B`
-    /// * 当园区为`天马园区`时：
-    ///     * `一区1栋` 到 `一区4栋`
-    ///     * `二区1栋` 到 `二区7栋`
-    ///     * `三区9栋` 到 `三区13栋`
-    ///     * `三区16栋` 到 `三区20栋`
-    ///     * `四区1栋` 到 `四区4栋`
-    /// * 当园区为`德智园区`时：
-    ///     * `2栋`
-    ///     * `5栋` 到 `11栋`
-    ///     * `13栋`
-    ///     * `15栋` 到 `16栋`
-    /// * 当园区为`德智留学生公寓`时：TODO 尚不明确
-    /// * 当园区为`望麓桥学生公寓`时：
-    ///     * `1栋` 到 `4栋`
-    /// * 当园区为`牛头山学生公寓`时：
-    ///     * `2栋` 到 `7栋`
+    /// - 当园区为`南校区`时：
+    ///     - `7舍` 到 `8舍`
+    ///     - `10舍` 到 `15舍`
+    ///     - `17舍` 到 `19舍`
+    ///     - `南楼`
+    ///     - `培训小楼`
+    /// - 当园区为`财院校区`时：
+    ///     - `1` 到 `3`
+    ///     - `5` 到 `7`
+    ///     - `12`
+    ///     - `A` 到 `B`
+    /// - 当园区为`天马园区`时：
+    ///     - `一区1栋` 到 `一区4栋`
+    ///     - `二区1栋` 到 `二区7栋`
+    ///     - `三区9栋` 到 `三区13栋`
+    ///     - `三区16栋` 到 `三区20栋`
+    ///     - `四区1栋` 到 `四区4栋`
+    /// - 当园区为`德智园区`时：
+    ///     - `2栋`
+    ///     - `5栋` 到 `11栋`
+    ///     - `13栋`
+    ///     - `15栋` 到 `16栋`
+    /// - 当园区为`德智留学生公寓`时：TODO 尚不明确
+    /// - 当园区为`望麓桥学生公寓`时：
+    ///     - `1栋` 到 `4栋`
+    /// - 当园区为`牛头山学生公寓`时：
+    ///     - `2栋` 到 `7栋`
     ///
     /// 如果解析失败，则返回 None
     pub fn build(&self) -> Option<&str> {
@@ -106,34 +108,46 @@ pub fn parse_dormitory(dormitory: String, room: String) -> Dormitory {
     let mut build = None;
     if dormitory.contains("德智") {
         park = Some("德智园区");
-        let re = Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     if dormitory.contains("天马") {
         park = Some("天马园区");
-        let re = Regex::new(r"[一二三四]区\d+栋")
-            .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"[一二三四]区\d+栋")
+                .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     if dormitory.contains("望麓桥") {
         park = Some("望麓桥学生公寓");
-        let re = Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     if dormitory.contains("牛头山") {
-        let re = Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     if dormitory.contains("财院校区") {
         park = Some("财院校区");
-        let re = Regex::new(r"[1-9AB]").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"[1-9AB]").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
         // TODO 研楼目前还没有样本，不知道怎么搞
     }
     if dormitory.contains("南校区") {
         park = Some("南校区");
-        let re = Regex::new(r"[1-9]+舍").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-        build = re.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"[1-9]+舍").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     Dormitory {
         park: park.map(|s| s.to_string()),

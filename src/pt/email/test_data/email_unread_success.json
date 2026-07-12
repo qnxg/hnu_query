@@ -1,0 +1,9 @@
+{
+  "error_code": 0,
+  "message": "请求成功！",
+  "data": {
+    "expiresIn": -1,
+    "ssoUrl": "https://pt.hnu.edu.cn/api/v1/email/emailssoUrl",
+    "unReadCount": 6
+  }
+}

@@ -1,10 +1,7 @@
-mod raw;
-mod utils;
+mod fetch;
+mod parse;
 
-use crate::netflow::{
-    login::NetflowToken,
-    this_month::{raw::raw_this_month_data, utils::try_add_gb_suffix},
-};
+use crate::netflow::login::NetflowToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -73,24 +70,8 @@ pub struct ThisMonthInfo {
 pub async fn get_this_month_info(
     netflow_token: &NetflowToken,
 ) -> Result<ThisMonthInfo, crate::Error<Infallible>> {
-    let raw_data = raw_this_month_data(netflow_token).await?;
-    let mut res = ThisMonthInfo {
-        total_usage: raw_data.allTraffic,
-        upload_usage: raw_data.uploadTraffic,
-        download_usage: raw_data.downloadTraffic,
-        base_package_amount: raw_data.allBasePackageAmount,
-        base_package_usage: raw_data.basePackageUsed,
-        base_package_usage_percentage: raw_data.basePackageUsedPer,
-        base_package_surplus: raw_data.surplusBasePackage,
-        extend_package_amount: raw_data.allExtendPackageAmount,
-        extend_package_usage: raw_data.extendPackageUsed,
-        extend_package_usage_percentage: raw_data.extendPackageUsedPer,
-        extend_package_surplus: raw_data.surplusExtendPackage,
-    };
-    try_add_gb_suffix(&mut res.total_usage);
-    try_add_gb_suffix(&mut res.upload_usage);
-    try_add_gb_suffix(&mut res.download_usage);
-    Ok(res)
+    let raw_data = fetch::this_month_info(netflow_token).await?;
+    parse::this_month_info(&raw_data)
 }
 
 #[cfg(test)]

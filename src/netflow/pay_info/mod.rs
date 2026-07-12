@@ -1,6 +1,7 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::netflow::{login::NetflowToken, pay_info::raw::raw_pay_info_data};
+use crate::netflow::login::NetflowToken;
 use std::convert::Infallible;
 
 /// 获取欠费金额
@@ -15,8 +16,8 @@ use std::convert::Infallible;
 pub async fn get_overdue_payment(
     netflow_token: &NetflowToken,
 ) -> Result<f64, crate::Error<Infallible>> {
-    let raw_data = raw_pay_info_data(netflow_token).await?;
-    Ok(raw_data.Total)
+    let json_str = fetch::pay_info(netflow_token).await?;
+    parse::overdue_payment(&json_str)
 }
 
 #[cfg(test)]

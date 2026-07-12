@@ -1,14 +1,7 @@
-mod raw;
-mod utils;
+mod fetch;
+mod parse;
 
-use crate::gym::{
-    error::TokenExpired,
-    grade::{
-        raw::{raw_grade_detail_data, raw_grade_summary_data},
-        utils::{item_class_into_color, item_grade_into_color},
-    },
-    login::GymToken,
-};
+use crate::gym::{error::TokenExpired, login::GymToken};
 use serde::{Deserialize, Serialize};
 use tokio::try_join;
 
@@ -115,7 +108,7 @@ pub enum GradeItemColor {
 
 /// 获取体测成绩
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `gym_token`: 体测系统的令牌，可以通过 [GymToken::acquire_by_cas_login] 或 [GymToken::acquire_by_direct_login] 获取
 /// - `xn`: 学年，如 `2025`
@@ -127,143 +120,16 @@ pub enum GradeItemColor {
 /// # Errors
 ///
 /// 如果提供的 `gym_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [GymToken]
-#[expect(clippy::too_many_lines, reason = "REFACTOR ME")]
 pub async fn get_grade(gym_token: &GymToken, xn: u16) -> Result<Grade, crate::Error<TokenExpired>> {
-    let (grade_summary, grade_detail) = try_join!(
-        raw_grade_summary_data(gym_token, xn),
-        raw_grade_detail_data(gym_token, xn),
+    let (grade_summary_str, grade_detail_str) = try_join!(
+        fetch::grade_summary(gym_token, xn),
+        fetch::grade_detail(gym_token, xn),
     )?;
-    let eye = EyeGrade {
-        eyesight_right: grade_detail.eyesight_right,
-        eyesight_left: grade_detail.eyesight_left,
-        eyesight_right_detail: grade_detail.eyesight_right_detail,
-        eyesight_left_detail: grade_detail.eyesight_left_detail,
-        eye_mirror_right: grade_detail.eye_mirror_right,
-        eye_mirror_right_detail: grade_detail.eye_mirror_right_detail,
-        eye_mirror_left: grade_detail.eye_mirror_left,
-        eye_mirror_left_detail: grade_detail.eye_mirror_left_detail,
-        eye_ametropia_right: grade_detail.eye_ametropia_right,
-        eye_ametropia_right_detail: grade_detail.eye_ametropia_right_detail,
-        eye_ametropia_left: grade_detail.eye_ametropia_left,
-        eye_ametropia_left_detail: grade_detail.eye_ametropia_left_detail,
-    };
-    // grade_summary 和 grade_detail 中
-    // grade 是形如 `不及格` 的评级
-    // class 形如是 `green` 的颜色信息（仅 grade_summary 中有）
-    // score 在 grade_summary 中别是形如 `10.5秒` 的带单位数据
-    //       在 grade_detail 中是该项目得分
-    let short_run = GradeItem {
-        color: grade_summary.short_run_class.map_or_else(
-            || item_grade_into_color(&grade_detail.short_run_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.short_run_grade,
-        grade: grade_summary
-            .short_run_score
-            .unwrap_or_else(|| grade_detail.short_run + "秒"),
-        score: grade_detail.short_run_score,
-    };
-    let bmi = GradeItem {
-        color: grade_summary.bmi_class.map_or_else(
-            || item_grade_into_color(&grade_detail.bmi_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.bmi_grade,
-        grade: grade_summary
-            .bmi_score
-            .unwrap_or_else(|| format!("{}厘米/{}千克", grade_detail.height, grade_detail.weight)),
-        score: grade_detail.bmi_score,
-    };
-    let jump = GradeItem {
-        color: grade_summary.jump_class.map_or_else(
-            || item_grade_into_color(&grade_detail.jump_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.jump_grade,
-        grade: grade_summary
-            .jump_score
-            .unwrap_or_else(|| grade_detail.jump + "厘米"),
-        score: grade_detail.jump_score,
-    };
-    let pull_and_sit = GradeItem {
-        color: grade_summary.pull_and_sit_class.map_or_else(
-            || item_grade_into_color(&grade_detail.pull_and_sit_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.pull_and_sit_grade,
-        grade: grade_summary
-            .pull_and_sit_score
-            .unwrap_or_else(|| format!("{}次", grade_detail.pull_and_sit)),
-        score: grade_detail.pull_and_sit_score + grade_detail.extra_score_pull_or_sit_up,
-    };
-    let run = GradeItem {
-        color: grade_summary.run_class.map_or_else(
-            || item_grade_into_color(&grade_detail.run_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.run_grade,
-        grade: grade_summary.run_score.unwrap_or_else(|| {
-            let total_seconds: u32 = grade_detail.run.parse().unwrap_or(0);
-            let minutes = total_seconds / 60;
-            let seconds = total_seconds - minutes * 60;
-            if seconds != 0 {
-                format!("{}'{}\"", minutes, seconds)
-            } else {
-                format!("{}'", minutes)
-            }
-        }),
-        score: grade_detail.run_score + grade_detail.extra_score_run,
-    };
-    let sit_and_reach = GradeItem {
-        color: grade_summary.sit_and_reach_class.map_or_else(
-            || item_grade_into_color(&grade_detail.sit_and_reach_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.sit_and_reach_grade,
-        grade: grade_summary
-            .sit_and_reach_score
-            .unwrap_or_else(|| grade_detail.sit_and_reach + "厘米"),
-        score: grade_detail.sit_and_reach_score,
-    };
-    let vc = GradeItem {
-        color: grade_summary.vc_class.map_or_else(
-            || item_grade_into_color(&grade_detail.vc_grade),
-            |class| item_class_into_color(&class),
-        ),
-        rank: grade_detail.vc_grade,
-        grade: grade_summary
-            .vc_score
-            .unwrap_or_else(|| format!("{}毫升", grade_detail.vc)),
-        score: grade_detail.vc_score,
-    };
-    let res = Grade {
-        name: grade_detail.student_name,
-        stu_id: grade_detail.student_num,
-        grade: grade_detail.total_grade,
-        score: grade_detail.total_score,
-        report_desc: grade_summary
-            .report_desc
-            .unwrap_or_else(|| "暂无".to_string()),
-        report_status: grade_summary
-            .report_status
-            .unwrap_or_else(|| "暂无".to_string()),
-        report_type: grade_summary
-            .report_type
-            .unwrap_or_else(|| "暂无".to_string()),
-        eye,
-        short_run,
-        bmi,
-        jump,
-        pull_and_sit,
-        run,
-        sit_and_reach,
-        vc,
-    };
-    Ok(res)
+    parse::grade(&grade_summary_str, &grade_detail_str)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::get_grade;
     use crate::{
         gym::test::get_gym_token,
@@ -272,7 +138,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade() -> TestResult<()> {
+    async fn test_get_grade() -> TestResult<()> {
         let gym_token = get_gym_token().await?;
         let grade = get_grade(&gym_token, *TEST_XN).await?;
         println!("{:#?}", grade);

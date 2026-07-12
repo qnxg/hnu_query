@@ -1,15 +1,12 @@
 mod dormitory;
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    error::{MapParseErr, parse_err_with_reason},
-    xgxt::{
-        login::XgxtToken,
-        personal_info::{dormitory::parse_dormitory, raw::raw_person_info_data},
-    },
-};
+use crate::xgxt::login::XgxtToken;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::Infallible;
+use tokio::try_join;
 
 pub use dormitory::Dormitory;
 
@@ -89,7 +86,7 @@ pub enum Gender {
 
 /// 从学工系统获取个人信息
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `xgxt_token`: 学工系统令牌，可以通过 [XgxtToken::acquire_by_cas_login] 获取
 ///
@@ -103,94 +100,23 @@ pub enum Gender {
 pub async fn get_person_info(
     xgxt_token: &XgxtToken,
 ) -> Result<PersonalInfo, crate::Error<Infallible>> {
-    let mut entries = raw_person_info_data(xgxt_token).await?;
-    let entries_str = serde_json::to_string(&entries).expect("序列化失败");
+    let json_str_list = try_join!(
+        fetch::user_info(xgxt_token),
+        fetch::in_school_info(xgxt_token),
+        fetch::contact_info(xgxt_token),
+    )
+    .map(|(a, b, c)| vec![a, b, c])?;
 
-    let name = entries
-        .remove("姓名")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "name"))?;
-    let enter_year: u16 = entries
-        .remove("年级")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "enter_year"))?
-        .parse()
-        .parse_err_with_reason(&entries_str, "enter_year")?;
-    let xz = entries
-        .remove("学制(年)")
-        .and_then(|v| {
-            if v.is_empty() {
-                None
-            } else {
-                Some(v.parse::<u8>())
-            }
-        })
-        .transpose()
-        .parse_err_with_reason(&entries_str, "xz")?;
-    let stu_id = entries
-        .remove("学号")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "stu_id"))?;
-    let gender = match entries.get("性别").map(|v| v.as_str()) {
-        Some("1") => Gender::Male,
-        Some("2") => Gender::Female,
-        _ => {
-            return Err(parse_err_with_reason(&entries_str, "gender"))?;
-        }
-    };
-    let level = match entries
-        .remove("培养层次")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "level"))?
-        .as_ref()
-    {
-        "1" => Level::Doctoral,
-        "2" => Level::Postgraduate,
-        "3" => Level::Undergraduate,
-        _ => {
-            return Err(parse_err_with_reason(&entries_str, "level"))?;
-        }
-    };
-    let academy = entries
-        .remove("学院")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "academy"))?;
-    let major = entries
-        .remove("专业")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "major"))?;
-    let class = entries
-        .remove("班级")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "class"))?;
-    let dormitory = entries
-        .remove("寝室楼")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "dormitory"))?;
-    let room = entries
-        .remove("寝室号")
-        .ok_or_else(|| parse_err_with_reason(&entries_str, "room"))?;
-    let dormitory = if dormitory.is_empty() || room.is_empty() {
-        None
-    } else {
-        Some(parse_dormitory(dormitory, room))
-    };
-    let res = PersonalInfo {
-        name,
-        enter_year,
-        xz,
-        stu_id,
-        gender,
-        level,
-        academy,
-        major,
-        class,
-        dormitory,
-        politic: entries.remove("政治面貌"),
-        race: entries.remove("民族"),
-        hometown: entries.remove("籍贯"),
-        phone: entries.remove("手机号码"),
-        wechat: entries.remove("微信号"),
-        qq: entries.remove("QQ号码"),
-        email: entries.remove("电子邮箱"),
-    };
-    Ok(res)
+    let mut entries = HashMap::<String, String>::new();
+    for json_str in json_str_list {
+        entries.extend(parse::extract_xgxt_entry(&json_str)?);
+    }
+
+    parse::person_info(entries)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::{test::TestResult, xgxt::test::get_xgxt_token};
 

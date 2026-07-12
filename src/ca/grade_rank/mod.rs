@@ -1,15 +1,12 @@
-mod raw;
+mod fetch;
+mod parse;
 
-use crate::{
-    ca::{
-        grade_rank::raw::{UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID, raw_certification_data},
-        login::CaToken,
-    },
-    error::parse_err,
-};
-use regex::RegexBuilder;
+use crate::ca::login::CaToken;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
+
+/// 本科生主修所有课程的中文成绩单
+const UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID: &str = "02a70e11bc89b40dc2ef6ed14851ce25";
 
 /// 可信电子凭证中的排名
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -64,61 +61,20 @@ pub struct Rank {
 ///
 /// 可信电子凭证中的成绩排名信息
 pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Infallible>> {
-    let raw_data = raw_certification_data(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
-    let regex = RegexBuilder::new(r"平均学分绩点排名 ([0-9/]+).*平均学分绩点 ([0-9.]+).*核心课程平均学分绩点排名 ([0-9/]+).*必修课平均学分绩点 ([0-9.]+).*课程算术平均成绩排名 ([0-9/]+).*算术平均分 ([0-9.]+).*核心课程算术平均成绩排名 ([0-9/]+).*必修课算术平均分 ([0-9.]+).*学分加权平均成绩排名 ([0-9/]+).*加权平均分 ([0-9.]+).*核心课程学分加权平均成绩排名 ([0-9/]+).*必修课加权平均分 ([0-9.]+)")
-        .dot_matches_new_line(true)
-        .build()
-        .unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e));
-    let caps = regex
-        .captures(&raw_data)
-        .ok_or_else(|| parse_err(&raw_data))?
-        .iter()
-        .map(|c| {
-            c.map(|v| v.as_str().to_string())
-                .ok_or_else(|| parse_err(&raw_data))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    // 12 个捕获组，caps[0] 是完整匹配，共 13 个
-    let [
-        _,
-        all_gpa_rank,
-        all_gpa,
-        core_gpa_rank,
-        must_gpa,
-        all_arithmetic_rank,
-        all_arithmetic,
-        core_arithmetic_rank,
-        must_arithmetic,
-        all_weighted_rank,
-        all_weighted,
-        core_weighted_rank,
-        must_weighted,
-    ] = caps.try_into().map_err(|_| parse_err(&raw_data))?;
-    let res = Rank {
-        all_gpa,
-        all_gpa_rank,
-        all_weighted,
-        all_weighted_rank,
-        all_arithmetic,
-        all_arithmetic_rank,
-        must_gpa,
-        must_weighted,
-        must_arithmetic,
-        core_gpa_rank,
-        core_arithmetic_rank,
-        core_weighted_rank,
-    };
-    Ok(res)
+    let file_name = fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
+    let file_name = parse::preview_file_name(&file_name)?;
+    let pdf_bytes = fetch::file(ca_token, &file_name).await?;
+    parse::rank(pdf_bytes)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::get_grade_rank;
     use crate::{ca::test::get_ca_token, test::TestResult};
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_get_grade_rank() -> TestResult<()> {
+    async fn test_get_grade_rank() -> TestResult<()> {
         let ca_token = get_ca_token().await?;
         let grade_rank = get_grade_rank(&ca_token).await?;
         println!("{:#?}", grade_rank);
