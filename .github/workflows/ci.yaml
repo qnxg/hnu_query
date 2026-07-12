@@ -74,7 +74,7 @@ jobs:
 
   report:
     name: Report
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
     needs: check
     runs-on: ubuntu-latest
     steps:
@@ -104,10 +104,16 @@ jobs:
             ${{ runner.os }}-cargo-report-
             ${{ runner.os }}-cargo-
 
-      - name: Install cargo-llvm-cov and cargo-public-api
+      - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-llvm-cov,cargo-public-api
+          tool: cargo-llvm-cov
+
+      # Not in install-action's prebuilt list; cache the cargo-install binary.
+      - name: Install cargo-public-api
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: cargo-public-api
 
       - name: Prepare report directory
         run: mkdir -p target/ci-report
@@ -116,6 +122,7 @@ jobs:
         run: python3 scripts/coverage.py --lcov --output-path target/ci-report/lcov.info
 
       - name: Generate public API diff
+        if: github.event_name == 'pull_request'
         run: |
           python3 scripts/public_api_diff.py \
             --simplified \
@@ -123,6 +130,7 @@ jobs:
             "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
       - name: Build PR markdown report
+        if: github.event_name == 'pull_request'
         env:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
