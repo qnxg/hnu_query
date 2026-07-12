@@ -7,15 +7,19 @@ on:
 
 jobs:
   publish:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
       pull-requests: write
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
       - name: Download pr-report artifact
         uses: actions/github-script@v7
         with:
@@ -44,12 +48,13 @@ jobs:
 
       - name: Resolve PR number
         id: pr
+        if: github.event.workflow_run.event == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const prs = context.payload.workflow_run.pull_requests || [];
             if (prs.length === 0) {
-              core.setFailed('workflow_run has no associated pull request');
+              core.warning('workflow_run has no associated pull request');
               return;
             }
             core.setOutput('number', prs[0].number);
@@ -60,9 +65,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: report/lcov.info
           fail_ci_if_error: true
-          override_commit_sha: ${{ github.event.workflow_run.head_sha }}
+          override_commit: ${{ github.event.workflow_run.head_sha }}
+          override_pr: ${{ steps.pr.outputs.number }}
 
       - name: Find existing report comment
+        if: github.event.workflow_run.event == 'pull_request'
         uses: peter-evans/find-comment@v3
         id: find-comment
         with:
@@ -71,6 +78,7 @@ jobs:
           body-includes: "<!-- hnu-query-ci-report -->"
 
       - name: Create or update PR comment
+        if: github.event.workflow_run.event == 'pull_request'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ steps.pr.outputs.number }}
