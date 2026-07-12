@@ -54,16 +54,36 @@ jobs:
         with:
           script: |
             const headSha = context.payload.workflow_run.head_sha;
-            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: headSha,
-            });
-            if (prs.data.length === 0) {
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            let prNumber = null;
+
+            try {
+              const result = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner, repo, commit_sha: headSha,
+              });
+              if (result.data.length > 0) prNumber = result.data[0].number;
+            } catch (e) {
+              core.warning(`listPullRequestsAssociatedWithCommit failed: ${e.message}`);
+            }
+
+            if (!prNumber) {
+              for (let page = 1; page <= 5; page++) {
+                const prs = await github.rest.pulls.list({
+                  owner, repo, state: 'open', per_page: 100, page,
+                });
+                if (prs.data.length === 0) break;
+                const match = prs.data.find(p => p.head.sha === headSha);
+                if (match) { prNumber = match.number; break; }
+              }
+            }
+
+            if (!prNumber) {
               core.warning(`No open PR associated with commit ${headSha}`);
               return;
             }
-            core.setOutput('number', prs.data[0].number);
+            core.setOutput('number', prNumber);
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
