@@ -1,7 +1,7 @@
 use crate::{
     cas::login::{AccountIssue, CasToken},
     error::{MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use regex::RegexBuilder;
 use reqwest::StatusCode;
@@ -90,6 +90,10 @@ impl TFAToken {
     }
 
     /// 发送短信验证码
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas"), err)
+    )]
     pub async fn send_sms(&self) -> Result<SMSResult, crate::Error<AccountIssue>> {
         let res = client
             .get("https://cas.hnu.edu.cn/cas/syz/services/sedsms?reloginType=reloginPhone")
@@ -103,9 +107,18 @@ impl TFAToken {
             .await
             .unexpected_err()?;
         match res.as_str() {
-            "success" => Ok(SMSResult::Success),
-            "valid" => Ok(SMSResult::Valid),
-            _ => Ok(SMSResult::Other(res)),
+            "success" => {
+                obs::info!("sms_success");
+                Ok(SMSResult::Success)
+            }
+            "valid" => {
+                obs::info!("sms_still_valid");
+                Ok(SMSResult::Valid)
+            }
+            _ => {
+                obs::warning!(response = %res, "sms_other");
+                Ok(SMSResult::Other(res))
+            }
         }
     }
 
@@ -122,6 +135,10 @@ impl TFAToken {
     ///
     /// 如果验证失败，则会继续返回 [AccountIssue::TFARequired] 错误，需要对新获得的
     /// [TFAToken] 再次调用 [TFAToken::send_sms] 和 [TFAToken::verify]
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self, code), fields(subsystem = "cas"), err)
+    )]
     pub async fn verify(self, code: &str) -> Result<VerifyResult, crate::Error<AccountIssue>> {
         let res = client
             .post("https://cas.hnu.edu.cn/cas/login")
@@ -146,6 +163,7 @@ impl TFAToken {
                 &format!("{}; {}", self.cookie, cookies),
                 &self.stu_id,
             );
+            obs::info!("tfa_verify_success");
             Ok(VerifyResult::Success(cas_token))
         } else {
             // 除非明确提示验证码错误，否则就认为是令牌过期
@@ -153,6 +171,7 @@ impl TFAToken {
             // 就过期了，那么后面无论怎么输入验证码，都会回到双因子认证界面
             let html = res.text().await.unexpected_err()?;
             if html.contains("验证码错误，请重新输入！") {
+                obs::warning!("tfa_code_error");
                 Ok(VerifyResult::CodeError(TFAToken::new(
                     html.as_str(),
                     &self.cookie,
@@ -160,6 +179,7 @@ impl TFAToken {
                     &self.password,
                 )?))
             } else {
+                obs::warning!("tfa_expired");
                 Ok(VerifyResult::Expired)
             }
         }

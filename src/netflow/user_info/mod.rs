@@ -25,6 +25,10 @@ pub enum UnlockStatus {
 /// # Returns
 ///
 /// 返回校园网流量锁定状态
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(netflow_token), fields(subsystem = "netflow",), err)
+)]
 pub async fn get_unlock_status(
     netflow_token: &NetflowToken,
 ) -> Result<UnlockStatus, crate::Error<Infallible>> {

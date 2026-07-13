@@ -1,14 +1,16 @@
-//! 使用此库通过 use crate::utils::client; 即可，在mod.rs中已pub use导出
+#[cfg(feature = "tracing")]
+mod http_tracing;
 
 use reqwest::{
     Client,
     header::{GetAll, HeaderValue},
     redirect::Policy,
 };
+use reqwest_middleware::ClientBuilder;
 use std::{sync::LazyLock, time::Duration};
 
-pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
-    Client::builder()
+pub static CLIENT: LazyLock<reqwest_middleware::ClientWithMiddleware> = LazyLock::new(|| {
+    let inner = Client::builder()
         // 需要忽略无效证书，因为图书馆的https证书是寄的，而采用http请求的话cas下发的ticket不被图书系统接受
         .danger_accept_invalid_certs(true)
         .connection_verbose(false)
@@ -23,7 +25,12 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .redirect(Policy::none()) // 禁止自动重定向方便操作，目前有几个接口依赖于禁止重定向，因此不能直接允许重定向
         // .http1_title_case_headers()
         .build()
-        .expect("构建client失败")
+        .expect("构建client失败");
+
+    let builder = ClientBuilder::new(inner);
+    #[cfg(feature = "tracing")]
+    let builder = builder.with(http_tracing::HttpTracing);
+    builder.build()
 });
 
 /// 项目的cookie_parser，旨在只保留key=value的字符串形式

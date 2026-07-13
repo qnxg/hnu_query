@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
 
@@ -28,11 +28,15 @@ impl NetflowToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "netflow"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, cookies) = cas_token.get_sticket(NETFLOW_URL).await?;
-        // 发送请求
+        let _s = obs::debug_span!("validate_login");
         let res = client
             .get("http://ll.hnu.edu.cn/login/validate")
             .header(COOKIE, &cookies)
@@ -65,6 +69,8 @@ impl NetflowToken {
             .unexpected_err()?;
         let cookies = format!("{first}; {last}");
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
+        drop(_s);
+        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [NetflowToken]

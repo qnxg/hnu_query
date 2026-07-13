@@ -42,6 +42,10 @@ pub struct OrderItem {
 /// # Returns
 ///
 /// 返回一个包含校园网流量账单信息的列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(netflow_token), fields(subsystem = "netflow"), err)
+)]
 pub async fn get_order(
     netflow_token: &NetflowToken,
 ) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {

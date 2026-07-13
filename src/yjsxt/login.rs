@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::client,
+    utils::{client, obs},
 };
 use reqwest::{StatusCode, header::LOCATION};
 use urlencoding::decode;
@@ -29,10 +29,15 @@ impl YjsxtToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "yjsxt"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(YJSXT_FROM_CAS_URL).await?;
+        let _s = obs::debug_span!("fetch_ticket");
         let res = client
             .get(&ticket_url)
             .send()
@@ -40,6 +45,7 @@ impl YjsxtToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        drop(_s);
         if res.status() != StatusCode::FOUND {
             return Err(format!(
                 "获取研究生系统失败，HTTP代码 {} {}",
@@ -63,6 +69,7 @@ impl YjsxtToken {
             .ok_or_else(|| parse_err(redirection))?
             .to_string();
         let new_url = format!("http://yjsxt.hnu.edu.cn{}", redirection);
+        let _s = obs::debug_span!("follow_redirect");
         let res = client
             .get(&new_url)
             .send()
@@ -70,6 +77,7 @@ impl YjsxtToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        drop(_s);
         // 若是使用本科生账号登录研究生系统时，会被重定向到类似地址
         // http://yjsxt.hnu.edu.cn/gmis/(S(1031xasdwyr03t2evudmrbbel))/oauthLogin/hndxn....
         // 按前面的逻辑依然可以截取出/gmis/后面的 id，但是实际上会跳转报错页面
@@ -79,9 +87,11 @@ impl YjsxtToken {
                 // TODO 这么解析不太好
                 let msg = location_str.split("msg=").nth(1).unwrap_or("");
                 let msg = decode(msg).parse_err_with_reason(msg, "url解码失败")?;
+                obs::warning!(msg = %msg, "undergraduate_login_rejected");
                 return Err(msg).unexpected_err();
             }
         }
+        obs::info!("login_success");
         Ok(Self { id })
     }
     /// 从 id 创建 [YjsxtToken]

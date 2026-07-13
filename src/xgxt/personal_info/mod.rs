@@ -2,7 +2,7 @@ mod dormitory;
 mod fetch;
 mod parse;
 
-use crate::xgxt::login::XgxtToken;
+use crate::{utils::obs, xgxt::login::XgxtToken};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -97,13 +97,17 @@ pub enum Gender {
 /// # Performance
 ///
 /// 这个函数大概会同时发起三个请求，且一次请求数据量比较大（学工系统有个接口直接把近十年所有的班级数据全部返回了），所以建议不要频繁调用本函数。个人信息一般没有什么变动，建议做好缓存。
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(xgxt_token), fields(subsystem = "xgxt"), err)
+)]
 pub async fn get_person_info(
     xgxt_token: &XgxtToken,
 ) -> Result<PersonalInfo, crate::Error<Infallible>> {
     let json_str_list = try_join!(
-        fetch::user_info(xgxt_token),
-        fetch::in_school_info(xgxt_token),
-        fetch::contact_info(xgxt_token),
+        obs::instrument!("fetch_user_info", fetch::user_info(xgxt_token)),
+        obs::instrument!("fetch_in_school_info", fetch::in_school_info(xgxt_token)),
+        obs::instrument!("fetch_contact_info", fetch::contact_info(xgxt_token)),
     )
     .map(|(a, b, c)| vec![a, b, c])?;
 

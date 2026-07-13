@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -31,6 +31,10 @@ impl PtToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "pt"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -49,6 +53,7 @@ impl PtToken {
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
+        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [PtToken]

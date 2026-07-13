@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::gym::{error::TokenExpired, login::GymToken};
+use crate::{
+    gym::{error::TokenExpired, login::GymToken},
+    utils::obs,
+};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -51,13 +54,21 @@ pub struct Appointment {
 /// # Returns
 ///
 /// 返回体测预约信息
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(gym_token), fields(subsystem = "gym"), err)
+)]
 pub async fn get_appointment(
     gym_token: &GymToken,
 ) -> Result<Vec<Appointment>, crate::Error<TokenExpired>> {
-    let json_str = fetch::appointment_list(gym_token).await?;
-    let raw_list = parse::appointment_list(&json_str)?;
+    let raw_list = {
+        let _s = obs::debug_span!("fetch_appointment_list");
+        let json_str = fetch::appointment_list(gym_token).await?;
+        parse::appointment_list(&json_str)?
+    };
     let mut res = Vec::with_capacity(raw_list.len());
-    for raw_item in raw_list {
+    for raw_item in raw_list.into_iter() {
+        let _s = obs::debug_span!("fetch_appointment_detail", class_id = raw_item.class_id);
         let json_str = fetch::appointment_detail(
             gym_token,
             raw_item.class_id,

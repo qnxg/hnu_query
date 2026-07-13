@@ -15,6 +15,10 @@ use std::convert::Infallible;
 /// 未读邮件数
 ///
 /// 如果返回 None，说明未绑定邮箱，需要前往个人门户 -> 安全中心绑定邮箱
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(pt_token), fields(subsystem = "pt"), err)
+)]
 pub async fn get_unread_email_count(
     pt_token: &PtToken,
 ) -> Result<Option<u32>, crate::Error<Infallible>> {

@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode, Url,
@@ -72,6 +72,10 @@ impl AiToken {
     /// # Errors
     ///
     /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "ai"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -83,7 +87,8 @@ impl AiToken {
         // 不能手动构造 CAS URL 然后直接 get_ticket_url ，那样即使 CAS 认证成功，
         // ticket 也不知道该回到哪里去（没有 OAuth2 authorize endpoint 来接收并签发 code）。
         // 所以这里必须从 INITIAL_AUTH_URL 开始，沿着服务器返回的 Location 自动跟到底。
-        for _ in 0..10 {
+        for _attempt in 0..10 {
+            let _s = obs::debug_span!("oauth_redirect", attempt = _attempt, url = %current_url);
             let res = client
                 .get(&current_url)
                 .header(COOKIE, &all_cookies)
@@ -122,6 +127,7 @@ impl AiToken {
                 // 会覆盖掉 cas_token 中已认证的 TGT cookie，导致 get_ticket_url 拿到的
                 // 不是已登录用户的 ticket，进而返回 TokenExpired。所以必须用原始的
                 // cas_token cookie 来做这一步。
+                obs::info!("cas_authenticated");
                 let ticket_url = cas_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
                 cas_authenticated = true;
@@ -143,6 +149,7 @@ impl AiToken {
         }
 
         // Phase 2: 从 callback URL 提取 code，POST 到 oauth-login 换 token
+        let _s = obs::debug_span!("exchange_oauth_token");
         let code = extract_code(&current_url)
             .ok_or_else(|| format!("无法从URL提取code: {}", current_url))
             .unexpected_err()?;
@@ -177,6 +184,8 @@ impl AiToken {
                 .unexpected_err()?,
         );
         headers.insert(COOKIE, all_cookies.parse().unexpected_err()?);
+        drop(_s);
+        obs::info!("login_success");
         Ok(Self { headers })
     }
 

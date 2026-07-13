@@ -60,6 +60,10 @@ pub struct DetailItem {
 /// # Returns
 ///
 /// 返回一个包含月流量明细的 [Detail] 实例
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(network_token), fields(subsystem = "netflow"), err)
+)]
 pub async fn get_month_detail(
     network_token: &NetflowToken,
     year: u16,
@@ -81,6 +85,10 @@ pub async fn get_month_detail(
 /// # Returns
 ///
 /// 返回一个包含日流量明细的 [Detail] 实例
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(network_token), fields(subsystem = "netflow"), err)
+)]
 pub async fn get_day_detail(
     network_token: &NetflowToken,
     year: u16,

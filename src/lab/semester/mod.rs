@@ -25,6 +25,10 @@ pub struct Semester {
 /// # Returns
 ///
 /// 返回一个包含大物实验平台所有学期信息的列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
+)]
 pub async fn get_semester(lab_token: &LabToken) -> Result<Vec<Semester>, crate::Error<Infallible>> {
     let json_str = fetch::semester(lab_token).await?;
     parse::semester(&json_str)

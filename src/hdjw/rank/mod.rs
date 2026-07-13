@@ -116,6 +116,10 @@ impl Display {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip_all, fields(subsystem = "hdjw"), err)
+)]
 pub async fn get_rank(
     hdjw_token: &HdjwToken,
     selection: &[(u16, u8)],

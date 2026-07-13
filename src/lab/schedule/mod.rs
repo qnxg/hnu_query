@@ -42,6 +42,10 @@ pub struct LabSchedule {
 /// # Returns
 ///
 /// 返回一个包含所有大物实验安排的列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
+)]
 pub async fn get_lab_schedule(
     lab_token: &LabToken,
 ) -> Result<Vec<LabSchedule>, crate::Error<Infallible>> {

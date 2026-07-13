@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -32,10 +32,15 @@ impl HdjwToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "hdjw"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         // 需要先请求 hdjw 的登录页面，获取到相关的 cookie
+        let _s = obs::debug_span!("fetch_enter_page");
         let cookies = cookie_parser(
             client
                 .get(HDJW_ENTER_URL)
@@ -48,9 +53,11 @@ impl HdjwToken {
                 .get_all(SET_COOKIE),
         )
         .join("; ");
+        drop(_s);
         let ticket_url = cas_token.get_ticket_url(HDJW_FROM_CAS_URL).await?;
         // 这里需要带着之前拿到的 cookies 去访问 ticket_url，不然会返回 500 internal server
         // error
+        let _s = obs::debug_span!("fetch_ticket");
         client
             .get(ticket_url)
             .header(COOKIE, &cookies)
@@ -59,7 +66,9 @@ impl HdjwToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        drop(_s);
         // 上面的请求会重定向到 HDJW_ENTER_URL，我们再访问一下。
+        let _s = obs::debug_span!("fetch_session");
         let res = client
             .get(HDJW_ENTER_URL)
             .header(COOKIE, &cookies)
@@ -68,6 +77,7 @@ impl HdjwToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
+        drop(_s);
         // 随后又会被重定向到一个新的链接，再请求一下就会得到 hdjw 鉴权的 cookie
         if res.status() != StatusCode::FOUND {
             return Err(format!(
@@ -84,6 +94,7 @@ impl HdjwToken {
             .unexpected_err()?
             .to_str()
             .unexpected_err()?;
+        let _s = obs::debug_span!("fetch_auth_cookies");
         let new_cookies = cookie_parser(
             client
                 .get(target_url)
@@ -97,10 +108,12 @@ impl HdjwToken {
                 .get_all(SET_COOKIE),
         )
         .join("; ");
+        drop(_s);
         // 保险起见，将两次 cookie 合并一下
         let cookies = format!("{}; {}", cookies, new_cookies);
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
+        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [HdjwToken]

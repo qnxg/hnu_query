@@ -23,6 +23,10 @@ pub struct Semester {
 /// # Returns
 ///
 /// 返回一个包含研究生系统所有学期信息的列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(yjsxt_token), fields(subsystem = "yjsxt"), err)
+)]
 pub async fn get_semester(
     yjsxt_token: &YjsxtToken,
 ) -> Result<Vec<Semester>, crate::Error<TokenExpired>> {

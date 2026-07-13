@@ -1,7 +1,7 @@
 mod fetch;
 mod parse;
 
-use crate::{error::MapUnexpectedErr, xgxt::personal_info::Dormitory};
+use crate::{error::MapUnexpectedErr, utils::obs, xgxt::personal_info::Dormitory};
 use std::convert::Infallible;
 
 /// 获取宿舍电量
@@ -19,6 +19,10 @@ use std::convert::Infallible;
 /// # Panics
 ///
 /// 请确保 `dormitory` 的解析是成功的，否则会 panic。你可以使用 [`crate::xgxt::personal_info::Dormitory::successfully_parsed`] 判断是否解析成功。
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(fields(subsystem = "wxpay"), err)
+)]
 pub async fn get_electricity(dormitory: Dormitory) -> Result<String, crate::Error<Infallible>> {
     assert!(
         dormitory.successfully_parsed(),
@@ -29,30 +33,42 @@ pub async fn get_electricity(dormitory: Dormitory) -> Result<String, crate::Erro
         // 望麓桥学生公寓的2栋和3栋无法区分南边还是北面
         // 考虑到同一个宿舍号不可能既是南又是北，所以我们两个都试试，取成功的
         "#2栋" | "#3栋" => {
-            let res_north = fetch::electricity(
-                park,
-                match build.as_str() {
-                    "#2栋" => "52",
-                    "#3栋" => "54",
-                    _ => unreachable!(),
-                },
-                room.as_str(),
-            )
-            .await;
-            let res_south = fetch::electricity(
-                park,
-                match build.as_str() {
-                    "#2栋" => "53",
-                    "#3栋" => "55",
-                    _ => unreachable!(),
-                },
-                room.as_str(),
-            )
-            .await;
+            let res_north = {
+                let _s = obs::debug_span!("try_north");
+                fetch::electricity(
+                    park,
+                    match build.as_str() {
+                        "#2栋" => "52",
+                        "#3栋" => "54",
+                        _ => unreachable!(),
+                    },
+                    room.as_str(),
+                )
+                .await
+            };
+            let res_south = {
+                let _s = obs::debug_span!("try_south");
+                fetch::electricity(
+                    park,
+                    match build.as_str() {
+                        "#2栋" => "53",
+                        "#3栋" => "55",
+                        _ => unreachable!(),
+                    },
+                    room.as_str(),
+                )
+                .await
+            };
 
             match (res_north, res_south) {
-                (Ok(n), Err(_)) => Ok(n),
-                (Err(_), Ok(s)) => Ok(s),
+                (Ok(n), Err(_)) => {
+                    obs::debug!("get_electricity_success_north");
+                    Ok(n)
+                }
+                (Err(_), Ok(s)) => {
+                    obs::debug!("get_electricity_success_south");
+                    Ok(s)
+                }
                 _ => Err("获取电量信息失败，无法区分宿舍南北").unexpected_err(),
             }
         }

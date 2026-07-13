@@ -49,6 +49,10 @@ pub struct Grade {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(hdjw_token), fields(subsystem = "hdjw"), err)
+)]
 pub async fn get_grade(
     hdjw_token: &HdjwToken,
     xn: u16,
@@ -85,6 +89,10 @@ pub struct GradeDetailItem {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(hdjw_token), fields(subsystem = "hdjw"), err)
+)]
 pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,

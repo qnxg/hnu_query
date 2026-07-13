@@ -28,6 +28,10 @@ pub struct Course {
 /// # Returns
 ///
 /// 返回课程列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
+)]
 pub async fn get_course_list(
     lab_token: &LabToken,
     semester_id: &str,

@@ -3,7 +3,7 @@ use crate::{
         login::{AccountIssue, CasToken},
         tfa::VerifyResult,
     },
-    test::{TEST_CAS_CACHE, TEST_PASSWORD, TEST_STU_ID, TestResult},
+    test::{TEST_CAS_CACHE, TEST_PASSWORD, TEST_STU_ID, TestResult, init_tracing},
 };
 use std::io::{Read, Write};
 
@@ -18,6 +18,7 @@ use std::io::{Read, Write};
 /// 通过登录获取了新的 CasToken 之后，如果设置了 `TEST_CAS_CACHE`，则会将
 /// 新的 CasToken 自动缓存到 `cache` 文件夹中。
 pub async fn get_cas_token() -> TestResult<CasToken> {
+    init_tracing();
     let stu_id = TEST_STU_ID;
     let password = TEST_PASSWORD;
     let cache_name = format!("{:x}", md5::compute(format!("{}{}", stu_id, password)));

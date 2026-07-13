@@ -13,6 +13,10 @@ use std::convert::Infallible;
 /// # Returns
 ///
 /// 欠费金额
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(netflow_token), fields(subsystem = "netflow",), err)
+)]
 pub async fn get_overdue_payment(
     netflow_token: &NetflowToken,
 ) -> Result<f64, crate::Error<Infallible>> {

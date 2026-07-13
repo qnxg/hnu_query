@@ -67,6 +67,10 @@ pub struct ThisMonthInfo {
 /// # Returns
 ///
 /// 本月校园网流量使用信息
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(netflow_token), fields(subsystem = "netflow",), err)
+)]
 pub async fn get_this_month_info(
     netflow_token: &NetflowToken,
 ) -> Result<ThisMonthInfo, crate::Error<Infallible>> {

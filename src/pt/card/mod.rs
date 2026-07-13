@@ -1,7 +1,7 @@
 mod fetch;
 mod parse;
 
-use crate::pt::login::PtToken;
+use crate::{pt::login::PtToken, utils::obs};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -70,6 +70,10 @@ pub struct CardHistoryItem {
 /// # Returns
 ///
 /// 校园卡信息
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(pt_token), fields(subsystem = "pt"), err)
+)]
 pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<Infallible>> {
     let json_str = fetch::card_info(pt_token).await?;
     parse::card_info(&json_str)
@@ -87,6 +91,10 @@ pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<
 /// # Returns
 ///
 /// 校园卡消费历史信息
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(pt_token), fields(subsystem = "pt"), err)
+)]
 pub async fn get_card_history(
     pt_token: &PtToken,
     year: u16,
@@ -97,10 +105,18 @@ pub async fn get_card_history(
         CardHistoryType::Consumption => "15",
         CardHistoryType::Recharge => "16",
     };
-    let json_str = fetch::csrf_token(pt_token).await?;
-    let csrf_token = parse::csrf_token(&json_str)?;
-    let json_str = fetch::card_history(pt_token, &csrf_token, year, month, trancode).await?;
-    parse::card_history(&json_str)
+    let csrf_token = {
+        let _s = obs::debug_span!("fetch_csrf");
+        let json_str = fetch::csrf_token(pt_token).await?;
+        parse::csrf_token(&json_str)?
+    };
+    let history = {
+        let _s = obs::debug_span!("fetch_history");
+        let json_str = fetch::card_history(pt_token, &csrf_token, year, month, trancode).await?;
+        parse::card_history(&json_str)?
+    };
+    obs::debug!(count = history.count, "query_success");
+    Ok(history)
 }
 
 #[cfg(test)]

@@ -23,6 +23,10 @@ pub struct TokenInfo {
 /// # Returns
 ///
 /// 返回 token 列表，无 token 时返回空列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(token), fields(subsystem = "ai"), err)
+)]
 pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Error<Infallible>> {
     let json_str = fetch::token_list(token).await?;
     parse::token_list(&json_str)
@@ -38,6 +42,10 @@ pub async fn get_token_list(token: &AiToken) -> Result<Vec<TokenInfo>, crate::Er
 /// # Returns
 ///
 /// 返回 key 值
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(token), fields(subsystem = "ai"), err)
+)]
 pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<Infallible>> {
     let json_str = fetch::token_key(token, id).await?;
     parse::token_key(&json_str)
@@ -49,6 +57,10 @@ pub async fn get_token_key(token: &AiToken, id: u64) -> Result<String, crate::Er
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `id`: 要删除的 token 的 ID
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(token), fields(subsystem = "ai"), err)
+)]
 pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<Infallible>> {
     let json_str = fetch::delete_token(token, id).await?;
     let success = parse::check_action_success(&json_str)?;
@@ -64,6 +76,10 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<(), crate::Error<I
 ///
 /// - `token`: 已登录的 AI 系统的令牌，可以通过 [AiToken::acquire_by_cas_login] 创建
 /// - `name`: token 名称
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(token), fields(subsystem = "ai"), err)
+)]
 pub async fn create_token(token: &AiToken, name: &str) -> Result<(), crate::Error<Infallible>> {
     let json_str = fetch::create_token(token, name).await?;
     let success = parse::check_action_success(&json_str)?;

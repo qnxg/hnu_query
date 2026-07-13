@@ -106,6 +106,30 @@ where
     }
 }
 
+impl<T, E> MapNetworkErr<T, E> for Result<T, reqwest_middleware::Error>
+where
+    E: StdError,
+{
+    /// 将 [reqwest_middleware::Error] 转换为 [crate::Error]
+    ///
+    /// - `Reqwest(reqwest::Error)` 变体映射为 [Error::NetworkError]
+    /// - `Middleware(...)` 变体映射为 [Error::Unexpected]
+    ///   （middleware 自身出错的概率极低）
+    #[track_caller]
+    fn network_err(self) -> Result<T, Error<E>> {
+        let loc = std::panic::Location::caller();
+        self.map_err(|e| match e {
+            reqwest_middleware::Error::Reqwest(r) => Error::NetworkError(r),
+            reqwest_middleware::Error::Middleware(m) => Error::Unexpected {
+                error: m.into(),
+                file: loc.file().to_string(),
+                line: loc.line(),
+                column: loc.column(),
+            },
+        })
+    }
+}
+
 pub trait MapParseErr<T, E>
 where
     E: StdError,

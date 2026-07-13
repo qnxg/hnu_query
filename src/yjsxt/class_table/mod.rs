@@ -48,6 +48,10 @@ pub struct CourseSchedule {
 /// # Errors
 ///
 /// 如果提供的 `yjsxt_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [YjsxtToken]
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(yjsxt_token), fields(subsystem = "yjsxt"), err)
+)]
 pub async fn get_class_table(
     yjsxt_token: &YjsxtToken,
     semester_id: u16,

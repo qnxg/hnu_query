@@ -1,7 +1,7 @@
 use crate::{
     cas::{error::TokenExpired, tfa::TFAToken, utils},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use regex::Regex;
 use reqwest::{
@@ -94,10 +94,16 @@ impl CasToken {
     /// # Errors
     ///
     /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(password), fields(subsystem = "cas"), err)
+    )]
+    #[expect(clippy::too_many_lines)]
     pub async fn acquire_by_login(
         stu_id: &str,
         password: &str,
     ) -> Result<Self, crate::Error<AccountIssue>> {
+        let _s = obs::debug_span!("fetch_login_page");
         let res = client
             .get(SERVICE_URL)
             .send()
@@ -129,7 +135,9 @@ impl CasToken {
             .and_then(|cap| cap.get(1))
             .map_or("", |m| m.as_str())
             .to_string();
+        drop(_s);
         // 通过pubkey接口获取modulus和exponent
+        let _s = obs::debug_span!("fetch_pubkey");
         let pubkey_res = client
             .get(PUBKEY_URL)
             .header(COOKIE, &cookies.join("; "))
@@ -154,7 +162,9 @@ impl CasToken {
         let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus)
             .ok_or("RSA encryption failed")
             .unexpected_err()?;
+        drop(_s);
         // Post登录表单
+        let _s = obs::debug_span!("submit_credentials");
         let login = client
             .post(SERVICE_URL)
             // .header(CONTENT_TYPE, "application/x-www-form-urlencoded")   //
@@ -171,6 +181,7 @@ impl CasToken {
             .await
             .network_err()?;
         if login.status() == StatusCode::FORBIDDEN {
+            obs::warning!("account_locked");
             return Err(crate::Error::Other(AccountIssue::AccountLocked));
         }
         // login_params里面的pv0在后面的请求也会有用(netflow)
@@ -184,9 +195,11 @@ impl CasToken {
         let location = login.headers().get(LOCATION).cloned();
         let login_result = login.text().await.unexpected_err()?;
         if login_result.contains("用户名或密码错误") {
+            obs::warning!("password_error");
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
         if login_result.contains("双因子认证") {
+            obs::info!("tfa_required");
             let tfa_token = TFAToken::new(&login_result, &cookies.join("; "), stu_id, password)?;
             return Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token)));
         }
@@ -198,8 +211,10 @@ impl CasToken {
             .to_string();
         const PASSWORD_SHOULD_CHANGE_PAT: &str = "cas.hnu.edu.cn/securitycenter/modifyPwd/index.zf";
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
+            obs::info!("password_should_change");
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
         }
+        obs::info!("login_success");
         Ok(Self {
             cookie: cookies.join("; "),
             stu_id: stu_id.to_string(),
@@ -225,6 +240,7 @@ impl CasToken {
         &self,
         service_url: &str,
     ) -> Result<String, crate::Error<TokenExpired>> {
+        let _s = obs::debug_span!("cas_get_ticket_url", service_url = service_url);
         let Ok(res) = client
             .get(service_url)
             .header(COOKIE, &self.cookie)
@@ -235,9 +251,11 @@ impl CasToken {
             // 后续可能还要再验证一下有没有必要这么保守
             .error_for_status()
         else {
+            obs::warning!(reason = "error_status", "token_expired");
             return Err(crate::Error::Other(TokenExpired));
         };
         if res.status() == StatusCode::OK {
+            obs::warning!(reason = "status_ok", "token_expired");
             return Err(crate::Error::Other(TokenExpired));
         }
         if res.status() != StatusCode::FOUND {
@@ -285,7 +303,9 @@ impl CasToken {
         // 就会 break）
         //
         // 这里的重定向次数似乎是因人而异的，原因不明
-        for _ in 0..6 {
+        for _attempt in 0..6 {
+            let _s =
+                obs::debug_span!("cas_get_sticket_redirect", attempt = _attempt, url = %now_url);
             if now_url.starts_with("https://cas.hnu.edu.cn/sprcialapp/zf_form/index.zf") {
                 s_ticket = Some(
                     now_url
@@ -306,6 +326,7 @@ impl CasToken {
                 .error_for_status()
                 .unexpected_err()?;
             if res.status() == StatusCode::OK {
+                obs::warning!(reason = "status_ok", "token_expired");
                 return Err(crate::Error::Other(TokenExpired));
             }
             if res.status() != StatusCode::FOUND {

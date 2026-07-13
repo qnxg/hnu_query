@@ -41,6 +41,10 @@ pub struct EmptyClassroom {
 /// # Panics
 ///
 /// `time` 必须位于区间 [1, 5] 内，否则会 panic
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(hdjw_token), fields(subsystem = "hdjw"), err)
+)]
 pub async fn get_empty_classroom(
     hdjw_token: &HdjwToken,
     building_id: &str,

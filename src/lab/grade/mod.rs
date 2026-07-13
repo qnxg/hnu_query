@@ -1,7 +1,7 @@
 mod fetch;
 mod parse;
 
-use crate::lab::login::LabToken;
+use crate::{lab::login::LabToken, utils::obs};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use tokio::try_join;
@@ -41,15 +41,28 @@ pub struct LabGradeDetailItem {
 /// # Returns
 ///
 /// 返回实验成绩列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
+)]
 pub async fn get_lab_grade(
     lab_token: &LabToken,
     course_id: &str,
     semester_id: &str,
 ) -> Result<Vec<LabGrade>, crate::Error<Infallible>> {
     let (lab_grade_str, lab_grade_detail_str, lab_grade_structure_str) = try_join!(
-        fetch::lab_grade(lab_token, course_id, semester_id),
-        fetch::lab_grade_detail(lab_token, course_id),
-        fetch::lab_grade_structure(lab_token, course_id),
+        obs::instrument!(
+            "fetch_lab_grade",
+            fetch::lab_grade(lab_token, course_id, semester_id)
+        ),
+        obs::instrument!(
+            "fetch_lab_grade_detail",
+            fetch::lab_grade_detail(lab_token, course_id)
+        ),
+        obs::instrument!(
+            "fetch_lab_grade_structure",
+            fetch::lab_grade_structure(lab_token, course_id)
+        ),
     )?;
     parse::lab_grade(
         &lab_grade_str,
@@ -77,6 +90,10 @@ pub struct VirtualLabGrade {
 /// # Returns
 ///
 /// 返回虚拟实验成绩列表
+#[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
+)]
 pub async fn get_virtual_lab_grade(
     lab_token: &LabToken,
 ) -> Result<Vec<VirtualLabGrade>, crate::Error<Infallible>> {

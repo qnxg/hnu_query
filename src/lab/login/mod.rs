@@ -3,7 +3,7 @@ mod utils;
 
 use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
 use serde_json::Value;
@@ -61,6 +61,10 @@ impl LabToken {
     /// # Errors
     ///
     /// 可能由于用户的账号问题或是验证码识别失败导致登录失败，此时会返回 [LoginIssue] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab"), err)
+    )]
     pub async fn acquire_by_login(
         stu_id: &str,
         password: &str,
@@ -73,6 +77,7 @@ impl LabToken {
         let mut all_cookies = String::new();
         let mut loop_result = None;
         while tried < max_tried {
+            let _s = obs::debug_span!("lab_login", attempt = tried, stu_id = stu_id);
             let res = client
                 .post(LOGIN_URL)
                 .form(&[
@@ -97,6 +102,7 @@ impl LabToken {
             };
             if code == -2 {
                 // 需要验证码
+                obs::info!(attempt = tried, "captcha_required");
                 let res = client
                     .get(CAPTCHA_URL)
                     .header("Cookie", &all_cookies)
@@ -106,6 +112,7 @@ impl LabToken {
                     .error_for_status()
                     .unexpected_err()?;
                 let img_bytes = res.bytes().await.unexpected_err()?;
+                let _s = obs::debug_span!("resolve_captcha", stu_id = stu_id);
                 checkcode = captcha_resolver
                     .resolve(img_bytes.as_ref())
                     .await
@@ -117,6 +124,7 @@ impl LabToken {
             }
         }
         let Some((code, data, cookies)) = loop_result else {
+            obs::warning!("captcha_attempts_exhausted");
             return Err(crate::Error::Other(LoginIssue::CaptchaError));
         };
         match code {
@@ -126,13 +134,17 @@ impl LabToken {
                 } else {
                     let mut headers = HeaderMap::new();
                     headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
+                    obs::info!("login_success");
                     Ok(Self {
                         headers,
                         stu_id: stu_id.to_string(),
                     })
                 }
             }
-            -1 => Err(crate::Error::Other(LoginIssue::PasswordError)),
+            -1 => {
+                obs::warning!("password_error");
+                Err(crate::Error::Other(LoginIssue::PasswordError))
+            }
             _ => {
                 let msg = data.get("Data").and_then(|v| v.as_str().map(String::from));
                 Err(crate::Error::Other(LoginIssue::OtherError(msg)))
