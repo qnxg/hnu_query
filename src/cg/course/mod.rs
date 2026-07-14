@@ -1,5 +1,8 @@
-use reqwest::{StatusCode, header::LOCATION};
-use scraper::{Html, Selector};
+mod fetch;
+mod parse;
+
+use reqwest::StatusCode;
+use reqwest::header::LOCATION;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -29,6 +32,19 @@ pub struct CgAssignment {
     pub assign_name: String,
 }
 
+/// CG 作业中的一道题目
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CgProblem {
+    /// 题目序号（1-based，在作业中的编号）
+    pub pro_num: u32,
+    /// 题目 ID（提交代码时需要）
+    pub problem_id: u32,
+    /// 题目标题
+    pub title: String,
+    /// 分值
+    pub score: f64,
+}
+
 /// 获取当前账号的课程列表
 ///
 /// 如果账号只有一个课程，CG 系统会从 `courselist.jsp` 直接重定向到 `main.jsp`，
@@ -53,17 +69,17 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
                 .get(LOCATION)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("");
-            // 重定向到登录页面说明 token 已过期
             if location.contains("simple.jsp") || location.contains("login") {
                 return Err(crate::Error::Other(CgError::TokenExpired));
             }
             // 单课程账号：重定向到 main.jsp，从 main.jsp 提取课程信息
-            parse_courses_from_main(token).await
+            let body = fetch::main_page(token).await?;
+            parse::parse_courses_from_main(&body)
         }
         StatusCode::OK => {
             // 多课程账号：解析课程列表页
             let body = res.text().await.network_err()?;
-            parse_courses_from_list(&body)
+            parse::parse_courses_from_list(&body)
         }
         _ => Err(format!("获取课程列表失败: HTTP {}", res.status())).unexpected_err(),
     }
@@ -71,164 +87,59 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
 
 /// 获取指定课程的作业列表
 ///
-/// 先进入课程上下文（GET `courselist.jsp?courseID=xx`），
-/// 再获取该课程的在线作业。
+/// 先进入课程上下文，再获取该课程的在线作业。
 ///
 /// 如果传入无效的 `course_id`，服务器通常仍会重定向到 `main.jsp`，
-/// 但不会返回任何作业内容，调用方会得到空列表，无法与「该课程确实没有作业」区分。
+/// 但不会返回任何作业内容，调用方会得到空列表。
 ///
 /// # Errors
 ///
 /// - [CgError::TokenExpired] — 登录已过期
-///
-/// 没有作业时返回空列表。
 pub async fn get_assignment_list(
     token: &CgToken,
     course_id: u32,
 ) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
-    // 进入课程上下文
-    let res = client
-        .get(format!("{}/courselist.jsp", BASE_URL))
-        .query(&[("courseID", course_id.to_string())])
-        .headers(token.headers().clone())
-        .send()
-        .await
-        .network_err()?;
-
-    if res.status() == StatusCode::FOUND {
-        let location = res
-            .headers()
-            .get(LOCATION)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if location.contains("simple.jsp") || location.contains("login") {
-            return Err(crate::Error::Other(CgError::TokenExpired));
-        }
-    } else {
-        return Err(format!("进入课程失败: HTTP {}", res.status())).unexpected_err();
-    }
-
-    // 获取作业列表
-    let res = client
-        .get(format!("{}/assignment/mainActiveAssigns.jsp", BASE_URL))
-        .headers(token.headers().clone())
-        .send()
-        .await
-        .network_err()?;
-
-    let body = res.text().await.network_err()?;
-    parse_assignments(&body)
+    fetch::enter_course_context(token, course_id).await?;
+    let body = fetch::assignment_list_page(token).await?;
+    parse::parse_assignments(&body)
 }
 
-// ========== 解析函数 ==========
-
-/// 从多课程列表页 (`courselist.jsp`) 解析课程
-fn parse_courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
-    let document = Html::parse_document(html);
-    let sel = Selector::parse("a[href*=\"courselist.jsp?courseID=\"]")
-        .expect("courselist.jsp 课程链接 CSS 选择器");
-
-    let courses: Vec<CgCourse> = document
-        .select(&sel)
-        .filter_map(|el| {
-            let href = el.value().attr("href")?;
-            let id: u32 = href
-                .split("courselist.jsp?courseID=")
-                .nth(1)?
-                .parse()
-                .ok()?;
-            let name = el.text().collect::<Vec<_>>().concat().trim().to_string();
-            if name.is_empty() {
-                return None;
-            }
-            Some(CgCourse {
-                course_id: id,
-                course_name: name,
-            })
-        })
-        .collect();
-
-    if courses.is_empty() {
-        return Err(crate::Error::Other(CgError::CourseNotFound));
-    }
-    Ok(dedup_by_id(courses))
+/// 获取作业的题目列表
+///
+/// 进入课程上下文后，解析 `assignment/index.jsp?assignID=xx` 页面
+/// 提取题目元数据。
+///
+/// # Errors
+///
+/// - [CgError::TokenExpired] — 登录已过期
+/// - [CgError::AssignmentNotFound] — 未找到题目
+pub async fn get_problem_list(
+    token: &CgToken,
+    course_id: u32,
+    assign_id: u32,
+) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
+    fetch::enter_course_context(token, course_id).await?;
+    let body = fetch::problem_list_page(token, assign_id).await?;
+    parse::parse_problems(&body)
 }
 
-/// 从 `main.jsp` 的课程下拉菜单中解析课程
-async fn parse_courses_from_main(token: &CgToken) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
-    let res = client
-        .get(format!("{}/main.jsp", BASE_URL))
-        .headers(token.headers().clone())
-        .send()
-        .await
-        .network_err()?;
-
-    let body = res.text().await.network_err()?;
-    let document = Html::parse_document(&body);
-    let sel =
-        Selector::parse("span.dropdown-item-course").expect("main.jsp 课程下拉菜单 CSS 选择器");
-
-    let courses: Vec<CgCourse> = document
-        .select(&sel)
-        .filter_map(|el| {
-            let id: u32 = el.value().attr("value")?.parse().ok()?;
-            let name = el.text().collect::<Vec<_>>().concat().trim().to_string();
-            if name.is_empty() {
-                return None;
-            }
-            Some(CgCourse {
-                course_id: id,
-                course_name: name,
-            })
-        })
-        .collect();
-
-    if courses.is_empty() {
-        return Err(crate::Error::Other(CgError::CourseNotFound));
-    }
-    Ok(dedup_by_id(courses))
-}
-
-/// 从 `assignment/mainActiveAssigns.jsp` 的返回 HTML 中解析作业列表
-fn parse_assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
-    let document = Html::parse_document(html);
-    let block_sel = Selector::parse("div.main-zy").expect("作业列表块 CSS 选择器");
-    let title_sel = Selector::parse("p.main-title").expect("作业标题 CSS 选择器");
-    let link_sel = Selector::parse("a[href*=\"assignID=\"]").expect("作业链接 CSS 选择器");
-
-    let assignments: Vec<CgAssignment> = document
-        .select(&block_sel)
-        .filter_map(|block| {
-            let name = block
-                .select(&title_sel)
-                .next()?
-                .text()
-                .collect::<Vec<_>>()
-                .concat()
-                .trim()
-                .to_string();
-            let href = block.select(&link_sel).next()?.value().attr("href")?;
-            let id: u32 = href.split("assignID=").nth(1)?.parse().ok()?;
-            if name.is_empty() {
-                return None;
-            }
-            Some(CgAssignment {
-                assign_id: id,
-                assign_name: name,
-            })
-        })
-        .collect();
-
-    Ok(assignments)
-}
-
-/// 按 course_id 去重，保留首次出现的记录
-fn dedup_by_id(courses: Vec<CgCourse>) -> Vec<CgCourse> {
-    let mut seen = std::collections::HashSet::new();
-    courses
-        .into_iter()
-        .filter(|c| seen.insert(c.course_id))
-        .collect()
+/// 获取题目详情页的原始 HTML
+///
+/// 进入课程上下文后，访问 `assignment/programList.jsp`，
+/// 跟随 302 重定向到 `programList_ce.jsp`，返回完整 HTML。
+/// 调用者自行解析题目描述、提交表单等处理。
+///
+/// # Errors
+///
+/// - [CgError::TokenExpired] — 登录已过期
+pub async fn get_problem_page(
+    token: &CgToken,
+    course_id: u32,
+    assign_id: u32,
+    pro_num: u32,
+) -> Result<String, crate::Error<CgError>> {
+    fetch::enter_course_context(token, course_id).await?;
+    fetch::problem_page(token, assign_id, pro_num).await
 }
 
 #[cfg(test)]
@@ -263,6 +174,51 @@ mod tests {
                 println!("  [{}] {}", a.assign_id, a.assign_name);
             }
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_problem_list() -> TestResult<()> {
+        let token = get_cg_token().await?;
+        let courses = get_course_list(&token).await?;
+        let course = courses.first().expect("至少有一个课程");
+        let assignments = get_assignment_list(&token, course.course_id).await?;
+        let assign = assignments.first().expect("至少有一个作业");
+
+        println!("作业: [{}] {}", assign.assign_id, assign.assign_name);
+        let problems = get_problem_list(&token, course.course_id, assign.assign_id).await?;
+        println!("共 {} 道题:", problems.len());
+        for p in &problems {
+            println!(
+                "  #{:3}  pid={:5}  score={:8.2}  {}",
+                p.pro_num, p.problem_id, p.score, p.title
+            );
+        }
+        assert!(!problems.is_empty(), "题目列表不应为空");
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_problem_page() -> TestResult<()> {
+        let token = get_cg_token().await?;
+        let courses = get_course_list(&token).await?;
+        let course = courses.first().expect("至少有一个课程");
+        let assignments = get_assignment_list(&token, course.course_id).await?;
+        let assign = assignments.first().expect("至少有一个作业");
+        let problems = get_problem_list(&token, course.course_id, assign.assign_id).await?;
+        let problem = problems.first().expect("至少有一道题");
+
+        println!("获取题目页面: #{}/{}", problem.pro_num, problem.problem_id);
+        let html =
+            get_problem_page(&token, course.course_id, assign.assign_id, problem.pro_num).await?;
+        println!("页面大小: {} bytes", html.len());
+        assert!(!html.is_empty(), "题目页面不应为空");
+        assert!(
+            html.contains("cgProblemContentClass") || html.contains("problemID"),
+            "页面应包含题目内容"
+        );
         Ok(())
     }
 }
