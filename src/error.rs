@@ -11,7 +11,8 @@ pub enum Error<E: StdError> {
     /// 如果同类问题出现可靠的复现方式，请向开发者反馈问题。
     ///
     /// 目前抛出该错误的地方：
-    /// - [CheckStatusCodeErr::status_code_err] 失败
+    /// - [reqwest::Response::status] 返回的代码为 4xx 或是 5xx
+    ///   （等价于 [reqwest::Response::error_for_status] 失败）
     /// - [reqwest::Response::text] 失败
     /// - 在非解析数据部分，期望应该解析到一些数据但是没有解析到，
     ///   比如没有在响应头的 Location 找到 `ticket_url`，
