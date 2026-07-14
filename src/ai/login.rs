@@ -74,7 +74,7 @@ impl AiToken {
     /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [cas::error::TokenExpired] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(skip(cas_token), fields(subsystem = "ai"), err)
+        tracing::instrument(skip(cas_token), fields(subsystem = "ai", redirect_count = tracing::field::Empty), err)
     )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
@@ -88,13 +88,15 @@ impl AiToken {
         // ticket 也不知道该回到哪里去（没有 OAuth2 authorize endpoint 来接收并签发 code）。
         // 所以这里必须从 INITIAL_AUTH_URL 开始，沿着服务器返回的 Location 自动跟到底。
         for _attempt in 0..10 {
-            let _s = obs::debug_span!("oauth_redirect", attempt = _attempt, url = %current_url);
+            obs::debug!(attempt = _attempt, %current_url, %cas_authenticated, "oauth_redirect");
             let res = client
                 .get(&current_url)
                 .header(COOKIE, &all_cookies)
                 .send()
                 .await
-                .network_err()?;
+                .network_err()?
+                .error_for_status()
+                .unexpected_err()?;
 
             let status = res.status();
 
@@ -114,8 +116,11 @@ impl AiToken {
                     .unexpected_err()?
                     .to_str()
                     .unexpected_err()?;
+                obs::debug!(location = %location, "resolved_location");
                 current_url = resolve_location(&current_url, location).unexpected_err()?;
             } else if current_url.contains("maas.nscc-cs.cn") {
+                obs::debug!("reached_maas_callback");
+                obs::record!(redirect_count = _attempt);
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
                 // OAuth2 authorize 链路中遇到了 CAS 登录页（HTTP 200），说明 deepseek.hnu
@@ -127,11 +132,13 @@ impl AiToken {
                 // 会覆盖掉 cas_token 中已认证的 TGT cookie，导致 get_ticket_url 拿到的
                 // 不是已登录用户的 ticket，进而返回 TokenExpired。所以必须用原始的
                 // cas_token cookie 来做这一步。
-                obs::info!("cas_authenticated");
+                obs::debug!("cas_authentication_required");
                 let ticket_url = cas_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(status = %status, %current_url, body = %body, "unexpected_status");
                 Err(format!(
                     "未预期的HTTP状态码 {}，URL: {}",
                     status, current_url
@@ -149,10 +156,10 @@ impl AiToken {
         }
 
         // Phase 2: 从 callback URL 提取 code，POST 到 oauth-login 换 token
-        let _s = obs::debug_span!("exchange_oauth_token");
         let code = extract_code(&current_url)
             .ok_or_else(|| format!("无法从URL提取code: {}", current_url))
             .unexpected_err()?;
+        obs::debug!(code = %code, "extracted_code");
 
         let oauth_res = client
             .post(OAUTH_LOGIN_URL)
@@ -184,8 +191,6 @@ impl AiToken {
                 .unexpected_err()?,
         );
         headers.insert(COOKIE, all_cookies.parse().unexpected_err()?);
-        drop(_s);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
 

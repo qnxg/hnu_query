@@ -35,7 +35,6 @@ impl CaToken {
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(CA_URL).await?;
-        let _s = obs::debug_span!("fetch_ticket");
         client
             .get(&ticket_url)
             .send()
@@ -43,13 +42,11 @@ impl CaToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        drop(_s);
         let ticket = ticket_url
             .split("ticket=")
             .nth(1)
             .ok_or("ticket not found in ticket_url")
             .unexpected_err()?;
-        let _s = obs::debug_span!("validate_login");
         let json_str =
         client.get(format!("https://ca.hnu.edu.cn/student/cas/client/validateLogin?ticket={ticket}%23%2F&service=https:%2F%2Fca.hnu.edu.cn%2Fstudent%2F"))
         .send().await
@@ -58,7 +55,6 @@ impl CaToken {
         .unexpected_err()?
         .text().await
         .unexpected_err()?;
-        drop(_s);
 
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
 
@@ -72,7 +68,6 @@ impl CaToken {
         let mut headers = HeaderMap::new();
         headers.insert("X-Access-Token", token.parse().parse_err(token)?);
         headers.insert("Cookie", cookie.parse().parse_err(&cookie)?);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [CaToken]

@@ -36,7 +36,6 @@ impl NetflowToken {
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, cookies) = cas_token.get_sticket(NETFLOW_URL).await?;
-        let _s = obs::debug_span!("validate_login");
         let res = client
             .get("http://ll.hnu.edu.cn/login/validate")
             .header(COOKIE, &cookies)
@@ -69,8 +68,6 @@ impl NetflowToken {
             .unexpected_err()?;
         let cookies = format!("{first}; {last}");
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
-        drop(_s);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [NetflowToken]

@@ -46,14 +46,15 @@ impl PtToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("登录个人门户失败，HTTP 状态码: {}", res.status()))
-                .unexpected_err();
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "unexpected_status");
+            return Err(format!("登录个人门户失败，HTTP 状态码: {}", status)).unexpected_err();
         }
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [PtToken]

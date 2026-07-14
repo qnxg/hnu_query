@@ -103,7 +103,6 @@ impl CasToken {
         stu_id: &str,
         password: &str,
     ) -> Result<Self, crate::Error<AccountIssue>> {
-        let _s = obs::debug_span!("fetch_login_page");
         let res = client
             .get(SERVICE_URL)
             .send()
@@ -111,7 +110,10 @@ impl CasToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        if res.status() != StatusCode::OK {
+        let status = res.status();
+        if status != StatusCode::OK {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "unexpected_status");
             return Err("响应的状态码异常，应为OK").unexpected_err();
         }
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
@@ -135,9 +137,7 @@ impl CasToken {
             .and_then(|cap| cap.get(1))
             .map_or("", |m| m.as_str())
             .to_string();
-        drop(_s);
         // 通过pubkey接口获取modulus和exponent
-        let _s = obs::debug_span!("fetch_pubkey");
         let pubkey_res = client
             .get(PUBKEY_URL)
             .header(COOKIE, &cookies.join("; "))
@@ -162,9 +162,7 @@ impl CasToken {
         let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus)
             .ok_or("RSA encryption failed")
             .unexpected_err()?;
-        drop(_s);
         // Post登录表单
-        let _s = obs::debug_span!("submit_credentials");
         let login = client
             .post(SERVICE_URL)
             // .header(CONTENT_TYPE, "application/x-www-form-urlencoded")   //
@@ -181,7 +179,6 @@ impl CasToken {
             .await
             .network_err()?;
         if login.status() == StatusCode::FORBIDDEN {
-            obs::warning!("account_locked");
             return Err(crate::Error::Other(AccountIssue::AccountLocked));
         }
         // login_params里面的pv0在后面的请求也会有用(netflow)
@@ -195,11 +192,10 @@ impl CasToken {
         let location = login.headers().get(LOCATION).cloned();
         let login_result = login.text().await.unexpected_err()?;
         if login_result.contains("用户名或密码错误") {
-            obs::warning!("password_error");
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
         if login_result.contains("双因子认证") {
-            obs::info!("tfa_required");
+            obs::debug!("tfa_required");
             let tfa_token = TFAToken::new(&login_result, &cookies.join("; "), stu_id, password)?;
             return Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token)));
         }
@@ -209,12 +205,11 @@ impl CasToken {
             .to_str()
             .unexpected_err()?
             .to_string();
+        obs::debug!(location = %location, "final_location");
         const PASSWORD_SHOULD_CHANGE_PAT: &str = "cas.hnu.edu.cn/securitycenter/modifyPwd/index.zf";
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
-            obs::info!("password_should_change");
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
         }
-        obs::info!("login_success");
         Ok(Self {
             cookie: cookies.join("; "),
             stu_id: stu_id.to_string(),
@@ -236,31 +231,32 @@ impl CasToken {
     /// # Errors
     ///
     /// 可能由于当前 [CasToken] 过期，此时会返回 [TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id), err)
+    )]
     pub(crate) async fn get_ticket_url(
         &self,
         service_url: &str,
     ) -> Result<String, crate::Error<TokenExpired>> {
-        let _s = obs::debug_span!("cas_get_ticket_url", service_url = service_url);
-        let Ok(res) = client
+        let res = client
             .get(service_url)
             .header(COOKIE, &self.cookie)
             .send()
             .await
-            .network_err()?
-            // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
-            // 后续可能还要再验证一下有没有必要这么保守
-            .error_for_status()
-        else {
-            obs::warning!(reason = "error_status", "token_expired");
-            return Err(crate::Error::Other(TokenExpired));
-        };
-        if res.status() == StatusCode::OK {
-            obs::warning!(reason = "status_ok", "token_expired");
+            .network_err()?;
+        let status = res.status();
+        // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
+        // 后续可能还要再验证一下有没有必要这么保守
+        if status.is_client_error() || status.is_server_error() || status == StatusCode::OK {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "token_expired");
             return Err(crate::Error::Other(TokenExpired));
         }
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("获取ticket_url时失败，HTTP代码 {}", res.status()))
-                .unexpected_err();
+        if status != StatusCode::FOUND {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "unexpected_status");
+            return Err(format!("获取ticket_url时失败，HTTP代码 {}", status)).unexpected_err();
         }
         let ticket_url = res
             .headers()
@@ -290,6 +286,10 @@ impl CasToken {
     ///
     /// 后来发现体测系统也需要这么做了，于是就把这个逻辑抽取出来放在这里了，所以这个
     /// 函数本身的实际意义并不明显
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id, redirect_count = tracing::field::Empty), err)
+    )]
     pub(crate) async fn get_sticket(
         &self,
         service_url: &str,
@@ -304,8 +304,7 @@ impl CasToken {
         //
         // 这里的重定向次数似乎是因人而异的，原因不明
         for _attempt in 0..6 {
-            let _s =
-                obs::debug_span!("cas_get_sticket_redirect", attempt = _attempt, url = %now_url);
+            obs::debug!(attempt = %_attempt, url = %now_url, "redirect");
             if now_url.starts_with("https://cas.hnu.edu.cn/sprcialapp/zf_form/index.zf") {
                 s_ticket = Some(
                     now_url
@@ -315,6 +314,8 @@ impl CasToken {
                         .ok_or("malformed s_ticket parameter")
                         .unexpected_err()?,
                 );
+                obs::debug!("s_ticket_found");
+                obs::record!(redirect_count = _attempt);
                 break;
             }
             let res = client
@@ -325,15 +326,18 @@ impl CasToken {
                 .network_err()?
                 .error_for_status()
                 .unexpected_err()?;
-            if res.status() == StatusCode::OK {
-                obs::warning!(reason = "status_ok", "token_expired");
+            let status = res.status();
+            if status == StatusCode::OK {
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(body = %body, "token_expired_by_status_ok");
                 return Err(crate::Error::Other(TokenExpired));
             }
-            if res.status() != StatusCode::FOUND {
+            if status != StatusCode::FOUND {
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(status = %status, body = %body, "unexpected_status");
                 return Err(format!(
                     "获取s_ticket时失败，HTTP代码: {}, url: {}",
-                    res.status(),
-                    now_url
+                    status, now_url
                 ))
                 .unexpected_err();
             }

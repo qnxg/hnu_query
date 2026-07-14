@@ -83,8 +83,28 @@ macro_rules! instrument {
     }};
 }
 
+/// 向当前 span 回填字段。
+///
+/// 字段必须在创建该 span 时用 `Empty`（或已有初值）声明过，否则该操作会被忽略。
+/// feature 关闭时为 no-op。
+///
+/// ```ignore
+/// obs::record!(outcome = "success", count = result.len());
+/// ```
+macro_rules! record {
+    ($($key:ident = $val:expr),+ $(,)?) => {
+        #[cfg(feature = "tracing")]
+        {
+            let __span = ::tracing::Span::current();
+            $(
+                __span.record(stringify!($key), $val);
+            )+
+        }
+    };
+}
+
 pub(crate) use {
-    debug, debug_span, error, info, info_span, instrument, trace, warn_evt as warning,
+    debug, debug_span, error, info, info_span, instrument, record, trace, warn_evt as warning,
 };
 
 /// feature 关闭时 span 宏返回的占位 guard。

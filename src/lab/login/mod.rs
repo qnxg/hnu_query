@@ -63,7 +63,7 @@ impl LabToken {
     /// 可能由于用户的账号问题或是验证码识别失败导致登录失败，此时会返回 [LoginIssue] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab"), err)
+        tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab", tried = tracing::field::Empty), err)
     )]
     pub async fn acquire_by_login(
         stu_id: &str,
@@ -77,7 +77,7 @@ impl LabToken {
         let mut all_cookies = String::new();
         let mut loop_result = None;
         while tried < max_tried {
-            let _s = obs::debug_span!("lab_login", attempt = tried, stu_id = stu_id);
+            obs::debug!(attempt = tried, "lab_login");
             let res = client
                 .post(LOGIN_URL)
                 .form(&[
@@ -102,7 +102,7 @@ impl LabToken {
             };
             if code == -2 {
                 // 需要验证码
-                obs::info!(attempt = tried, "captcha_required");
+                obs::debug!("captcha_required");
                 let res = client
                     .get(CAPTCHA_URL)
                     .header("Cookie", &all_cookies)
@@ -112,7 +112,6 @@ impl LabToken {
                     .error_for_status()
                     .unexpected_err()?;
                 let img_bytes = res.bytes().await.unexpected_err()?;
-                let _s = obs::debug_span!("resolve_captcha", stu_id = stu_id);
                 checkcode = captcha_resolver
                     .resolve(img_bytes.as_ref())
                     .await
@@ -120,31 +119,29 @@ impl LabToken {
                 tried += 1;
             } else {
                 loop_result = Some((code, data, all_cookies));
+                obs::debug!("authentication_success");
+                obs::record!(tried = tried);
                 break;
             }
         }
         let Some((code, data, cookies)) = loop_result else {
-            obs::warning!("captcha_attempts_exhausted");
             return Err(crate::Error::Other(LoginIssue::CaptchaError));
         };
         match code {
             1 => {
                 if cookies.is_empty() {
+                    obs::error!(code = %code, data = ?data, "empty_cookie");
                     Err("Cookie 为空").unexpected_err()
                 } else {
                     let mut headers = HeaderMap::new();
                     headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
-                    obs::info!("login_success");
                     Ok(Self {
                         headers,
                         stu_id: stu_id.to_string(),
                     })
                 }
             }
-            -1 => {
-                obs::warning!("password_error");
-                Err(crate::Error::Other(LoginIssue::PasswordError))
-            }
+            -1 => Err(crate::Error::Other(LoginIssue::PasswordError)),
             _ => {
                 let msg = data.get("Data").and_then(|v| v.as_str().map(String::from));
                 Err(crate::Error::Other(LoginIssue::OtherError(msg)))

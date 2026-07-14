@@ -37,6 +37,7 @@ impl XgxtToken {
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(XGXT_URL).await?;
+        obs::debug!(ticket_url = %ticket_url, "original_ticket_url");
         // cas 下发的 ticket_url 是 http 的，但是学工系统要用 https
         let res = client
             .get(ticket_url.replace("http://", "https://"))
@@ -45,16 +46,20 @@ impl XgxtToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("获取学工系统失败，HTTP代码 {}", res.status())).unexpected_err();
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "unexpected_status");
+            return Err(format!("获取学工系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let cookies: String = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         if cookies.is_empty() {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(body = %body, "empty_cookie");
             return Err("获取学工系统失败，接收到空的 cookie").unexpected_err();
         }
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [XgxtToken]

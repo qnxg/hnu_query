@@ -41,7 +41,6 @@ impl GymToken {
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let (s_ticket, _) = cas_token.get_sticket(GYM_URL_FROM_CAS).await?;
         // 发送请求
-        let _s = obs::debug_span!("fetch_login_page");
         let _res = client
             .get("http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/view/login/loginPage.html")
             .query(&[("s_ticket", s_ticket.as_str()), ("login_id", cas_token.stu_id())])
@@ -50,8 +49,6 @@ impl GymToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        drop(_s);
-        let _s = obs::debug_span!("ticket_login");
         let res = client
             .post("http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/public/index.php/index/Login/ticketLogin")
             .form(&[("s_ticket", s_ticket.as_str()), ("login_id", cas_token.stu_id())])
@@ -60,7 +57,6 @@ impl GymToken {
             .network_err()?
             .error_for_status()
             .unexpected_err()?;
-        drop(_s);
         let cookie = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let json_str = res.text().await.unexpected_err()?;
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
@@ -69,7 +65,6 @@ impl GymToken {
         }
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookie.parse().parse_err(&cookie)?);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 直接通过账号密码登录体测系统
@@ -106,7 +101,6 @@ impl GymToken {
         }
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
-        obs::info!("login_success");
         Ok(Self { headers })
     }
     /// 从 [HeaderMap] 创建 [GymToken]
