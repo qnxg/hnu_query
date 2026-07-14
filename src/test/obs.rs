@@ -67,11 +67,16 @@ pub fn init_tracing() {
 pub fn init_tracing() {}
 
 /// 将 tracing-opentelemetry 桥接的 SpanData 序列化为 OTLP/JSON 格式写入文件，
-/// 方便接入一些 trace ui 工具进行可视化阅读
+/// 方便接入一些 trace ui 工具进行可视化阅读。
+///
+/// 导出时会合成一个根 span，并把本轮收集到的所有原先无父 span
+/// 挂到该根下、统一到同一个 `traceId`，避免一次测试里多个独立根 span
+/// 在 UI 中被拆成多条 trace。
 #[cfg(feature = "tracing")]
 mod otlp_exporter {
-    use opentelemetry::trace::{SpanKind, TraceError};
+    use opentelemetry::trace::{SpanId, SpanKind, TraceError};
     use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
+    use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
     use serde_json::json;
     use std::sync::{Arc, Mutex};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -111,6 +116,93 @@ mod otlp_exporter {
         }
     }
 
+    fn span_kind_code(kind: SpanKind) -> i32 {
+        match kind {
+            SpanKind::Internal => 1,
+            SpanKind::Server => 2,
+            SpanKind::Client => 3,
+            SpanKind::Producer => 4,
+            SpanKind::Consumer => 5,
+        }
+    }
+
+    /// 合成根 span，并将所有收集到的 span 统一到同一条 trace。
+    fn build_otlp_spans(acc: &[SpanData]) -> Vec<serde_json::Value> {
+        if acc.is_empty() {
+            return Vec::new();
+        }
+
+        let id_gen = RandomIdGenerator::default();
+        let root_trace_id = id_gen.new_trace_id().to_string();
+        let root_span_id = id_gen.new_span_id().to_string();
+        let start = acc.iter().map(|s| s.start_time).min().unwrap();
+        let end = acc.iter().map(|s| s.end_time).max().unwrap();
+
+        let mut spans = Vec::with_capacity(acc.len() + 1);
+        spans.push(json!({
+            "traceId": &root_trace_id,
+            "spanId": &root_span_id,
+            "name": "hnu_query_test",
+            "kind": 1,
+            "startTimeUnixNano": to_nanos(start).to_string(),
+            "endTimeUnixNano": to_nanos(end).to_string(),
+            "attributes": [
+                {"key": "synthetic", "value": {"boolValue": true}},
+            ],
+            "events": [],
+            "status": {"code": 0},
+        }));
+
+        for sd in acc {
+            // 原先的根 span 挂到合成根下；已有父子关系的保持 parentSpanId 不变
+            let parent_span_id = if sd.parent_span_id == SpanId::INVALID {
+                root_span_id.clone()
+            } else {
+                sd.parent_span_id.to_string()
+            };
+
+            let attrs: Vec<_> = sd
+                .attributes
+                .iter()
+                .map(|kv| json!({"key": kv.key.as_str(), "value": any_value(&kv.value)}))
+                .collect();
+
+            let events: Vec<_> = sd
+                .events
+                .iter()
+                .map(|ev| {
+                    let ev_attrs: Vec<_> = ev
+                        .attributes
+                        .iter()
+                        .map(|kv| {
+                            json!({"key": kv.key.as_str(), "value": any_value(&kv.value)})
+                        })
+                        .collect();
+                    json!({
+                        "timeUnixNano": to_nanos(ev.timestamp).to_string(),
+                        "name": ev.name,
+                        "attributes": ev_attrs,
+                    })
+                })
+                .collect();
+
+            spans.push(json!({
+                "traceId": &root_trace_id,
+                "spanId": sd.span_context.span_id().to_string(),
+                "parentSpanId": parent_span_id,
+                "name": sd.name.as_ref(),
+                "kind": span_kind_code(sd.span_kind.clone()),
+                "startTimeUnixNano": to_nanos(sd.start_time).to_string(),
+                "endTimeUnixNano": to_nanos(sd.end_time).to_string(),
+                "attributes": attrs,
+                "events": events,
+                "status": {"code": 0},
+            }));
+        }
+
+        spans
+    }
+
     impl SpanExporter for OtlpJsonFileExporter {
         fn export(
             &mut self,
@@ -124,71 +216,9 @@ mod otlp_exporter {
                     acc.extend(batch);
                 }
                 // 重写整个文件为单个完整 JSON
-                let accumulated2 = accumulated.clone();
-                let path2 = path.clone();
                 let json_str = {
-                    let acc = accumulated2.lock().expect("failed to lock accumulated");
-                    let spans: Vec<_> = acc
-                        .iter()
-                        .map(|sd| {
-                            let parent = if sd.parent_span_id
-                                == opentelemetry::trace::SpanId::INVALID
-                            {
-                                serde_json::Value::Null
-                            } else {
-                                json!(sd.parent_span_id.to_string())
-                            };
-                            let kind = match sd.span_kind {
-                                SpanKind::Internal => 1,
-                                SpanKind::Server => 2,
-                                SpanKind::Client => 3,
-                                SpanKind::Producer => 4,
-                                SpanKind::Consumer => 5,
-                            };
-                            let attrs: Vec<_> = sd
-                                .attributes
-                                .iter()
-                                .map(|kv| {
-                                    json!({"key": kv.key.as_str(), "value": any_value(&kv.value)})
-                                })
-                                .collect();
-
-                            let events: Vec<_> = sd
-                                .events
-                                .iter()
-                                .map(|ev| {
-                                    let ev_attrs: Vec<_> = ev
-                                        .attributes
-                                        .iter()
-                                        .map(|kv| {
-                                            json!({"key": kv.key.as_str(), "value": any_value(&kv.value)})
-                                        })
-                                        .collect();
-                                    json!({
-                                        "timeUnixNano": to_nanos(ev.timestamp).to_string(),
-                                        "name": ev.name,
-                                        "attributes": ev_attrs,
-                                    })
-                                })
-                                .collect();
-
-                            let mut span = json!({
-                                "traceId": sd.span_context.trace_id().to_string(),
-                                "spanId": sd.span_context.span_id().to_string(),
-                                "name": sd.name,
-                                "kind": kind,
-                                "startTimeUnixNano": to_nanos(sd.start_time).to_string(),
-                                "endTimeUnixNano": to_nanos(sd.end_time).to_string(),
-                                "attributes": attrs,
-                                "events": events,
-                                "status": {"code": 0},
-                            });
-                            if !parent.is_null() {
-                                span["parentSpanId"] = parent;
-                            }
-                            span
-                        })
-                        .collect();
+                    let acc = accumulated.lock().expect("failed to lock accumulated");
+                    let spans = build_otlp_spans(&acc);
 
                     let request = json!({
                         "resourceSpans": [{
@@ -206,7 +236,6 @@ mod otlp_exporter {
 
                     serde_json::to_string_pretty(&request).unwrap_or_default()
                 };
-                let _ = path2; // path used via closure capture
                 std::fs::write(path.as_str(), json_str)
                     .map_err(|e| TraceError::Other(Box::new(e)))?;
                 Ok(())
