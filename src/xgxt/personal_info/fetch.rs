@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
     xgxt::login::XgxtToken,
 };
@@ -25,8 +25,8 @@ async fn get_with_url(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

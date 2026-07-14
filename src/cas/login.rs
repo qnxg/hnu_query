@@ -1,6 +1,6 @@
 use crate::{
     cas::{error::TokenExpired, tfa::TFAToken, utils},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, obs, request::cookie_parser},
 };
 use regex::Regex;
@@ -108,8 +108,8 @@ impl CasToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let status = res.status();
         if status != StatusCode::OK {
             let _body = res.text().await.unwrap_or_default();
@@ -144,8 +144,8 @@ impl CasToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 获取pubkey的cookies
         cookies.extend(cookie_parser(pubkey_res.headers().get_all(SET_COOKIE)));
         let pubkey_str = pubkey_res.text().await.unexpected_err()?;
@@ -324,8 +324,8 @@ impl CasToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?;
+                .status_code_err()
+                .await?;
             let status = res.status();
             if status == StatusCode::OK {
                 let _body = res.text().await.unwrap_or_default();

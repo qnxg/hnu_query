@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
@@ -95,8 +95,8 @@ impl AiToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?;
+                .status_code_err()
+                .await?;
 
             let status = res.status();
 

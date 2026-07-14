@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
@@ -48,8 +48,8 @@ impl NetflowToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 获取cookies
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
         // 保留Token，有三个.ASPXAUTH，

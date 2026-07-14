@@ -2,7 +2,7 @@ mod captcha;
 mod utils;
 
 use crate::{
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, obs, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
@@ -89,8 +89,8 @@ impl LabToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?;
+                .status_code_err()
+                .await?;
             let cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
             if !cookies.is_empty() {
                 all_cookies.push_str(&format!("; {}", cookies.join("; ")));
@@ -109,8 +109,8 @@ impl LabToken {
                     .send()
                     .await
                     .network_err()?
-                    .error_for_status()
-                    .unexpected_err()?;
+                    .status_code_err()
+                    .await?;
                 let img_bytes = res.bytes().await.unexpected_err()?;
                 checkcode = captcha_resolver
                     .resolve(img_bytes.as_ref())

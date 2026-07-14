@@ -1,6 +1,6 @@
 use crate::{
     cas::login::{AccountIssue, CasToken},
-    error::{MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
     utils::{client, obs, request::cookie_parser},
 };
 use regex::RegexBuilder;
@@ -101,8 +101,8 @@ impl TFAToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?
+            .status_code_err()
+            .await?
             .text()
             .await
             .unexpected_err()?;
@@ -153,8 +153,8 @@ impl TFAToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         if res.status() == StatusCode::FOUND {
             // 说明通过了双因子认证，此时这个请求会下发带双因子认证的 cookie
             // 我们和之前的 cookie 合并，就构造出新的 CasToken 了

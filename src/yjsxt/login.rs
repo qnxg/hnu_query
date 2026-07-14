@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
     utils::{client, obs},
 };
 use reqwest::{StatusCode, header::LOCATION};
@@ -42,8 +42,8 @@ impl YjsxtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let status = res.status();
         if status != StatusCode::FOUND {
             let _body = res.text().await.unwrap_or_default();
@@ -71,8 +71,8 @@ impl YjsxtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 若是使用本科生账号登录研究生系统时，会被重定向到类似地址
         // http://yjsxt.hnu.edu.cn/gmis/(S(1031xasdwyr03t2evudmrbbel))/oauthLogin/hndxn....
         // 按前面的逻辑依然可以截取出/gmis/后面的 id，但是实际上会跳转报错页面

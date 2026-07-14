@@ -1,6 +1,6 @@
 use crate::{
     ca::login::CaToken,
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
 use bytes::Bytes;
@@ -21,8 +21,8 @@ pub async fn preview_file(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -42,8 +42,8 @@ pub async fn file(ca_token: &CaToken, file_name: &str) -> Result<Bytes, crate::E
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .bytes()
         .await
         .unexpected_err()

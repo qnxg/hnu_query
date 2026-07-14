@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
@@ -46,8 +46,8 @@ impl HdjwToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?
+                .status_code_err()
+                .await?
                 .headers()
                 .get_all(SET_COOKIE),
         )
@@ -61,8 +61,8 @@ impl HdjwToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 上面的请求会重定向到 HDJW_ENTER_URL，我们再访问一下。
         let res = client
             .get(HDJW_ENTER_URL)
@@ -70,8 +70,8 @@ impl HdjwToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 随后又会被重定向到一个新的链接，再请求一下就会得到 hdjw 鉴权的 cookie
         let status = res.status();
         if status != StatusCode::FOUND {
@@ -93,8 +93,8 @@ impl HdjwToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?
+                .status_code_err()
+                .await?
                 .headers()
                 .get_all(SET_COOKIE),
         )

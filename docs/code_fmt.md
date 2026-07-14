@@ -94,9 +94,9 @@
         .await
         // send 出错是 NetworkError
         .network_err()?
-        .error_for_status()
-        // 响应的状态码不对是 UnexpectedError
-        .unexpected_err()?
+        // 使用 status_code_err 来检查状态码是否为 4xx 或是 5xx
+        .status_code_err()
+        .await?
         .text()
         .await
         // 没有拿到响应的文本数据也是 Unexpected Error

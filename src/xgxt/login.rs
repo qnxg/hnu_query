@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
@@ -44,8 +44,8 @@ impl XgxtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let status = res.status();
         if status != StatusCode::FOUND {
             let _body = res.text().await.unwrap_or_default();

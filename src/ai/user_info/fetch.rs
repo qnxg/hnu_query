@@ -1,6 +1,6 @@
 use crate::{
     ai::login::AiToken,
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
 use std::convert::Infallible;
@@ -15,8 +15,8 @@ pub async fn user_info_data(token: &AiToken) -> Result<String, crate::Error<Infa
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

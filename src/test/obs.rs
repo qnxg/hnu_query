@@ -150,8 +150,16 @@ mod otlp_exporter {
         let id_gen = RandomIdGenerator::default();
         let root_trace_id = id_gen.new_trace_id().to_string();
         let root_span_id = id_gen.new_span_id().to_string();
-        let start = acc.iter().map(|s| s.start_time).min().unwrap();
-        let end = acc.iter().map(|s| s.end_time).max().unwrap();
+        let start = acc
+            .iter()
+            .map(|s| s.start_time)
+            .min()
+            .expect("failed to get start time");
+        let end = acc
+            .iter()
+            .map(|s| s.end_time)
+            .max()
+            .expect("failed to get end time");
 
         let mut spans = Vec::with_capacity(acc.len() + 1);
         spans.push(json!({
@@ -189,9 +197,7 @@ mod otlp_exporter {
                     let ev_attrs: Vec<_> = ev
                         .attributes
                         .iter()
-                        .map(|kv| {
-                            json!({"key": kv.key.as_str(), "value": any_value(&kv.value)})
-                        })
+                        .map(|kv| json!({"key": kv.key.as_str(), "value": any_value(&kv.value)}))
                         .collect();
                     json!({
                         "timeUnixNano": to_nanos(ev.timestamp).to_string(),
