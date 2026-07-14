@@ -112,8 +112,7 @@ impl CasToken {
             .await?;
         let status = res.status();
         if status != StatusCode::OK {
-            let _body = res.text().await.unwrap_or_default();
-            obs::error!(status = %status, body = %_body, "unexpected_status");
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
             return Err("响应的状态码异常，应为OK").unexpected_err();
         }
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
@@ -249,13 +248,11 @@ impl CasToken {
         // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
         // 后续可能还要再验证一下有没有必要这么保守
         if status.is_client_error() || status.is_server_error() || status == StatusCode::OK {
-            let _body = res.text().await.unwrap_or_default();
-            obs::error!(status = %status, body = %_body, "token_expired");
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "token_expired");
             return Err(crate::Error::Other(TokenExpired));
         }
         if status != StatusCode::FOUND {
-            let _body = res.text().await.unwrap_or_default();
-            obs::error!(status = %status, body = %_body, "unexpected_status");
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
             return Err(format!("获取ticket_url时失败，HTTP代码 {}", status)).unexpected_err();
         }
         let ticket_url = res
@@ -328,13 +325,11 @@ impl CasToken {
                 .await?;
             let status = res.status();
             if status == StatusCode::OK {
-                let _body = res.text().await.unwrap_or_default();
-                obs::error!(body = %_body, "token_expired_by_status_ok");
+                obs::error!(body = %res.text().await.unwrap_or_default(), "token_expired_by_status_ok");
                 return Err(crate::Error::Other(TokenExpired));
             }
             if status != StatusCode::FOUND {
-                let _body = res.text().await.unwrap_or_default();
-                obs::error!(status = %status, body = %_body, "unexpected_status");
+                obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
                 return Err(format!(
                     "获取s_ticket时失败，HTTP代码: {}, url: {}",
                     status, now_url

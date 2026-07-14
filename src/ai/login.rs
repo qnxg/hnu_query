@@ -137,8 +137,7 @@ impl AiToken {
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
-                let _body = res.text().await.unwrap_or_default();
-                obs::error!(status = %status, %current_url, body = %_body, "unexpected_status");
+                obs::error!(status = %status, %current_url, body = %res.text().await.unwrap_or_default(), "unexpected_status");
                 Err(format!(
                     "未预期的HTTP状态码 {}，URL: {}",
                     status, current_url

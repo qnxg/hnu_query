@@ -48,8 +48,7 @@ impl PtToken {
             .await?;
         let status = res.status();
         if status != StatusCode::FOUND {
-            let _body = res.text().await.unwrap_or_default();
-            obs::error!(status = %status, body = %_body, "unexpected_status");
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
             return Err(format!("登录个人门户失败，HTTP 状态码: {}", status)).unexpected_err();
         }
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
