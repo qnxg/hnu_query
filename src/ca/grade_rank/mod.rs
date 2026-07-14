@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::{ca::login::CaToken, utils::obs};
+use crate::{
+    ca::login::CaToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -60,22 +63,13 @@ pub struct Rank {
 /// # Returns
 ///
 /// 可信电子凭证中的成绩排名信息
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(ca_token), fields(subsystem = "ca"), err)
-)]
+#[traced(subsystem = "ca", skip(ca_token))]
 pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Infallible>> {
-    let file_name = {
-        let _s = obs::debug_span!("preview_file");
-        let raw = fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
-        parse::preview_file_name(&raw)?
-    };
-    let pdf_bytes = {
-        let _s = obs::debug_span!("download_pdf", file_name = %file_name);
-        fetch::file(ca_token, &file_name).await?
-    };
-    let _s = obs::debug_span!("parse_rank");
-    parse::rank(pdf_bytes)
+    let json_str =
+        fetch_time!(fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await)?;
+    let file_name = parse_time!(parse::preview_file_name(&json_str))?;
+    let pdf_bytes = fetch_time!(fetch::file(ca_token, &file_name).await)?;
+    parse_time!(parse::rank(pdf_bytes))
 }
 
 #[cfg(test)]

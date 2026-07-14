@@ -460,6 +460,7 @@ dependencies = [
  "dotenvy",
  "ecb",
  "futures-util",
+ "hnu_query_macros",
  "http",
  "md5",
  "num-bigint",
@@ -477,6 +478,15 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "urlencoding",
+]
+
+[[package]]
+name = "hnu_query_macros"
+version = "3.0.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

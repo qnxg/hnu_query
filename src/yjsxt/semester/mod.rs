@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::yjsxt::{error::TokenExpired, login::YjsxtToken};
+use crate::{
+    utils::obs::{fetch_time, parse_time, traced},
+    yjsxt::{error::TokenExpired, login::YjsxtToken},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -23,15 +26,12 @@ pub struct Semester {
 /// # Returns
 ///
 /// 返回一个包含研究生系统所有学期信息的列表
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(yjsxt_token), fields(subsystem = "yjsxt"), err)
-)]
+#[traced(subsystem = "yjsxt", skip(yjsxt_token))]
 pub async fn get_semester(
     yjsxt_token: &YjsxtToken,
 ) -> Result<Vec<Semester>, crate::Error<TokenExpired>> {
-    let json_str = fetch::semester(yjsxt_token).await?;
-    parse::semester(&json_str)
+    let json_str = fetch_time!(fetch::semester(yjsxt_token).await)?;
+    parse_time!(parse::semester(&json_str))
 }
 
 #[cfg(test)]

@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::lab::login::LabToken;
+use crate::{
+    lab::login::LabToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -42,15 +45,12 @@ pub struct LabSchedule {
 /// # Returns
 ///
 /// 返回一个包含所有大物实验安排的列表
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
-)]
+#[traced(subsystem = "lab", skip(lab_token))]
 pub async fn get_lab_schedule(
     lab_token: &LabToken,
 ) -> Result<Vec<LabSchedule>, crate::Error<Infallible>> {
-    let json_str = fetch::lab_schedule(lab_token).await?;
-    parse::lab_schedule(&json_str)
+    let json_str = fetch_time!(fetch::lab_schedule(lab_token).await)?;
+    parse_time!(parse::lab_schedule(&json_str))
 }
 
 #[cfg(test)]

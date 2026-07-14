@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::netflow::login::NetflowToken;
+use crate::{
+    netflow::login::NetflowToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -42,15 +45,12 @@ pub struct OrderItem {
 /// # Returns
 ///
 /// 返回一个包含校园网流量账单信息的列表
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(netflow_token), fields(subsystem = "netflow"), err)
-)]
+#[traced(subsystem = "netflow", skip(netflow_token))]
 pub async fn get_order(
     netflow_token: &NetflowToken,
 ) -> Result<Vec<OrderItem>, crate::Error<Infallible>> {
-    let json_str = fetch::order(netflow_token).await?;
-    parse::order(&json_str)
+    let json_str = fetch_time!(fetch::order(netflow_token).await)?;
+    parse_time!(parse::order(&json_str))
 }
 
 #[cfg(test)]

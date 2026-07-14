@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 
 /// 课程成绩
@@ -49,17 +52,14 @@ pub struct Grade {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(hdjw_token), fields(subsystem = "hdjw"), err)
-)]
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_grade(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Grade>, crate::Error<TokenExpired>> {
-    let raw_data = fetch::grade(hdjw_token, xn, xq).await?;
-    parse::grade(&raw_data)
+    let json_str = fetch_time!(fetch::grade(hdjw_token, xn, xq).await)?;
+    parse_time!(parse::grade(&json_str))
 }
 
 /// 课程成绩的组成部分
@@ -89,16 +89,13 @@ pub struct GradeDetailItem {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(hdjw_token), fields(subsystem = "hdjw"), err)
-)]
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
 ) -> Result<Vec<GradeDetailItem>, crate::Error<TokenExpired>> {
-    let html = fetch::grade_detail(hdjw_token, jx0404id).await?;
-    parse::grade_detail(&html)
+    let html = fetch_time!(fetch::grade_detail(hdjw_token, jx0404id).await)?;
+    parse_time!(parse::grade_detail(&html))
 }
 
 #[cfg(test)]

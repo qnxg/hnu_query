@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::lab::login::LabToken;
+use crate::{
+    lab::login::LabToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -25,13 +28,10 @@ pub struct Semester {
 /// # Returns
 ///
 /// 返回一个包含大物实验平台所有学期信息的列表
-#[cfg_attr(
-    feature = "tracing",
-    tracing::instrument(skip(lab_token), fields(subsystem = "lab"), err)
-)]
+#[traced(subsystem = "lab", skip(lab_token))]
 pub async fn get_semester(lab_token: &LabToken) -> Result<Vec<Semester>, crate::Error<Infallible>> {
-    let json_str = fetch::semester(lab_token).await?;
-    parse::semester(&json_str)
+    let json_str = fetch_time!(fetch::semester(lab_token).await)?;
+    parse_time!(parse::semester(&json_str))
 }
 
 #[cfg(test)]

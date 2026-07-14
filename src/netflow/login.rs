@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, obs, request::cookie_parser},
+    utils::{client, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
 

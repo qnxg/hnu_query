@@ -55,18 +55,26 @@
 
 ## 7. 可观测性
 
-- 项目中的一些关键函数（主要是一些公开的 API）需要添加形如如下的代码
+- 对于大多数的先获取数据再解析数据这种模式的函数，应该使用宏 [`obs::traced`](../src/utils/obs.rs) 进行修饰，同时配合 `fetch_time!` / `parse_time!`：
 
   ```rust
-  #[cfg_attr(
-      feature = "tracing",
-      tracing::instrument(skip(password), fields(subsystem = "cas"), err)
-  )]
+  use crate::utils::obs::{fetch_time, parse_time, traced};
+
+  #[traced(subsystem = "ai", skip(token))]
+  pub async fn get_token_list(token: &AiToken) -> Result<...> {
+      let json_str = fetch_time!(fetch::token_list(token).await)?;
+      parse_time!(parse::token_list(&json_str))
+  }
   ```
 
-  其中的 `subsystem` 需要为函数所在的学校系统的名称。同时需要使用 `skip(...)` 来跳过一些涉及到登录凭证（如密码，Token）的敏感参数。
+  - `traced` 为被包裹的函数设置了对于获取数据和解析数据的时间的累加器，并在函数结束的时候将这两个耗时写入 Span 的属性中。
+  - 需要写明当前函数所属的学校子系统名称，并使用 `skip(...)` 掉包含敏感信息的参数。
+  - 对于数据获取函数，需要使用 `fetch_time!` 包裹。对于数据解析函数，需要使用 `parse_time!` 包裹。
 
-- 在一些逻辑比较复杂的地方需要开启 span 并记录一些日志
+- 对于其他被公开到库外部的函数，也需要为函数添加 `instrument` 宏进行修饰，同时需要使用 `cfg_attr` 来控制只在 tracing feature 启用时才添加：`#[cfg_attr(feature = "tracing", tracing::instrument(...))]`。
+- 对于过程较长逻辑较为复杂的函数，可以考虑添加一些 `obs::debug!` 日志。如果函数遇到错误情况，可在返回 `Err` 前使用 `obs::error!` 输出有利于排查错误的信息。
+- 如果函数内有一些值得被统计的指标（比如重定向次数），需要使用 `obs::record!` 加到当前函数的 Span 的属性上。
+- 一般不开子 Span。
 
 ## 8. 其他
 
