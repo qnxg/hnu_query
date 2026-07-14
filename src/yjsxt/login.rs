@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::client,
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    utils::{client, obs},
 };
 use reqwest::{StatusCode, header::LOCATION};
 use urlencoding::decode;
@@ -29,6 +29,10 @@ impl YjsxtToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "yjsxt"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -38,15 +42,12 @@ impl YjsxtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
-        if res.status() != StatusCode::FOUND {
-            return Err(format!(
-                "获取研究生系统失败，HTTP代码 {} {}",
-                res.status(),
-                res.text().await.unwrap_or_default()
-            ))
-            .unexpected_err();
+            .status_code_err()
+            .await?;
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            return Err(format!("获取研究生系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let redirection = res
             .headers()
@@ -55,6 +56,7 @@ impl YjsxtToken {
             .unexpected_err()?
             .to_str()
             .unexpected_err()?;
+        obs::debug!(redirection = %redirection, "redirection");
         let id = redirection
             // TODO 这么解析不太好，后续改为使用 url 解析库
             .split("/gmis/")
@@ -68,8 +70,8 @@ impl YjsxtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 若是使用本科生账号登录研究生系统时，会被重定向到类似地址
         // http://yjsxt.hnu.edu.cn/gmis/(S(1031xasdwyr03t2evudmrbbel))/oauthLogin/hndxn....
         // 按前面的逻辑依然可以截取出/gmis/后面的 id，但是实际上会跳转报错页面

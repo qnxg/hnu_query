@@ -53,7 +53,30 @@
 - 如果新增了一些接口，需要在对应的功能子模块的 `mod.rs` 中添加测试函数，该测试函数应该可以根据环境变量提供的参数发送实际请求，同时输出你新增加的接口的运行结果。同时还需要在 `test_data` 文件夹下放置学校对应系统响应的原始数据，并在 `parse.rs` 中添加测试函数，解析你添加的测试数据，并对解析结果进行 `assert`。同时不要忘记更新 [`test.md`](./test.md)
 - 如果修复了一些接口，如果之前的接口是因为数据解析而导致的需要修复，则你需要在 `test_data` 中放置原来不能正常解析的数据，并在 `parse.rs` 中添加测试函数
 
-## 7. 其他
+## 7. 可观测性
+
+- 对于大多数的先获取数据再解析数据这种模式的函数，应该使用宏 [`obs::traced`](../src/utils/obs.rs) 进行修饰，同时配合 `fetch_time!` / `parse_time!`：
+
+  ```rust
+  use crate::utils::obs::{fetch_time, parse_time, traced};
+
+  #[traced(subsystem = "ai", skip(token))]
+  pub async fn get_token_list(token: &AiToken) -> Result<...> {
+      let json_str = fetch_time!(fetch::token_list(token).await)?;
+      parse_time!(parse::token_list(&json_str))
+  }
+  ```
+
+  - `traced` 为被包裹的函数设置了对于获取数据和解析数据的时间的累加器，并在函数结束的时候将这两个耗时写入 Span 的属性中。
+  - 需要写明当前函数所属的学校子系统名称，并使用 `skip(...)` 掉包含敏感信息的参数。
+  - 对于数据获取函数，需要使用 `fetch_time!` 包裹。对于数据解析函数，需要使用 `parse_time!` 包裹。
+
+- 对于其他被公开到库外部的函数，也需要为函数添加 `instrument` 宏进行修饰，同时需要使用 `cfg_attr` 来控制只在 tracing feature 启用时才添加：`#[cfg_attr(feature = "tracing", tracing::instrument(...))]`。
+- 对于过程较长逻辑较为复杂的函数，可以考虑添加一些 `obs::debug!` 日志。如果函数遇到错误情况，可在返回 `Err` 前使用 `obs::error!` 输出有利于排查错误的信息。
+- 如果函数内有一些值得被统计的指标（比如重定向次数），需要使用 `obs::record!` 加到当前函数的 Span 的属性上。
+- 一般不开子 Span。
+
+## 8. 其他
 
 - 模块的头部，各个部分的顺序应为：`mod` -> `use` -> `pub use`，三个部分用空白行分割，每个部分内部不要有空行分割。`use` 部分内部的顺序应该为 `use super::...` -> `use crate::...` -> `use ...`
 - fetch.rs
@@ -71,9 +94,9 @@
         .await
         // send 出错是 NetworkError
         .network_err()?
-        .error_for_status()
-        // 响应的状态码不对是 UnexpectedError
-        .unexpected_err()?
+        // 使用 status_code_err 来检查状态码是否为 4xx 或是 5xx
+        .status_code_err()
+        .await?
         .text()
         .await
         // 没有拿到响应的文本数据也是 Unexpected Error

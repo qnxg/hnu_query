@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 
 /// 课程信息
@@ -103,13 +106,14 @@ pub struct ExtraCourse {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_class_table(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let raw_data = fetch::class_table(hdjw_token, xn, xq).await?;
-    parse::class_table(&raw_data)
+    let raw_data = fetch_time!(fetch::class_table(hdjw_token, xn, xq).await)?;
+    parse_time!(parse::class_table(&raw_data))
 }
 
 /// 获取无课表课程信息
@@ -127,13 +131,14 @@ pub async fn get_class_table(
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_class_table_extra(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
-    let json_str = fetch::class_table_extra(hdjw_token, xn, xq).await?;
-    parse::class_table_extra(&json_str)
+    let json_str = fetch_time!(fetch::class_table_extra(hdjw_token, xn, xq).await)?;
+    parse_time!(parse::class_table_extra(&json_str))
 }
 
 #[cfg(test)]

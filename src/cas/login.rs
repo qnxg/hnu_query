@@ -1,7 +1,7 @@
 use crate::{
     cas::{error::TokenExpired, tfa::TFAToken, utils},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    utils::{client, obs, request::cookie_parser},
 };
 use regex::Regex;
 use reqwest::{
@@ -94,6 +94,11 @@ impl CasToken {
     /// # Errors
     ///
     /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(password), fields(subsystem = "cas"), err)
+    )]
+    #[expect(clippy::too_many_lines)]
     pub async fn acquire_by_login(
         stu_id: &str,
         password: &str,
@@ -103,9 +108,11 @@ impl CasToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
-        if res.status() != StatusCode::OK {
+            .status_code_err()
+            .await?;
+        let status = res.status();
+        if status != StatusCode::OK {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
             return Err("响应的状态码异常，应为OK").unexpected_err();
         }
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
@@ -136,8 +143,8 @@ impl CasToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 获取pubkey的cookies
         cookies.extend(cookie_parser(pubkey_res.headers().get_all(SET_COOKIE)));
         let pubkey_str = pubkey_res.text().await.unexpected_err()?;
@@ -187,6 +194,7 @@ impl CasToken {
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
         if login_result.contains("双因子认证") {
+            obs::debug!("tfa_required");
             let tfa_token = TFAToken::new(&login_result, &cookies.join("; "), stu_id, password)?;
             return Err(crate::Error::Other(AccountIssue::TFARequired(tfa_token)));
         }
@@ -196,6 +204,7 @@ impl CasToken {
             .to_str()
             .unexpected_err()?
             .to_string();
+        obs::debug!(location = %location, "final_location");
         const PASSWORD_SHOULD_CHANGE_PAT: &str = "cas.hnu.edu.cn/securitycenter/modifyPwd/index.zf";
         if location.contains(PASSWORD_SHOULD_CHANGE_PAT) {
             return Err(crate::Error::Other(AccountIssue::PasswordShouldChange));
@@ -221,28 +230,30 @@ impl CasToken {
     /// # Errors
     ///
     /// 可能由于当前 [CasToken] 过期，此时会返回 [TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id), err)
+    )]
     pub(crate) async fn get_ticket_url(
         &self,
         service_url: &str,
     ) -> Result<String, crate::Error<TokenExpired>> {
-        let Ok(res) = client
+        let res = client
             .get(service_url)
             .header(COOKIE, &self.cookie)
             .send()
             .await
-            .network_err()?
-            // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
-            // 后续可能还要再验证一下有没有必要这么保守
-            .error_for_status()
-        else {
-            return Err(crate::Error::Other(TokenExpired));
-        };
-        if res.status() == StatusCode::OK {
+            .network_err()?;
+        let status = res.status();
+        // 状态码为 4xx 和 5xx，都保守地认为是令牌过期了
+        // 后续可能还要再验证一下有没有必要这么保守
+        if status.is_client_error() || status.is_server_error() || status == StatusCode::OK {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "token_expired");
             return Err(crate::Error::Other(TokenExpired));
         }
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("获取ticket_url时失败，HTTP代码 {}", res.status()))
-                .unexpected_err();
+        if status != StatusCode::FOUND {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            return Err(format!("获取ticket_url时失败，HTTP代码 {}", status)).unexpected_err();
         }
         let ticket_url = res
             .headers()
@@ -272,6 +283,10 @@ impl CasToken {
     ///
     /// 后来发现体测系统也需要这么做了，于是就把这个逻辑抽取出来放在这里了，所以这个
     /// 函数本身的实际意义并不明显
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id, redirect_count = tracing::field::Empty), err)
+    )]
     pub(crate) async fn get_sticket(
         &self,
         service_url: &str,
@@ -285,7 +300,8 @@ impl CasToken {
         // 就会 break）
         //
         // 这里的重定向次数似乎是因人而异的，原因不明
-        for _ in 0..6 {
+        for _attempt in 0..6 {
+            obs::debug!(attempt = %_attempt, url = %now_url, "redirect");
             if now_url.starts_with("https://cas.hnu.edu.cn/sprcialapp/zf_form/index.zf") {
                 s_ticket = Some(
                     now_url
@@ -295,6 +311,8 @@ impl CasToken {
                         .ok_or("malformed s_ticket parameter")
                         .unexpected_err()?,
                 );
+                obs::debug!("s_ticket_found");
+                obs::record!(redirect_count = _attempt);
                 break;
             }
             let res = client
@@ -303,16 +321,18 @@ impl CasToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?;
-            if res.status() == StatusCode::OK {
+                .status_code_err()
+                .await?;
+            let status = res.status();
+            if status == StatusCode::OK {
+                obs::error!(body = %res.text().await.unwrap_or_default(), "token_expired_by_status_ok");
                 return Err(crate::Error::Other(TokenExpired));
             }
-            if res.status() != StatusCode::FOUND {
+            if status != StatusCode::FOUND {
+                obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
                 return Err(format!(
                     "获取s_ticket时失败，HTTP代码: {}, url: {}",
-                    res.status(),
-                    now_url
+                    status, now_url
                 ))
                 .unexpected_err();
             }

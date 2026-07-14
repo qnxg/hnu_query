@@ -1,6 +1,8 @@
 use crate::cas;
 use crate::cas::login::CasToken;
-use crate::error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason};
+use crate::error::{
+    CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason,
+};
 use crate::utils::client;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
@@ -27,6 +29,10 @@ impl CaToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "ca"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -36,8 +42,8 @@ impl CaToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let ticket = ticket_url
             .split("ticket=")
             .nth(1)
@@ -47,8 +53,8 @@ impl CaToken {
         client.get(format!("https://ca.hnu.edu.cn/student/cas/client/validateLogin?ticket={ticket}%23%2F&service=https:%2F%2Fca.hnu.edu.cn%2Fstudent%2F"))
         .send().await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text().await
         .unexpected_err()?;
 

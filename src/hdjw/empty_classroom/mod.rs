@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 
 /// 空教室信息
@@ -41,6 +44,7 @@ pub struct EmptyClassroom {
 /// # Panics
 ///
 /// `time` 必须位于区间 [1, 5] 内，否则会 panic
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_empty_classroom(
     hdjw_token: &HdjwToken,
     building_id: &str,
@@ -62,9 +66,10 @@ pub async fn get_empty_classroom(
         })
         .collect::<Vec<_>>()
         .join(",");
-    let json_str =
-        fetch::empty_classroom(hdjw_token, xn, xq, week, day, &time_str, building_id).await?;
-    parse::empty_classroom(&json_str, time)
+    let json_str = fetch_time!(
+        fetch::empty_classroom(hdjw_token, xn, xq, week, day, &time_str, building_id).await?
+    );
+    parse_time!(parse::empty_classroom(&json_str, time))
 }
 
 #[cfg(test)]

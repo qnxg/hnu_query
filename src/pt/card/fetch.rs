@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     pt::login::PtToken,
     utils::client,
 };
@@ -16,8 +16,8 @@ pub async fn csrf_token(pt_token: &PtToken) -> Result<String, crate::Error<Infal
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -30,8 +30,8 @@ pub async fn card_info(pt_token: &PtToken) -> Result<String, crate::Error<Infall
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -64,8 +64,8 @@ pub async fn card_history(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

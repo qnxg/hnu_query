@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::netflow::login::NetflowToken;
+use crate::{
+    netflow::login::NetflowToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -67,11 +70,12 @@ pub struct ThisMonthInfo {
 /// # Returns
 ///
 /// 本月校园网流量使用信息
+#[traced(subsystem = "netflow", skip(netflow_token))]
 pub async fn get_this_month_info(
     netflow_token: &NetflowToken,
 ) -> Result<ThisMonthInfo, crate::Error<Infallible>> {
-    let raw_data = fetch::this_month_info(netflow_token).await?;
-    parse::this_month_info(&raw_data)
+    let json_str = fetch_time!(fetch::this_month_info(netflow_token).await)?;
+    parse_time!(parse::this_month_info(&json_str))
 }
 
 #[cfg(test)]

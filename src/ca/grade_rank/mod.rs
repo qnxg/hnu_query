@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::ca::login::CaToken;
+use crate::{
+    ca::login::CaToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -60,11 +63,13 @@ pub struct Rank {
 /// # Returns
 ///
 /// 可信电子凭证中的成绩排名信息
+#[traced(subsystem = "ca", skip(ca_token))]
 pub async fn get_grade_rank(ca_token: &CaToken) -> Result<Rank, crate::Error<Infallible>> {
-    let file_name = fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await?;
-    let file_name = parse::preview_file_name(&file_name)?;
-    let pdf_bytes = fetch::file(ca_token, &file_name).await?;
-    parse::rank(pdf_bytes)
+    let json_str =
+        fetch_time!(fetch::preview_file(ca_token, UNDERGRADUATE_MAJOR_ALL_TEMPLATE_ID).await)?;
+    let file_name = parse_time!(parse::preview_file_name(&json_str))?;
+    let pdf_bytes = fetch_time!(fetch::file(ca_token, &file_name).await)?;
+    parse_time!(parse::rank(pdf_bytes))
 }
 
 #[cfg(test)]

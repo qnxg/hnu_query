@@ -1,6 +1,6 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
@@ -32,6 +32,10 @@ impl GymToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "gym"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -43,16 +47,16 @@ impl GymToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let res = client
             .post("http://gymos.hnu.edu.cn/bdlp_api_fitness_test_student_h5/public/index.php/index/Login/ticketLogin")
             .form(&[("s_ticket", s_ticket.as_str()), ("login_id", cas_token.stu_id())])
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let cookie = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let json_str = res.text().await.unexpected_err()?;
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
@@ -73,6 +77,10 @@ impl GymToken {
     /// # Returns
     ///
     /// 返回一个 [GymToken] 实例
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(password), fields(subsystem = "gym"), err)
+    )]
     pub async fn acquire_by_direct_login(
         stu_id: &str,
         password: &str,
@@ -83,8 +91,8 @@ impl GymToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let json_str = res.text().await.unexpected_err()?;
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;

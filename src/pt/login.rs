@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -31,6 +31,10 @@ impl PtToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "pt"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -40,11 +44,12 @@ impl PtToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("登录个人门户失败，HTTP 状态码: {}", res.status()))
-                .unexpected_err();
+            .status_code_err()
+            .await?;
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            return Err(format!("登录个人门户失败，HTTP 状态码: {}", status)).unexpected_err();
         }
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         let mut headers = HeaderMap::new();

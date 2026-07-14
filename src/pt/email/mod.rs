@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::pt::login::PtToken;
+use crate::{
+    pt::login::PtToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use std::convert::Infallible;
 
 /// 获取未读邮件数
@@ -15,11 +18,12 @@ use std::convert::Infallible;
 /// 未读邮件数
 ///
 /// 如果返回 None，说明未绑定邮箱，需要前往个人门户 -> 安全中心绑定邮箱
+#[traced(subsystem = "pt", skip(pt_token))]
 pub async fn get_unread_email_count(
     pt_token: &PtToken,
 ) -> Result<Option<u32>, crate::Error<Infallible>> {
-    let json_str = fetch::unread_email_count(pt_token).await?;
-    parse::email_unread_count(&json_str)
+    let json_str = fetch_time!(fetch::unread_email_count(pt_token).await)?;
+    parse_time!(parse::email_unread_count(&json_str))
 }
 
 #[cfg(test)]

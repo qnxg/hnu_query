@@ -1,7 +1,7 @@
 use crate::{
     cas::login::{AccountIssue, CasToken},
-    error::{MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
+    utils::{client, obs, request::cookie_parser},
 };
 use regex::RegexBuilder;
 use reqwest::StatusCode;
@@ -90,6 +90,10 @@ impl TFAToken {
     }
 
     /// 发送短信验证码
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty), err)
+    )]
     pub async fn send_sms(&self) -> Result<SMSResult, crate::Error<AccountIssue>> {
         let res = client
             .get("https://cas.hnu.edu.cn/cas/syz/services/sedsms?reloginType=reloginPhone")
@@ -97,15 +101,24 @@ impl TFAToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?
+            .status_code_err()
+            .await?
             .text()
             .await
             .unexpected_err()?;
         match res.as_str() {
-            "success" => Ok(SMSResult::Success),
-            "valid" => Ok(SMSResult::Valid),
-            _ => Ok(SMSResult::Other(res)),
+            "success" => {
+                obs::record!(result = "success");
+                Ok(SMSResult::Success)
+            }
+            "valid" => {
+                obs::record!(result = "valid");
+                Ok(SMSResult::Valid)
+            }
+            _ => {
+                obs::record!(result = res.clone());
+                Ok(SMSResult::Other(res))
+            }
         }
     }
 
@@ -122,6 +135,10 @@ impl TFAToken {
     ///
     /// 如果验证失败，则会继续返回 [AccountIssue::TFARequired] 错误，需要对新获得的
     /// [TFAToken] 再次调用 [TFAToken::send_sms] 和 [TFAToken::verify]
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self, code), fields(subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty), err)
+    )]
     pub async fn verify(self, code: &str) -> Result<VerifyResult, crate::Error<AccountIssue>> {
         let res = client
             .post("https://cas.hnu.edu.cn/cas/login")
@@ -136,8 +153,8 @@ impl TFAToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         if res.status() == StatusCode::FOUND {
             // 说明通过了双因子认证，此时这个请求会下发带双因子认证的 cookie
             // 我们和之前的 cookie 合并，就构造出新的 CasToken 了
@@ -146,6 +163,7 @@ impl TFAToken {
                 &format!("{}; {}", self.cookie, cookies),
                 &self.stu_id,
             );
+            obs::record!(result = "success");
             Ok(VerifyResult::Success(cas_token))
         } else {
             // 除非明确提示验证码错误，否则就认为是令牌过期
@@ -153,6 +171,7 @@ impl TFAToken {
             // 就过期了，那么后面无论怎么输入验证码，都会回到双因子认证界面
             let html = res.text().await.unexpected_err()?;
             if html.contains("验证码错误，请重新输入！") {
+                obs::record!(result = "code_error");
                 Ok(VerifyResult::CodeError(TFAToken::new(
                     html.as_str(),
                     &self.cookie,
@@ -160,6 +179,8 @@ impl TFAToken {
                     &self.password,
                 )?))
             } else {
+                obs::debug!(body = %html, "tfa_expired");
+                obs::record!(result = "expired");
                 Ok(VerifyResult::Expired)
             }
         }

@@ -1,6 +1,6 @@
 use crate::{
     ai::login::AiToken,
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
 use std::convert::Infallible;
@@ -16,8 +16,8 @@ pub async fn token_list(token: &AiToken) -> Result<String, crate::Error<Infallib
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -30,8 +30,8 @@ pub async fn token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -44,8 +44,8 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<String, crate::Err
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -60,8 +60,8 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<String, crate::
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

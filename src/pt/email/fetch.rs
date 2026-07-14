@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     pt::login::PtToken,
     utils::client,
 };
@@ -14,8 +14,8 @@ pub async fn unread_email_count(pt_token: &PtToken) -> Result<String, crate::Err
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
