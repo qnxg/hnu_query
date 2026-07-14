@@ -26,21 +26,21 @@ impl Middleware for HttpTracing {
         let url = req.url().clone();
         let timer = Instant::now();
         let result = next.run(req, extensions).await;
-        let duration = timer.elapsed().as_micros();
+        let duration = timer.elapsed().as_millis();
         match &result {
             Ok(res) => {
                 let status = res.status();
                 match res.headers().get(LOCATION).and_then(|v| v.to_str().ok()) {
                     Some(loc) => {
-                        obs::debug!(%method, %url, %status, duration = %duration, location = %loc, "response");
+                        obs::debug!(%method, %url, %status, duration_ms = %duration, location = %loc, "response");
                     }
                     None => {
-                        obs::debug!(%method, %url, %status, duration = %duration, "response");
+                        obs::debug!(%method, %url, %status, duration_ms = %duration, "response");
                     }
                 }
             }
             Err(e) => {
-                obs::debug!(%method, %url, duration = %duration, error = ?e, "request failed");
+                obs::debug!(%method, %url, duration_ms = %duration, error = ?e, "request failed");
             }
         }
         result
