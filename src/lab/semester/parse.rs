@@ -34,3 +34,26 @@ pub fn semester(json_str: &str) -> Result<Vec<Semester>, crate::Error<Infallible
     }
     Ok(res)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_semester() -> TestResult<()> {
+        let semesters = semester(include_str!("test_data/GetSemDropDownList.json"))?;
+        assert_eq!(semesters.len(), 12);
+        // 测试用 _ 分隔的情况
+        let first = &semesters[0];
+        assert_eq!(first.xn, 2020);
+        assert_eq!(first.xq, 3);
+        assert_eq!(first.id, "5");
+        // 测试用 - 分隔的情况
+        let last = &semesters[11];
+        assert_eq!(last.xn, 2025);
+        assert_eq!(last.xq, 2);
+        assert_eq!(last.id, "18");
+        Ok(())
+    }
+}
