@@ -1,22 +1,6 @@
 //! 可观测性相关的辅助模块，该模块包装了 [tracing] 的一些操作，
 //! 当 `tracing` feature 开启时，本模块的宏和函数转发到 [tracing]；
 //! 关闭时全部为 no-op，编译期即被完全消除。
-//!
-//! # 阶段计时（fetch / parse）
-//!
-//! 公开 API 使用 [`traced`] 后，函数体内用 [`fetch_time!`] / [`parse_time!`]
-//! 包裹各阶段表达式；耗时会累加到 task-local 计时器，并在函数结束时写入
-//! span 字段 `fetch_ms` / `parse_ms`（毫秒）。
-//!
-//! ```ignore
-//! use crate::utils::obs::{fetch_time, parse_time, traced};
-//!
-//! #[traced(subsystem = "ai", skip(token))]
-//! pub async fn get_token_list(token: &AiToken) -> Result<...> {
-//!     let json_str = fetch_time!(fetch::token_list(token).await)?;
-//!     parse_time!(parse::token_list(&json_str))
-//! }
-//! ```
 #![allow(unused_macros, unused_imports)]
 
 pub use hnu_query_macros::traced;
@@ -247,6 +231,7 @@ pub fn add_parse_ms(ms: u64) {
 /// 存在的唯一作用是让 `let _guard = obs::debug_span!(...)` 在 feature 关闭时
 /// 绑定到一个非 `()` 类型，避免 `clippy::let_unit_value` 警告。
 #[cfg(not(feature = "tracing"))]
+#[expect(unused)]
 pub struct NoopSpanGuard;
 
 // 实现 `Drop` 是为了让 `drop(_s)` 在 feature 关闭时也能通过 clippy 的

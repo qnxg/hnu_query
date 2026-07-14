@@ -48,14 +48,14 @@ impl XgxtToken {
             .unexpected_err()?;
         let status = res.status();
         if status != StatusCode::FOUND {
-            let body = res.text().await.unwrap_or_default();
-            obs::error!(status = %status, body = %body, "unexpected_status");
+            let _body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %_body, "unexpected_status");
             return Err(format!("获取学工系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let cookies: String = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         if cookies.is_empty() {
-            let body = res.text().await.unwrap_or_default();
-            obs::error!(body = %body, "empty_cookie");
+            let _body = res.text().await.unwrap_or_default();
+            obs::error!(body = %_body, "empty_cookie");
             return Err("获取学工系统失败，接收到空的 cookie").unexpected_err();
         }
         let mut headers = HeaderMap::new();
