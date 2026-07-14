@@ -74,7 +74,7 @@ pub fn init_tracing() {}
 /// 在 UI 中被拆成多条 trace。
 #[cfg(feature = "tracing")]
 mod otlp_exporter {
-    use opentelemetry::trace::{SpanId, SpanKind, TraceError};
+    use opentelemetry::trace::{SpanId, SpanKind, Status, TraceError};
     use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
     use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
     use serde_json::json;
@@ -126,6 +126,21 @@ mod otlp_exporter {
         }
     }
 
+    /// OTLP Status：Unset=0, Ok=1, Error=2；仅 Error 带 message。
+    fn otlp_status(status: &Status) -> serde_json::Value {
+        match status {
+            Status::Unset => json!({"code": 0}),
+            Status::Ok => json!({"code": 1}),
+            Status::Error { description } => {
+                let mut s = json!({"code": 2});
+                if !description.is_empty() {
+                    s["message"] = json!(description.as_ref());
+                }
+                s
+            }
+        }
+    }
+
     /// 合成根 span，并将所有收集到的 span 统一到同一条 trace。
     fn build_otlp_spans(acc: &[SpanData]) -> Vec<serde_json::Value> {
         if acc.is_empty() {
@@ -150,7 +165,7 @@ mod otlp_exporter {
                 {"key": "synthetic", "value": {"boolValue": true}},
             ],
             "events": [],
-            "status": {"code": 0},
+            "status": otlp_status(&Status::Unset),
         }));
 
         for sd in acc {
@@ -196,7 +211,7 @@ mod otlp_exporter {
                 "endTimeUnixNano": to_nanos(sd.end_time).to_string(),
                 "attributes": attrs,
                 "events": events,
-                "status": {"code": 0},
+                "status": otlp_status(&sd.status),
             }));
         }
 
