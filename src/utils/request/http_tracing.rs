@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use http::Extensions;
 use reqwest::{Request, Response, header::LOCATION};
 use reqwest_middleware::{Middleware, Next};
-use tracing::Instrument;
+use std::time::Instant;
 
 pub struct HttpTracing;
 
@@ -24,29 +24,25 @@ impl Middleware for HttpTracing {
     ) -> reqwest_middleware::Result<Response> {
         let method = req.method().clone();
         let url = req.url().clone();
-        let span = tracing::debug_span!("request", %method, %url);
-
-        let result = next.run(req, extensions).instrument(span.clone()).await;
-
-        let _enter = span.enter();
+        let timer = Instant::now();
+        let result = next.run(req, extensions).await;
+        let duration = timer.elapsed().as_micros();
         match &result {
             Ok(res) => {
                 let status = res.status();
                 match res.headers().get(LOCATION).and_then(|v| v.to_str().ok()) {
                     Some(loc) => {
-                        obs::debug!(%status, location = %loc, "response");
+                        obs::debug!(%method, %url, %status, duration = %duration, location = %loc, "response");
                     }
                     None => {
-                        obs::debug!(%status, "response");
+                        obs::debug!(%method, %url, %status, duration = %duration, "response");
                     }
                 }
             }
             Err(e) => {
-                obs::debug!(error = %e, "request failed");
+                obs::debug!(%method, %url, duration = %duration, error = ?e, "request failed");
             }
         }
-        drop(_enter);
-
         result
     }
 }
