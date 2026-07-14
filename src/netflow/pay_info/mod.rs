@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::netflow::login::NetflowToken;
+use crate::{
+    netflow::login::NetflowToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use std::convert::Infallible;
 
 /// 获取欠费金额
@@ -13,11 +16,12 @@ use std::convert::Infallible;
 /// # Returns
 ///
 /// 欠费金额
+#[traced(subsystem = "netflow", skip(netflow_token))]
 pub async fn get_overdue_payment(
     netflow_token: &NetflowToken,
 ) -> Result<f64, crate::Error<Infallible>> {
-    let json_str = fetch::pay_info(netflow_token).await?;
-    parse::overdue_payment(&json_str)
+    let json_str = fetch_time!(fetch::pay_info(netflow_token).await)?;
+    parse_time!(parse::overdue_payment(&json_str))
 }
 
 #[cfg(test)]

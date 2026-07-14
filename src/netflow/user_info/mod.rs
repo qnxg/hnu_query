@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::netflow::login::NetflowToken;
+use crate::{
+    netflow::login::NetflowToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -25,11 +28,12 @@ pub enum UnlockStatus {
 /// # Returns
 ///
 /// 返回校园网流量锁定状态
+#[traced(subsystem = "netflow", skip(netflow_token))]
 pub async fn get_unlock_status(
     netflow_token: &NetflowToken,
 ) -> Result<UnlockStatus, crate::Error<Infallible>> {
-    let json_str = fetch::user_info(netflow_token).await?;
-    parse::unlock_status(&json_str)
+    let json_str = fetch_time!(fetch::user_info(netflow_token).await)?;
+    parse_time!(parse::unlock_status(&json_str))
 }
 
 #[cfg(test)]

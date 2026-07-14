@@ -1,7 +1,7 @@
 use crate::{
     cas::{self},
     gym::login::GymToken,
-    test::{TEST_PASSWORD, TEST_STU_ID, TestResult},
+    test::{TEST_PASSWORD, TEST_STU_ID, TestResult, init_tracing},
 };
 
 use std::convert::Infallible;
@@ -12,6 +12,7 @@ pub async fn get_gym_token_by_cas_login() -> TestResult<GymToken> {
 }
 
 pub async fn get_gym_token_by_direct_login() -> Result<GymToken, crate::Error<Infallible>> {
+    init_tracing();
     GymToken::acquire_by_direct_login(TEST_STU_ID, TEST_PASSWORD).await
 }
 

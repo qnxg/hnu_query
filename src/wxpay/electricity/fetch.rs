@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
 use std::convert::Infallible;
@@ -21,8 +21,8 @@ pub async fn electricity(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

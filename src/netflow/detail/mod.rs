@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::netflow::login::NetflowToken;
+use crate::{
+    netflow::login::NetflowToken,
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 
@@ -60,13 +63,14 @@ pub struct DetailItem {
 /// # Returns
 ///
 /// 返回一个包含月流量明细的 [Detail] 实例
+#[traced(subsystem = "netflow", skip(network_token))]
 pub async fn get_month_detail(
     network_token: &NetflowToken,
     year: u16,
     month: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let json_str = fetch::detail_by_month(network_token, year, month).await?;
-    parse::detail(&json_str)
+    let json_str = fetch_time!(fetch::detail_by_month(network_token, year, month).await)?;
+    parse_time!(parse::detail(&json_str))
 }
 
 /// 获取日流量明细
@@ -81,14 +85,15 @@ pub async fn get_month_detail(
 /// # Returns
 ///
 /// 返回一个包含日流量明细的 [Detail] 实例
+#[traced(subsystem = "netflow", skip(network_token))]
 pub async fn get_day_detail(
     network_token: &NetflowToken,
     year: u16,
     month: u8,
     day: u8,
 ) -> Result<Detail, crate::Error<Infallible>> {
-    let json_str = fetch::detail_by_day(network_token, year, month, day).await?;
-    parse::detail(&json_str)
+    let json_str = fetch_time!(fetch::detail_by_day(network_token, year, month, day).await)?;
+    parse_time!(parse::detail(&json_str))
 }
 
 #[cfg(test)]

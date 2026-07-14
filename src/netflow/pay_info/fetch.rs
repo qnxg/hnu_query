@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     netflow::login::NetflowToken,
     utils::client,
 };
@@ -14,8 +14,8 @@ pub async fn pay_info(netflow_token: &NetflowToken) -> Result<String, crate::Err
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

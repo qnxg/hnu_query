@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -29,23 +29,31 @@ impl XgxtToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "xgxt"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
         let ticket_url = cas_token.get_ticket_url(XGXT_URL).await?;
+        obs::debug!(ticket_url = %ticket_url, "original_ticket_url");
         // cas 下发的 ticket_url 是 http 的，但是学工系统要用 https
         let res = client
             .get(ticket_url.replace("http://", "https://"))
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
-        if res.status() != StatusCode::FOUND {
-            return Err(format!("获取学工系统失败，HTTP代码 {}", res.status())).unexpected_err();
+            .status_code_err()
+            .await?;
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            return Err(format!("获取学工系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let cookies: String = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
         if cookies.is_empty() {
+            obs::error!(body = %res.text().await.unwrap_or_default(), "empty_cookie");
             return Err("获取学工系统失败，接收到空的 cookie").unexpected_err();
         }
         let mut headers = HeaderMap::new();

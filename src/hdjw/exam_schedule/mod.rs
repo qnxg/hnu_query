@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -53,13 +56,14 @@ pub struct ExamSchedule {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[traced(subsystem = "hdjw", skip(hdjw_token))]
 pub async fn get_exam_schedule(
     hdjw_token: &HdjwToken,
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExamSchedule>, crate::Error<TokenExpired>> {
-    let json_str = fetch::exam_schedule(hdjw_token, xn, xq).await?;
-    parse::exam_schedule(&json_str)
+    let json_str = fetch_time!(fetch::exam_schedule(hdjw_token, xn, xq).await)?;
+    parse_time!(parse::exam_schedule(&json_str))
 }
 
 #[cfg(test)]

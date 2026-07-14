@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     gym::{error::TokenExpired, login::GymToken},
     utils::client,
 };
@@ -14,8 +14,8 @@ pub async fn appointment_list(gym_token: &GymToken) -> Result<String, crate::Err
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()
@@ -40,8 +40,8 @@ pub async fn appointment_detail(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

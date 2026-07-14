@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
     yjsxt::{error::TokenExpired, fetch::YjsxtResponse, login::YjsxtToken},
 };
@@ -23,8 +23,8 @@ pub async fn class_table(
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .check_token_expired()?
         .text()
         .await

@@ -2,8 +2,8 @@ mod captcha;
 mod utils;
 
 use crate::{
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::header::{COOKIE, HeaderMap, SET_COOKIE};
 use serde_json::Value;
@@ -61,6 +61,10 @@ impl LabToken {
     /// # Errors
     ///
     /// 可能由于用户的账号问题或是验证码识别失败导致登录失败，此时会返回 [LoginIssue] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab", tried = tracing::field::Empty), err)
+    )]
     pub async fn acquire_by_login(
         stu_id: &str,
         password: &str,
@@ -73,6 +77,7 @@ impl LabToken {
         let mut all_cookies = String::new();
         let mut loop_result = None;
         while tried < max_tried {
+            obs::debug!(attempt = tried, "lab_login");
             let res = client
                 .post(LOGIN_URL)
                 .form(&[
@@ -84,8 +89,8 @@ impl LabToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?;
+                .status_code_err()
+                .await?;
             let cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
             if !cookies.is_empty() {
                 all_cookies.push_str(&format!("; {}", cookies.join("; ")));
@@ -97,14 +102,15 @@ impl LabToken {
             };
             if code == -2 {
                 // 需要验证码
+                obs::debug!("captcha_required");
                 let res = client
                     .get(CAPTCHA_URL)
                     .header("Cookie", &all_cookies)
                     .send()
                     .await
                     .network_err()?
-                    .error_for_status()
-                    .unexpected_err()?;
+                    .status_code_err()
+                    .await?;
                 let img_bytes = res.bytes().await.unexpected_err()?;
                 checkcode = captcha_resolver
                     .resolve(img_bytes.as_ref())
@@ -113,6 +119,8 @@ impl LabToken {
                 tried += 1;
             } else {
                 loop_result = Some((code, data, all_cookies));
+                obs::debug!("authentication_success");
+                obs::record!(tried = tried);
                 break;
             }
         }
@@ -122,6 +130,7 @@ impl LabToken {
         match code {
             1 => {
                 if cookies.is_empty() {
+                    obs::error!(code = %code, data = ?data, "empty_cookie");
                     Err("Cookie 为空").unexpected_err()
                 } else {
                     let mut headers = HeaderMap::new();

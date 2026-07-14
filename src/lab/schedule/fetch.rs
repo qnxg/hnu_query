@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapNetworkErr, MapUnexpectedErr},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     lab::login::LabToken,
     utils::client,
 };
@@ -21,8 +21,8 @@ pub async fn lab_schedule(lab_token: &LabToken) -> Result<String, crate::Error<I
         .send()
         .await
         .network_err()?
-        .error_for_status()
-        .unexpected_err()?
+        .status_code_err()
+        .await?
         .text()
         .await
         .unexpected_err()

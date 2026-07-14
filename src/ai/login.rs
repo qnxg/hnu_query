@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode, Url,
@@ -72,6 +72,10 @@ impl AiToken {
     /// # Errors
     ///
     /// 可能由于当前 [CasToken] 过期导致登录失败，此时会返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "ai", redirect_count = tracing::field::Empty), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -83,13 +87,16 @@ impl AiToken {
         // 不能手动构造 CAS URL 然后直接 get_ticket_url ，那样即使 CAS 认证成功，
         // ticket 也不知道该回到哪里去（没有 OAuth2 authorize endpoint 来接收并签发 code）。
         // 所以这里必须从 INITIAL_AUTH_URL 开始，沿着服务器返回的 Location 自动跟到底。
-        for _ in 0..10 {
+        for _attempt in 0..10 {
+            obs::debug!(attempt = _attempt, %current_url, %cas_authenticated, "oauth_redirect");
             let res = client
                 .get(&current_url)
                 .header(COOKIE, &all_cookies)
                 .send()
                 .await
-                .network_err()?;
+                .network_err()?
+                .status_code_err()
+                .await?;
 
             let status = res.status();
 
@@ -109,8 +116,11 @@ impl AiToken {
                     .unexpected_err()?
                     .to_str()
                     .unexpected_err()?;
+                obs::debug!(location = %location, "resolved_location");
                 current_url = resolve_location(&current_url, location).unexpected_err()?;
             } else if current_url.contains("maas.nscc-cs.cn") {
+                obs::debug!("reached_maas_callback");
+                obs::record!(redirect_count = _attempt);
                 break;
             } else if current_url.contains("cas.hnu.edu.cn") && !cas_authenticated {
                 // OAuth2 authorize 链路中遇到了 CAS 登录页（HTTP 200），说明 deepseek.hnu
@@ -122,10 +132,12 @@ impl AiToken {
                 // 会覆盖掉 cas_token 中已认证的 TGT cookie，导致 get_ticket_url 拿到的
                 // 不是已登录用户的 ticket，进而返回 TokenExpired。所以必须用原始的
                 // cas_token cookie 来做这一步。
+                obs::debug!("cas_authentication_required");
                 let ticket_url = cas_token.get_ticket_url(&current_url).await?;
                 current_url = ticket_url;
                 cas_authenticated = true;
             } else {
+                obs::error!(status = %status, %current_url, body = %res.text().await.unwrap_or_default(), "unexpected_status");
                 Err(format!(
                     "未预期的HTTP状态码 {}，URL: {}",
                     status, current_url
@@ -146,6 +158,7 @@ impl AiToken {
         let code = extract_code(&current_url)
             .ok_or_else(|| format!("无法从URL提取code: {}", current_url))
             .unexpected_err()?;
+        obs::debug!(code = %code, "extracted_code");
 
         let oauth_res = client
             .post(OAUTH_LOGIN_URL)

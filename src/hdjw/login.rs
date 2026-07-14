@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
-    error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
+    utils::{client, obs, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -32,6 +32,10 @@ impl HdjwToken {
     /// # Errors
     ///
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(cas_token), fields(subsystem = "hdjw"), err)
+    )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
     ) -> Result<Self, crate::Error<cas::error::TokenExpired>> {
@@ -42,8 +46,8 @@ impl HdjwToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?
+                .status_code_err()
+                .await?
                 .headers()
                 .get_all(SET_COOKIE),
         )
@@ -57,8 +61,8 @@ impl HdjwToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 上面的请求会重定向到 HDJW_ENTER_URL，我们再访问一下。
         let res = client
             .get(HDJW_ENTER_URL)
@@ -66,16 +70,13 @@ impl HdjwToken {
             .send()
             .await
             .network_err()?
-            .error_for_status()
-            .unexpected_err()?;
+            .status_code_err()
+            .await?;
         // 随后又会被重定向到一个新的链接，再请求一下就会得到 hdjw 鉴权的 cookie
-        if res.status() != StatusCode::FOUND {
-            return Err(format!(
-                "获取教务系统失败，HTTP代码 {} {}",
-                res.status(),
-                res.text().await.unwrap_or_default()
-            ))
-            .unexpected_err();
+        let status = res.status();
+        if status != StatusCode::FOUND {
+            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            return Err(format!("获取教务系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let target_url = res
             .headers()
@@ -91,8 +92,8 @@ impl HdjwToken {
                 .send()
                 .await
                 .network_err()?
-                .error_for_status()
-                .unexpected_err()?
+                .status_code_err()
+                .await?
                 .headers()
                 .get_all(SET_COOKIE),
         )

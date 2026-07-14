@@ -27,7 +27,9 @@ COVERAGE_IGNORE_REGEXES: list[str] = [
 # Specific files to exclude (paths relative to the current working directory).
 COVERAGE_IGNORE_FILES: list[str] = [
     "src/cas/tfa.rs",
-    "src/error.rs"
+    "src/error.rs",
+    "src/test/obs.rs",
+    "src/utils/obs.rs"
 ]
 
 

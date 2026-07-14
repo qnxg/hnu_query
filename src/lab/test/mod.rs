@@ -2,7 +2,7 @@ mod captcha;
 
 use crate::{
     lab::{login::LabToken, test::captcha::TestCaptchaResolver},
-    test::{TEST_STU_ID, TestResult},
+    test::{TEST_STU_ID, TestResult, init_tracing},
 };
 use std::sync::LazyLock;
 
@@ -19,6 +19,7 @@ pub static TEST_LAB_MAX_TRIED: LazyLock<usize> = LazyLock::new(|| {
 pub static TEST_LAB_PASSWORD: &str = env!("TEST_LAB_PASSWORD");
 
 pub async fn get_lab_token() -> TestResult<LabToken> {
+    init_tracing();
     let captcha_resolver = TestCaptchaResolver;
     Ok(LabToken::acquire_by_login(
         TEST_STU_ID,

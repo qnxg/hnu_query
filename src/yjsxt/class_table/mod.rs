@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::yjsxt::{error::TokenExpired, login::YjsxtToken};
+use crate::{
+    utils::obs::{fetch_time, parse_time, traced},
+    yjsxt::{error::TokenExpired, login::YjsxtToken},
+};
 use serde::{Deserialize, Serialize};
 
 /// 研究生课程信息
@@ -48,12 +51,13 @@ pub struct CourseSchedule {
 /// # Errors
 ///
 /// 如果提供的 `yjsxt_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [YjsxtToken]
+#[traced(subsystem = "yjsxt", skip(yjsxt_token))]
 pub async fn get_class_table(
     yjsxt_token: &YjsxtToken,
     semester_id: u16,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let json_str = fetch::class_table(yjsxt_token, semester_id).await?;
-    parse::class_table(&json_str)
+    let json_str = fetch_time!(fetch::class_table(yjsxt_token, semester_id).await)?;
+    parse_time!(parse::class_table(&json_str))
 }
 
 #[cfg(test)]

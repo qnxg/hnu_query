@@ -1,7 +1,10 @@
 mod fetch;
 mod parse;
 
-use crate::hdjw::{error::TokenExpired, login::HdjwToken};
+use crate::{
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::obs::{fetch_time, parse_time, traced},
+};
 use serde::{Deserialize, Serialize};
 
 /// 排名具体信息
@@ -116,6 +119,7 @@ impl Display {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
+#[traced(subsystem = "hdjw", skip(hdjw_token, selection, display))]
 pub async fn get_rank(
     hdjw_token: &HdjwToken,
     selection: &[(u16, u8)],
@@ -128,15 +132,17 @@ pub async fn get_rank(
         .map(|(xn, xq)| format!("{}-{}-{}", xn, xn + 1, xq))
         .collect::<Vec<_>>()
         .join(",");
-    let json_str = fetch::rank(
-        hdjw_token,
-        &selection,
-        range.as_str(),
-        data_source.as_str(),
-        display.as_str(),
-    )
-    .await?;
-    parse::rank(&json_str)
+    let json_str = fetch_time!(
+        fetch::rank(
+            hdjw_token,
+            &selection,
+            range.as_str(),
+            data_source.as_str(),
+            display.as_str(),
+        )
+        .await
+    )?;
+    parse_time!(parse::rank(&json_str))
 }
 
 #[cfg(test)]
