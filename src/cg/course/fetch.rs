@@ -61,7 +61,7 @@ pub(super) async fn main_page(token: &CgToken) -> Result<String, crate::Error<Cg
         .network_err()?
         .text()
         .await
-        .network_err()
+        .unexpected_err()
 }
 
 /// 获取作业列表页 HTML，`html` 为 [`super::parse::parse_assignments`] 的输入数据
@@ -74,7 +74,7 @@ pub(super) async fn assignment_list_page(token: &CgToken) -> Result<String, crat
         .network_err()?
         .text()
         .await
-        .network_err()
+        .unexpected_err()
 }
 
 /// 获取题目列表页 HTML (`assignment/index.jsp?assignID=xx`)，
@@ -92,7 +92,7 @@ pub(super) async fn problem_list_page(
         .network_err()?
         .text()
         .await
-        .network_err()
+        .unexpected_err()
 }
 
 /// 获取题目详情页 HTML，跟随 302 重定向
@@ -142,5 +142,5 @@ pub(super) async fn problem_page(
         .network_err()?
         .text()
         .await
-        .network_err()
+        .unexpected_err()
 }

@@ -17,8 +17,8 @@
 
 pub mod ai;
 pub mod ca;
-pub mod cg;
 pub mod cas;
+pub mod cg;
 pub mod gym;
 pub mod hdjw;
 pub mod lab;

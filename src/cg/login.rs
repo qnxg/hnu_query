@@ -69,7 +69,7 @@ impl CgSession {
             .network_err()?
             .bytes()
             .await
-            .network_err()?
+            .unexpected_err()?
             .to_vec();
 
         Ok(Self {

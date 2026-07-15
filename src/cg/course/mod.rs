@@ -89,7 +89,7 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
         }
         StatusCode::OK => {
             // 多课程账号：解析课程列表页
-            let body = fetch_time!(res.text().await.network_err()?);
+            let body = fetch_time!(res.text().await.unexpected_err()?);
             parse_time!(parse::parse_courses_from_list(&body))
         }
         _ => Err(format!("获取课程列表失败: HTTP {}", res.status())).unexpected_err(),
