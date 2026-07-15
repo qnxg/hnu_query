@@ -2,36 +2,31 @@ mod fetch;
 mod parse;
 
 use crate::{
-    cg::{CgToken, error::CgError},
-    error::{MapNetworkErr, MapUnexpectedErr},
-    utils::{
-        client,
-        obs::{fetch_time, parse_time, traced},
-    },
+    cg::{error::CgError, login::CgToken},
+    error::MapUnexpectedErr,
+    utils::obs::{fetch_time, parse_time, traced},
 };
 
 use reqwest::{StatusCode, header::LOCATION};
 use serde::{Deserialize, Serialize};
-
-const BASE_URL: &str = "https://cg.hnu.edu.cn";
 
 /// CG 系统中的课程
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[expect(clippy::module_name_repetitions)]
 pub struct CgCourse {
     /// 课程 ID
-    pub course_id: u32,
+    pub id: u32,
     /// 课程名称
-    pub course_name: String,
+    pub name: String,
 }
 
 /// CG 系统中的作业
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CgAssignment {
     /// 作业 ID
-    pub assign_id: u32,
+    pub id: u32,
     /// 作业名称
-    pub assign_name: String,
+    pub name: String,
 }
 
 /// CG 作业中的一道题目
@@ -66,12 +61,7 @@ pub struct CgProblem {
 /// - [CgError::CourseNotFound] — 页面中未找到课程信息
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
-    let res = client
-        .get(format!("{}/courselist.jsp", BASE_URL))
-        .headers(token.headers().clone())
-        .send()
-        .await
-        .network_err()?;
+    let res = fetch_time!(fetch::courselist_page(token).await)?;
 
     match res.status() {
         StatusCode::FOUND => {
@@ -85,12 +75,12 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
             }
             // 单课程账号：重定向到 main.jsp，从 main.jsp 提取课程信息
             let body = fetch_time!(fetch::main_page(token).await)?;
-            parse_time!(parse::parse_courses_from_main(&body))
+            parse_time!(parse::courses_from_main(&body))
         }
         StatusCode::OK => {
             // 多课程账号：解析课程列表页
             let body = fetch_time!(res.text().await.unexpected_err()?);
-            parse_time!(parse::parse_courses_from_list(&body))
+            parse_time!(parse::courses_from_list(&body))
         }
         _ => Err(format!("获取课程列表失败: HTTP {}", res.status())).unexpected_err(),
     }
@@ -123,7 +113,7 @@ pub async fn get_assignment_list(
 ) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
     fetch_time!(fetch::enter_course_context(token, course_id).await)?;
     let body = fetch_time!(fetch::assignment_list_page(token).await)?;
-    parse_time!(parse::parse_assignments(&body))
+    parse_time!(parse::assignments(&body))
 }
 
 /// 获取作业的题目列表
@@ -153,7 +143,7 @@ pub async fn get_problem_list(
 ) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
     fetch_time!(fetch::enter_course_context(token, course_id).await)?;
     let body = fetch_time!(fetch::problem_list_page(token, assign_id).await)?;
-    parse_time!(parse::parse_problems(&body))
+    parse_time!(parse::problems(&body))
 }
 
 /// 获取题目详情页的原始 HTML
@@ -199,7 +189,7 @@ mod tests {
         let courses = get_course_list(&token).await?;
         println!("共 {} 门课程:", courses.len());
         for c in &courses {
-            println!("  [{}] {}", c.course_id, c.course_name);
+            println!("  [{}] {}", c.id, c.name);
         }
         assert!(!courses.is_empty(), "课程列表不应为空");
         Ok(())
@@ -212,11 +202,11 @@ mod tests {
         let courses = get_course_list(&token).await?;
         println!("课程列表: {:?}", courses);
         if let Some(c) = courses.first() {
-            println!("进入课程: {} ({})", c.course_name, c.course_id);
-            let assignments = get_assignment_list(&token, c.course_id).await?;
+            println!("进入课程: {} ({})", c.name, c.id);
+            let assignments = get_assignment_list(&token, c.id).await?;
             println!("共 {} 个作业:", assignments.len());
             for a in &assignments {
-                println!("  [{}] {}", a.assign_id, a.assign_name);
+                println!("  [{}] {}", a.id, a.name);
             }
         }
         Ok(())
@@ -227,12 +217,18 @@ mod tests {
     async fn test_get_problem_list() -> TestResult<()> {
         let token = get_cg_token().await?;
         let courses = get_course_list(&token).await?;
-        let course = courses.first().expect("至少有一个课程");
-        let assignments = get_assignment_list(&token, course.course_id).await?;
-        let assign = assignments.first().expect("至少有一个作业");
+        let Some(course) = courses.first() else {
+            eprintln!("没有课程，跳过测试");
+            return Ok(());
+        };
+        let assignments = get_assignment_list(&token, course.id).await?;
+        let Some(assign) = assignments.first() else {
+            eprintln!("没有作业，跳过测试");
+            return Ok(());
+        };
 
-        println!("作业: [{}] {}", assign.assign_id, assign.assign_name);
-        let problems = get_problem_list(&token, course.course_id, assign.assign_id).await?;
+        println!("作业: [{}] {}", assign.id, assign.name);
+        let problems = get_problem_list(&token, course.id, assign.id).await?;
         println!("共 {} 道题:", problems.len());
         for p in &problems {
             println!(
@@ -249,15 +245,23 @@ mod tests {
     async fn test_get_problem_page() -> TestResult<()> {
         let token = get_cg_token().await?;
         let courses = get_course_list(&token).await?;
-        let course = courses.first().expect("至少有一个课程");
-        let assignments = get_assignment_list(&token, course.course_id).await?;
-        let assign = assignments.first().expect("至少有一个作业");
-        let problems = get_problem_list(&token, course.course_id, assign.assign_id).await?;
-        let problem = problems.first().expect("至少有一道题");
+        let Some(course) = courses.first() else {
+            eprintln!("没有课程，跳过测试");
+            return Ok(());
+        };
+        let assignments = get_assignment_list(&token, course.id).await?;
+        let Some(assign) = assignments.first() else {
+            eprintln!("没有作业，跳过测试");
+            return Ok(());
+        };
+        let problems = get_problem_list(&token, course.id, assign.id).await?;
+        let Some(problem) = problems.first() else {
+            eprintln!("没有题目，跳过测试");
+            return Ok(());
+        };
 
         println!("获取题目页面: #{}/{}", problem.pro_num, problem.problem_id);
-        let html =
-            get_problem_page(&token, course.course_id, assign.assign_id, problem.pro_num).await?;
+        let html = get_problem_page(&token, course.id, assign.id, problem.pro_num).await?;
         println!("页面大小: {} bytes", html.len());
         assert!(!html.is_empty(), "题目页面不应为空");
         assert!(

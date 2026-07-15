@@ -1,5 +1,5 @@
 use crate::{
-    cg::{CgToken, error::LoginError, login::CgSession},
+    cg::{login::CgSession, login::CgToken, login::LoginError},
     test::{TEST_CACHE, TestResult},
 };
 use reqwest::header::COOKIE;

@@ -1,9 +1,9 @@
 use crate::{
-    cg::{CgToken, error::CgError},
+    cg::{error::CgError, login::CgToken},
     error::{MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
-use reqwest::{StatusCode, header::LOCATION};
+use reqwest::{Response, StatusCode, header::LOCATION};
 
 const BASE_URL: &str = "https://cg.hnu.edu.cn";
 const COURSELIST_URL: &str = "/courselist.jsp";
@@ -11,6 +11,16 @@ const MAIN_URL: &str = "/main.jsp";
 const ASSIGNMENT_LIST_URL: &str = "/assignment/mainActiveAssigns.jsp";
 const PROBLEM_LIST_URL: &str = "/assignment/index.jsp";
 const PROBLEM_PAGE_URL: &str = "/assignment/programList.jsp";
+
+/// 获取课程列表页原始响应（不跟随重定向），`res` 为调用者提供状态码和响应体
+pub(super) async fn courselist_page(token: &CgToken) -> Result<Response, crate::Error<CgError>> {
+    client
+        .get(format!("{}{}", BASE_URL, COURSELIST_URL))
+        .headers(token.headers().clone())
+        .send()
+        .await
+        .network_err()
+}
 
 /// 进入课程上下文，跟随重定向以建立服务端 session 状态
 pub(super) async fn enter_course_context(
@@ -51,7 +61,7 @@ pub(super) async fn enter_course_context(
     Ok(())
 }
 
-/// 获取主页 HTML（单课程账号），`html` 为 [`super::parse::parse_courses_from_main`] 的输入数据
+/// 获取主页 HTML（单课程账号），`html` 为 [`super::parse::courses_from_main`] 的输入数据
 pub(super) async fn main_page(token: &CgToken) -> Result<String, crate::Error<CgError>> {
     client
         .get(format!("{}{}", BASE_URL, MAIN_URL))
@@ -64,7 +74,7 @@ pub(super) async fn main_page(token: &CgToken) -> Result<String, crate::Error<Cg
         .unexpected_err()
 }
 
-/// 获取作业列表页 HTML，`html` 为 [`super::parse::parse_assignments`] 的输入数据
+/// 获取作业列表页 HTML，`html` 为 [`super::parse::assignments`] 的输入数据
 pub(super) async fn assignment_list_page(token: &CgToken) -> Result<String, crate::Error<CgError>> {
     client
         .get(format!("{}{}", BASE_URL, ASSIGNMENT_LIST_URL))
@@ -78,7 +88,7 @@ pub(super) async fn assignment_list_page(token: &CgToken) -> Result<String, crat
 }
 
 /// 获取题目列表页 HTML (`assignment/index.jsp?assignID=xx`)，
-/// `html` 为 [`super::parse::parse_problems`] 的输入数据
+/// `html` 为 [`super::parse::problems`] 的输入数据
 pub(super) async fn problem_list_page(
     token: &CgToken,
     assign_id: u32,

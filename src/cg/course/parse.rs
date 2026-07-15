@@ -6,7 +6,7 @@ use scraper::{Html, Selector};
 /// 从多课程列表页 (`courselist.jsp`) 解析课程
 ///
 /// `html` 为 [`super::fetch::main_page`] 在 HTTP 200 时返回的 HTML 数据
-pub(super) fn parse_courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
+pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
     let sel = Selector::parse("a[href*=\"courselist.jsp?courseID=\"]")
         .expect("courselist.jsp 课程链接 CSS 选择器");
@@ -24,10 +24,7 @@ pub(super) fn parse_courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate
             if name.is_empty() {
                 return None;
             }
-            Some(CgCourse {
-                course_id: id,
-                course_name: name,
-            })
+            Some(CgCourse { id, name })
         })
         .collect();
 
@@ -40,7 +37,7 @@ pub(super) fn parse_courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate
 /// 从 `main.jsp` 的课程下拉菜单中解析课程
 ///
 /// `html` 为 [`super::fetch::main_page`] 返回的 HTML 数据
-pub(super) fn parse_courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
+pub(super) fn courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
     let sel =
         Selector::parse("span.dropdown-item-course").expect("main.jsp 课程下拉菜单 CSS 选择器");
@@ -53,10 +50,7 @@ pub(super) fn parse_courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate
             if name.is_empty() {
                 return None;
             }
-            Some(CgCourse {
-                course_id: id,
-                course_name: name,
-            })
+            Some(CgCourse { id, name })
         })
         .collect();
 
@@ -69,7 +63,7 @@ pub(super) fn parse_courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate
 /// 从 `assignment/mainActiveAssigns.jsp` 的返回 HTML 中解析作业列表
 ///
 /// `html` 为 [`super::fetch::assignment_list_page`] 返回的 HTML 数据
-pub(super) fn parse_assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
+pub(super) fn assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
     let block_sel = Selector::parse("div.main-zy").expect("作业列表块 CSS 选择器");
     let title_sel = Selector::parse("p.main-title").expect("作业标题 CSS 选择器");
@@ -91,10 +85,7 @@ pub(super) fn parse_assignments(html: &str) -> Result<Vec<CgAssignment>, crate::
             if name.is_empty() {
                 return None;
             }
-            Some(CgAssignment {
-                assign_id: id,
-                assign_name: name,
-            })
+            Some(CgAssignment { id, name })
         })
         .collect();
 
@@ -104,7 +95,7 @@ pub(super) fn parse_assignments(html: &str) -> Result<Vec<CgAssignment>, crate::
 /// 从 `assignment/index.jsp` 的题目列表页解析题目元数据
 ///
 /// `html` 为 [`super::fetch::problem_list_page`] 返回的 HTML 数据
-pub(super) fn parse_problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
+pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
     let row_sel = Selector::parse("table.table-striped tr").expect("题目表格行 CSS 选择器");
     let link_sel = Selector::parse("a[href]").expect("链接 CSS 选择器");
@@ -180,13 +171,10 @@ pub(super) fn parse_problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<
     Ok(problems)
 }
 
-/// 按 course_id 去重，保留首次出现的记录
+/// 按 id 去重，保留首次出现的记录
 fn dedup_by_id(courses: Vec<CgCourse>) -> Vec<CgCourse> {
     let mut seen = std::collections::HashSet::new();
-    courses
-        .into_iter()
-        .filter(|c| seen.insert(c.course_id))
-        .collect()
+    courses.into_iter().filter(|c| seen.insert(c.id)).collect()
 }
 
 #[cfg(test)]
@@ -197,11 +185,11 @@ mod tests {
     #[test]
     fn test_parse_courses_from_list() -> TestResult<()> {
         let html = include_str!("test_data/courselist.html");
-        let courses = parse_courses_from_list(html)?;
+        let courses = courses_from_list(html)?;
         assert!(!courses.is_empty(), "应解析出至少一门课程");
         let first = &courses[0];
-        assert!(first.course_id > 0, "课程 ID 应大于 0");
-        assert!(!first.course_name.is_empty(), "课程名称不应为空");
+        assert!(first.id > 0, "课程 ID 应大于 0");
+        assert!(!first.name.is_empty(), "课程名称不应为空");
         Ok(())
     }
 
@@ -209,9 +197,9 @@ mod tests {
     fn test_parse_courses_from_list_dedup() -> TestResult<()> {
         // 包含重复课程的 HTML
         let html = include_str!("test_data/courselist_dup.html");
-        let courses = parse_courses_from_list(html)?;
+        let courses = courses_from_list(html)?;
         // 应去重：两个相同 ID 的链接只保留一个
-        let ids: Vec<u32> = courses.iter().map(|c| c.course_id).collect();
+        let ids: Vec<u32> = courses.iter().map(|c| c.id).collect();
         let unique_ids: std::collections::HashSet<_> = ids.iter().copied().collect();
         assert_eq!(ids.len(), unique_ids.len(), "课程 ID 不应重复");
         Ok(())
@@ -220,7 +208,7 @@ mod tests {
     #[test]
     fn test_parse_courses_from_list_empty() -> TestResult<()> {
         let html = "<html><body>no courses here</body></html>";
-        let result = parse_courses_from_list(html);
+        let result = courses_from_list(html);
         assert!(result.is_err(), "无课程时应返回错误");
         Ok(())
     }
@@ -228,18 +216,18 @@ mod tests {
     #[test]
     fn test_parse_courses_from_main() -> TestResult<()> {
         let html = include_str!("test_data/main_single_course.html");
-        let courses = parse_courses_from_main(html)?;
+        let courses = courses_from_main(html)?;
         assert!(!courses.is_empty(), "应解析出至少一门课程");
         let first = &courses[0];
-        assert!(first.course_id > 0, "课程 ID 应大于 0");
-        assert!(!first.course_name.is_empty(), "课程名称不应为空");
+        assert!(first.id > 0, "课程 ID 应大于 0");
+        assert!(!first.name.is_empty(), "课程名称不应为空");
         Ok(())
     }
 
     #[test]
     fn test_parse_courses_from_main_empty() -> TestResult<()> {
         let html = "<html><body>no dropdown here</body></html>";
-        let result = parse_courses_from_main(html);
+        let result = courses_from_main(html);
         assert!(result.is_err(), "无课程时应返回错误");
         Ok(())
     }
@@ -247,18 +235,18 @@ mod tests {
     #[test]
     fn test_parse_assignments() -> TestResult<()> {
         let html = include_str!("test_data/assignment_list.html");
-        let assignments = parse_assignments(html)?;
+        let assignments = assignments(html)?;
         assert!(!assignments.is_empty(), "应解析出至少一个作业");
         let first = &assignments[0];
-        assert!(first.assign_id > 0, "作业 ID 应大于 0");
-        assert!(!first.assign_name.is_empty(), "作业名称不应为空");
+        assert!(first.id > 0, "作业 ID 应大于 0");
+        assert!(!first.name.is_empty(), "作业名称不应为空");
         Ok(())
     }
 
     #[test]
     fn test_parse_assignments_empty() -> TestResult<()> {
         let html = "<html><body>no assignments here</body></html>";
-        let assignments = parse_assignments(html)?;
+        let assignments = assignments(html)?;
         assert!(assignments.is_empty(), "无作业时应返回空列表");
         Ok(())
     }
@@ -266,7 +254,7 @@ mod tests {
     #[test]
     fn test_parse_problems() -> TestResult<()> {
         let html = include_str!("test_data/problem_list.html");
-        let problems = parse_problems(html)?;
+        let problems = problems(html)?;
         assert_eq!(problems.len(), 3, "应解析出 3 道题");
 
         // 第一题
@@ -299,7 +287,7 @@ mod tests {
     #[test]
     fn test_parse_problems_empty() -> TestResult<()> {
         let html = "<html><body>no problems here</body></html>";
-        let result = parse_problems(html);
+        let result = problems(html);
         assert!(result.is_err(), "无题目时应返回错误");
         Ok(())
     }

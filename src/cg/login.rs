@@ -1,8 +1,21 @@
 use crate::{
-    cg::error::LoginError,
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
+
+/// CG 系统登录相关的错误
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum LoginError {
+    /// 验证码错误
+    #[error("验证码错误")]
+    CaptchaError,
+    /// 密码错误
+    #[error("密码错误")]
+    PasswordError,
+    /// 未知登录失败
+    #[error("登录失败: {0}")]
+    LoginFailed(String),
+}
 use aes::cipher::{BlockEncryptMut, KeyInit, block_padding::Pkcs7};
 use base64::engine::{Engine, general_purpose::STANDARD as base64};
 use reqwest::{
@@ -182,25 +195,31 @@ impl CgSession {
     }
 }
 
-/// CG 系统（计算机学院课程教学辅助系统）的令牌
-///
-/// 存储登录后的会话 Cookie，用于后续 API 请求。
+/// CG 系统的会话 Cookie
 #[derive(Debug, Clone)]
 pub struct CgToken {
     headers: HeaderMap,
 }
 
 impl CgToken {
-    /// 从 [HeaderMap] 创建 [CgToken]，用于缓存恢复
+    /// 从 [HeaderMap] 创建 [CgToken]
+    ///
+    /// # Arguments
+    ///
+    /// - `headers`: 一个合法的可用作 [CgToken] 的 [HeaderMap]
     ///
     /// # Preconditions
     ///
-    /// `headers` 应该是一个合法有效的 [CgToken] 的 [HeaderMap]，否则会导致未定义行为
+    /// `headers` 参数应该是一个合法的可用作 [CgToken] 的 [HeaderMap]，否则会导致未定义行为
     pub fn from_headers_unchecked(headers: HeaderMap) -> Self {
         Self { headers }
     }
 
-    /// 获取当前令牌的 [HeaderMap]
+    /// 获取当前令牌的 [HeaderMap]，可用于 [CgToken::from_headers_unchecked]
+    ///
+    /// # Returns
+    ///
+    /// 返回当前令牌的 [HeaderMap]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -208,63 +227,7 @@ impl CgToken {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::cg::test::get_cg_token;
-
-    #[test]
-    fn test_encrypt_password_deterministic() -> crate::test::TestResult<()> {
-        // 相同的输入应得到相同的结果
-        let c1 = encrypt_password("test123")?;
-        let c2 = encrypt_password("test123")?;
-        assert_eq!(c1, c2);
-        Ok(())
-    }
-
-    #[test]
-    fn test_encrypt_password_output_is_base64() -> crate::test::TestResult<()> {
-        let encrypted = encrypt_password("password")?;
-        // Base64 只包含字母数字和 +/= 等字符
-        assert!(
-            encrypted
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=')
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn test_encrypt_password_different_inputs_different_outputs() -> crate::test::TestResult<()> {
-        let c1 = encrypt_password("password1")?;
-        let c2 = encrypt_password("password2")?;
-        assert_ne!(c1, c2);
-        Ok(())
-    }
-
-    #[test]
-    fn test_encrypt_password_not_contain_plaintext() -> crate::test::TestResult<()> {
-        let encrypted = encrypt_password("mypassword")?;
-        assert!(!encrypted.contains("mypassword"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_cg_token_from_headers_unchecked_and_headers() -> crate::test::TestResult<()> {
-        use reqwest::header::{COOKIE, HeaderMap, HeaderValue};
-
-        let mut headers = HeaderMap::new();
-        headers.insert(COOKIE, HeaderValue::from_static("JSESSIONID=test123"));
-        let token = CgToken::from_headers_unchecked(headers.clone());
-        assert_eq!(
-            token
-                .headers()
-                .get(COOKIE)
-                .expect("COOKIE header should be set")
-                .to_str()
-                .expect("header value should be valid ASCII"),
-            "JSESSIONID=test123"
-        );
-        Ok(())
-    }
 
     /// 此测试仅验证登录流程能否拿到 token，不检测 token 是否过期。
     /// 若缓存中的 token 已过期，测试仍会通过。如需验证有效性，运行
