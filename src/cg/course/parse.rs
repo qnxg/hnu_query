@@ -2,17 +2,37 @@ use super::{CgAssignment, CgCourse, CgProblem};
 use crate::cg::error::CgError;
 
 use scraper::{Html, Selector};
+use std::sync::LazyLock;
+
+// 编译期常量 CSS 选择器，避免每次调用重新解析
+static COURSE_LIST_SEL: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("a[href*=\"courselist.jsp?courseID=\"]")
+        .expect("courselist.jsp 课程链接 CSS 选择器")
+});
+static COURSE_MAIN_SEL: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("span.dropdown-item-course").expect("main.jsp 课程下拉菜单 CSS 选择器")
+});
+static ASSIGN_BLOCK_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("div.main-zy").expect("作业列表块 CSS 选择器"));
+static ASSIGN_TITLE_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("p.main-title").expect("作业标题 CSS 选择器"));
+static ASSIGN_LINK_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("a[href*=\"assignID=\"]").expect("作业链接 CSS 选择器"));
+static PROBLEM_ROW_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("table.table-striped tr").expect("题目表格行 CSS 选择器"));
+static PROBLEM_LINK_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("a[href]").expect("链接 CSS 选择器"));
+static PROBLEM_TD_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("td").expect("td CSS 选择器"));
 
 /// 从多课程列表页 (`courselist.jsp`) 解析课程
 ///
 /// `html` 为 [`super::fetch::main_page`] 在 HTTP 200 时返回的 HTML 数据
 pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
-    let sel = Selector::parse("a[href*=\"courselist.jsp?courseID=\"]")
-        .expect("courselist.jsp 课程链接 CSS 选择器");
 
     let courses: Vec<CgCourse> = document
-        .select(&sel)
+        .select(&COURSE_LIST_SEL)
         .filter_map(|el| {
             let href = el.value().attr("href")?;
             let id: u32 = href
@@ -20,7 +40,8 @@ pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Erro
                 .nth(1)?
                 .parse()
                 .ok()?;
-            let name = el.text().collect::<Vec<_>>().concat().trim().to_string();
+            let name: String = el.text().collect();
+            let name = name.trim().to_string();
             if name.is_empty() {
                 return None;
             }
@@ -39,14 +60,13 @@ pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Erro
 /// `html` 为 [`super::fetch::main_page`] 返回的 HTML 数据
 pub(super) fn courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
-    let sel =
-        Selector::parse("span.dropdown-item-course").expect("main.jsp 课程下拉菜单 CSS 选择器");
 
     let courses: Vec<CgCourse> = document
-        .select(&sel)
+        .select(&COURSE_MAIN_SEL)
         .filter_map(|el| {
             let id: u32 = el.value().attr("value")?.parse().ok()?;
-            let name = el.text().collect::<Vec<_>>().concat().trim().to_string();
+            let name: String = el.text().collect();
+            let name = name.trim().to_string();
             if name.is_empty() {
                 return None;
             }
@@ -65,26 +85,21 @@ pub(super) fn courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Erro
 /// `html` 为 [`super::fetch::assignment_list_page`] 返回的 HTML 数据
 pub(super) fn assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
-    let block_sel = Selector::parse("div.main-zy").expect("作业列表块 CSS 选择器");
-    let title_sel = Selector::parse("p.main-title").expect("作业标题 CSS 选择器");
-    let link_sel = Selector::parse("a[href*=\"assignID=\"]").expect("作业链接 CSS 选择器");
 
     let assignments: Vec<CgAssignment> = document
-        .select(&block_sel)
+        .select(&ASSIGN_BLOCK_SEL)
         .filter_map(|block| {
-            let name = block
-                .select(&title_sel)
-                .next()?
-                .text()
-                .collect::<Vec<_>>()
-                .concat()
-                .trim()
-                .to_string();
-            let href = block.select(&link_sel).next()?.value().attr("href")?;
-            let id: u32 = href.split("assignID=").nth(1)?.parse().ok()?;
+            let name: String = block.select(&ASSIGN_TITLE_SEL).next()?.text().collect();
+            let name = name.trim().to_string();
             if name.is_empty() {
                 return None;
             }
+            let href = block
+                .select(&ASSIGN_LINK_SEL)
+                .next()?
+                .value()
+                .attr("href")?;
+            let id: u32 = href.split("assignID=").nth(1)?.parse().ok()?;
             Some(CgAssignment { id, name })
         })
         .collect();
@@ -97,14 +112,11 @@ pub(super) fn assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<
 /// `html` 为 [`super::fetch::problem_list_page`] 返回的 HTML 数据
 pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
     let document = Html::parse_document(html);
-    let row_sel = Selector::parse("table.table-striped tr").expect("题目表格行 CSS 选择器");
-    let link_sel = Selector::parse("a[href]").expect("链接 CSS 选择器");
-    let td_sel = Selector::parse("td").expect("td CSS 选择器");
 
     let problems: Vec<CgProblem> = document
-        .select(&row_sel)
+        .select(&PROBLEM_ROW_SEL)
         .filter_map(|row| {
-            let links: Vec<_> = row.select(&link_sel).collect();
+            let links: Vec<_> = row.select(&PROBLEM_LINK_SEL).collect();
 
             // 找 programList.jsp 链接 → pro_num + title
             let pro_link = links.iter().find(|el| {
@@ -120,12 +132,8 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
                 .next()?
                 .parse()
                 .ok()?;
-            let title = pro_link
-                .text()
-                .collect::<Vec<_>>()
-                .concat()
-                .trim()
-                .to_string();
+            let title: String = pro_link.text().collect();
+            let title = title.trim().to_string();
             if title.is_empty() {
                 return None;
             }
@@ -146,15 +154,8 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
                 .ok()?;
 
             // 从 <td> 中提取分值（第二个 <td>）
-            let score: f64 = row
-                .select(&td_sel)
-                .nth(1)?
-                .text()
-                .collect::<Vec<_>>()
-                .concat()
-                .trim()
-                .parse()
-                .ok()?;
+            let score_text: String = row.select(&PROBLEM_TD_SEL).nth(1)?.text().collect();
+            let score: f64 = score_text.trim().parse().ok()?;
 
             Some(CgProblem {
                 pro_num,
