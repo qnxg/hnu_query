@@ -62,7 +62,7 @@ impl YjsxtToken {
             .split("/gmis/")
             .nth(1)
             .and_then(|s| s.split('/').next())
-            .ok_or_else(|| parse_err(redirection))?
+            .ok_or_else(|| parse_err("找不到研究生系统令牌 id", redirection))?
             .to_string();
         let new_url = format!("http://yjsxt.hnu.edu.cn{}", redirection);
         let res = client
@@ -80,7 +80,7 @@ impl YjsxtToken {
             if location_str.contains("/home/err") {
                 // TODO 这么解析不太好
                 let msg = location_str.split("msg=").nth(1).unwrap_or("");
-                let msg = decode(msg).parse_err_with_reason(msg, "url解码失败")?;
+                let msg = decode(msg).parse_err(msg)?;
                 return Err(msg).unexpected_err();
             }
         }

@@ -21,10 +21,10 @@ pub fn semester(json_str: &str) -> Result<Vec<Semester>, crate::Error<Infallible
             .split(|c| ['-', '_', ' '].contains(&c))
             .collect::<Vec<&str>>()[..]
         else {
-            return Err(parse_err(&item.text));
+            return Err(parse_err("无法解析学期", &item.text));
         };
         let (Ok(xn), Ok(xq)) = (xn_str.parse::<u16>(), xq_str.parse::<u8>()) else {
-            return Err(parse_err(&item.text));
+            return Err(parse_err("无法解析学期", &item.text));
         };
         res.push(Semester {
             xn,

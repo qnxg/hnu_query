@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err},
     xgxt::personal_info::Dormitory,
 };
 use serde_json::Value;
@@ -21,7 +21,7 @@ pub fn convert_dormitory(
         "德智留学生公寓" => 5,
         "望麓桥学生公寓" => 6,
         "牛头山学生公寓" => 7,
-        v => return Err(parse_err_with_reason(v, "park")),
+        _ => return Err(parse_err("未知校区", &format!("{:?}", dormitory))),
     };
     let build_id = match (park_id, build) {
         // 南校区
@@ -40,14 +40,14 @@ pub fn convert_dormitory(
             let no = room
                 .chars()
                 .next()
-                .ok_or_else(|| parse_err_with_reason(room, "room"))?;
+                .ok_or_else(|| parse_err("找不到房间号", &format!("{:?}", dormitory)))?;
             match no {
                 '1' => "25-1",
                 '2' => "25-2",
                 '3' => "25-3",
                 '4' => "25-4",
                 _ => {
-                    return Err(parse_err_with_reason(room, "room"));
+                    return Err(parse_err("未知房间号", &format!("{:?}", dormitory)));
                 }
             }
         }
@@ -117,10 +117,7 @@ pub fn convert_dormitory(
         (7, "6栋") => "64",
         (7, "7栋") => "65",
         _ => {
-            return Err(parse_err_with_reason(
-                &format!("{:?}", (park, build)),
-                "(park, build)",
-            ));
+            return Err(parse_err("未知宿舍", &format!("{:?}", (park, build))));
         }
     };
     let room_id = match (park_id, build, room) {
@@ -139,7 +136,7 @@ pub fn convert_dormitory(
         (1, "19舍", r) => {
             let parts = r.split('-').collect::<Vec<&str>>();
             if parts.len() != 2 {
-                return Err(parse_err_with_reason(r, "room"));
+                return Err(parse_err("房间号格式错误", &format!("{:?}", dormitory)));
             }
             if parts[1].starts_with('附') {
                 format!("F{}", parts[1].replace('附', ""))
@@ -159,7 +156,7 @@ pub fn electricity(json_str: &str) -> Result<String, crate::Error<Infallible>> {
         .get("data")
         .and_then(|data| data.get("Balance"))
         .and_then(|balance| balance.as_str())
-        .ok_or(parse_err(json_str))?
+        .ok_or(parse_err("解析余额失败", json_str))?
         .to_string();
     Ok(res)
 }

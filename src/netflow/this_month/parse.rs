@@ -33,7 +33,7 @@ pub fn this_month_info(json_str: &str) -> Result<ThisMonthInfo, crate::Error<Inf
         .get("data")
         .map(|v| serde_json::from_value::<RawThisMonthInfo>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析本月网络流量信息", json_str))?;
     let mut res = ThisMonthInfo {
         total_usage: raw_data.allTraffic,
         upload_usage: raw_data.uploadTraffic,

@@ -47,7 +47,7 @@ fn parse_lab_grade(json_str: &str) -> Result<Vec<RawLabGrade>, crate::Error<Infa
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<RawLabGrade>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))
+        .ok_or_else(|| parse_err("无法解析大物实验成绩", json_str))
 }
 
 fn parse_lab_grade_detail(
@@ -59,7 +59,7 @@ fn parse_lab_grade_detail(
         .and_then(|v| v.get("Lablist"))
         .map(|v| serde_json::from_value::<Vec<RawLabGradeDetail>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))
+        .ok_or_else(|| parse_err("无法解析大物实验成绩详情", json_str))
 }
 
 fn parse_lab_grade_structure(
@@ -70,7 +70,7 @@ fn parse_lab_grade_structure(
         .get("Data")
         .map(|v| serde_json::from_value::<Vec<RawLabGradeStructure>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))
+        .ok_or_else(|| parse_err("无法解析大物实验成绩组成", json_str))
 }
 
 /// # Arguments
@@ -144,7 +144,7 @@ pub fn virtual_lab_grade(json_str: &str) -> Result<Vec<VirtualLabGrade>, crate::
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<RawVirtualLabGrade>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析虚拟实验成绩", json_str))?;
     let mut res = Vec::new();
     for item in raw_data.into_iter() {
         let tmp = VirtualLabGrade {

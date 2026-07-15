@@ -98,7 +98,7 @@ impl LabToken {
             let data_str = res.text().await.unexpected_err()?;
             let data: Value = serde_json::from_str(&data_str).parse_err(&data_str)?;
             let Some(code) = data["RTNCode"].as_i64() else {
-                return Err(parse_err(&data_str));
+                return Err(parse_err("无法解析登录结果", &data_str));
             };
             if code == -2 {
                 // 需要验证码

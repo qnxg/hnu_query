@@ -16,7 +16,7 @@ pub fn email_unread_count(json_str: &str) -> Result<Option<u32>, crate::Error<In
         .get("data")
         .map(|v| serde_json::from_value::<RawUnreadEmail>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析未读邮件数量", json_str))?;
     Ok(raw_data.unReadCount)
 }
 

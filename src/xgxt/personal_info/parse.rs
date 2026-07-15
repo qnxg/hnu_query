@@ -1,6 +1,6 @@
 use super::dormitory::parse_dormitory;
 use super::{Gender, Level, PersonalInfo};
-use crate::error::{MapParseErr, parse_err, parse_err_with_reason};
+use crate::error::{MapParseErr, parse_err};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -18,7 +18,7 @@ pub fn extract_xgxt_entry(
         .and_then(|group_field_list| group_field_list.get(0))
         .and_then(|group_field_item| group_field_item.get("fields"))
         .and_then(|fields| fields.as_array())
-        .ok_or(parse_err(json_str))?
+        .ok_or(parse_err("无法解析学工系统个人信息", json_str))?
         .iter()
         .for_each(|field| {
             if let Some(field_name) = field.get("fieldName")
@@ -46,12 +46,12 @@ pub fn person_info(
 
     let name = entries
         .remove("姓名")
-        .ok_or(parse_err_with_reason(&entries_str, "name"))?;
+        .ok_or(parse_err("找不到姓名", &entries_str))?;
     let enter_year: u16 = entries
         .remove("年级")
-        .ok_or(parse_err_with_reason(&entries_str, "enter_year"))?
+        .ok_or(parse_err("找不到年级", &entries_str))?
         .parse()
-        .parse_err_with_reason(&entries_str, "enter_year")?;
+        .parse_err(&entries_str)?;
     let xz = entries
         .remove("学制(年)")
         .and_then(|v| {
@@ -62,44 +62,44 @@ pub fn person_info(
             }
         })
         .transpose()
-        .parse_err_with_reason(&entries_str, "xz")?;
+        .parse_err(&entries_str)?;
     let stu_id = entries
         .remove("学号")
-        .ok_or(parse_err_with_reason(&entries_str, "stu_id"))?;
+        .ok_or(parse_err("找不到学号", &entries_str))?;
     let gender = match entries.get("性别").map(|v| v.as_str()) {
         Some("1") => Gender::Male,
         Some("2") => Gender::Female,
         _ => {
-            return Err(parse_err_with_reason(&entries_str, "gender"))?;
+            return Err(parse_err("未知性别", &entries_str))?;
         }
     };
     let level = match entries
         .remove("培养层次")
-        .ok_or(parse_err_with_reason(&entries_str, "level"))?
+        .ok_or(parse_err("找不到培养层次", &entries_str))?
         .as_ref()
     {
         "1" => Level::Doctoral,
         "2" => Level::Postgraduate,
         "3" => Level::Undergraduate,
         _ => {
-            return Err(parse_err_with_reason(&entries_str, "level"))?;
+            return Err(parse_err("未知培养层次", &entries_str))?;
         }
     };
     let academy = entries
         .remove("学院")
-        .ok_or(parse_err_with_reason(&entries_str, "academy"))?;
+        .ok_or(parse_err("找不到学院", &entries_str))?;
     let major = entries
         .remove("专业")
-        .ok_or(parse_err_with_reason(&entries_str, "major"))?;
+        .ok_or(parse_err("找不到专业", &entries_str))?;
     let class = entries
         .remove("班级")
-        .ok_or(parse_err_with_reason(&entries_str, "class"))?;
+        .ok_or(parse_err("找不到班级", &entries_str))?;
     let dormitory = entries
         .remove("寝室楼")
-        .ok_or(parse_err_with_reason(&entries_str, "dormitory"))?;
+        .ok_or(parse_err("找不到寝室楼", &entries_str))?;
     let room = entries
         .remove("寝室号")
-        .ok_or(parse_err_with_reason(&entries_str, "room"))?;
+        .ok_or(parse_err("找不到寝室号", &entries_str))?;
     let dormitory = if dormitory.is_empty() || room.is_empty() {
         None
     } else {

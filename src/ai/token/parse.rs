@@ -21,7 +21,7 @@ pub fn token_key(json_str: &str) -> Result<String, crate::Error<Infallible>> {
     let json: Value = serde_json::from_str(json_str).parse_err(json_str)?;
     let key = json["data"]["key"]
         .as_str()
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析 token key", json_str))?;
     Ok(key.to_string())
 }
 
@@ -32,7 +32,7 @@ pub fn check_action_success(json_str: &str) -> Result<bool, crate::Error<Infalli
     let json: Value = serde_json::from_str(json_str).parse_err(json_str)?;
     let success = json["success"]
         .as_bool()
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析操作是否成功", json_str))?;
     Ok(success)
 }
 

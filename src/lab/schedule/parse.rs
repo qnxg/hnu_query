@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err},
     lab::schedule::LabSchedule,
 };
 use chrono::{NaiveDate, NaiveTime};
@@ -41,7 +41,7 @@ pub fn lab_schedule(json_str: &str) -> Result<Vec<LabSchedule>, crate::Error<Inf
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<RawLabSchedule>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析大物实验安排", json_str))?;
     let mut res = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         let day = match item.WeekName.as_str() {
@@ -53,22 +53,19 @@ pub fn lab_schedule(json_str: &str) -> Result<Vec<LabSchedule>, crate::Error<Inf
             "星期六" => 6,
             "星期日" => 7,
             _ => {
-                return Err(parse_err_with_reason(&item.WeekName, "day"));
+                return Err(parse_err("无法解析上课星期", &item.WeekName));
             }
         };
-        let week = item
-            .Weeks
-            .parse::<u8>()
-            .parse_err_with_reason(&item.Weeks, "week")?;
+        let week = item.Weeks.parse::<u8>().parse_err(&item.Weeks)?;
         let date = item
             .ClassDate
             .split(' ')
             .next()
-            .map(|v| NaiveDate::parse_from_str(v, "%Y/%m/%d").parse_err_with_reason(v, "date"))
+            .map(|v| NaiveDate::parse_from_str(v, "%Y/%m/%d").parse_err(v))
             .transpose()?
-            .ok_or_else(|| parse_err_with_reason(&item.ClassDate, "date"))?;
-        let time = NaiveTime::parse_from_str(&item.StartTime, "%H:%M")
-            .parse_err_with_reason(&item.StartTime, "time")?;
+            .ok_or_else(|| parse_err("无法解析上课日期", &item.ClassDate))?;
+        let time =
+            NaiveTime::parse_from_str(&item.StartTime, "%H:%M").parse_err(&item.StartTime)?;
         let tmp = LabSchedule {
             seat: item.SeatNo,
             name: item.LabName,

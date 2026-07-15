@@ -1,8 +1,5 @@
 use super::EmptyClassroom;
-use crate::{
-    error::{parse_err, parse_err_with_reason},
-    hdjw::error::TokenExpired,
-};
+use crate::{error::parse_err, hdjw::error::TokenExpired};
 
 /// # Arguments
 ///
@@ -17,19 +14,18 @@ pub fn empty_classroom(
         .as_array()
         .and_then(|v| v.get(4))
         .and_then(|v| v.as_array())
-        .ok_or(parse_err(&raw_data.to_string()))?;
+        .ok_or(parse_err("无法解析空教室信息", &raw_data.to_string()))?;
     let mut res = Vec::new();
     for item in data {
-        let item = item.as_array().ok_or(parse_err(&item.to_string()))?;
+        let item = item
+            .as_array()
+            .ok_or(parse_err("无法解析空教室信息", &item.to_string()))?;
         let mut is_free = true;
         // 需要每一节课均为空才会被认为是空教室
         for i in 1..=time.len() {
             if !item
                 .get(i)
-                .ok_or(parse_err_with_reason(
-                    &format!("{:?}", item),
-                    "空教室占用情况",
-                ))?
+                .ok_or(parse_err("无法解析空教室占用情况", &format!("{:?}", item)))?
                 .is_null()
             {
                 is_free = false;
@@ -45,21 +41,21 @@ pub fn empty_classroom(
             item.get(2 + time.len()).and_then(|v| v.as_str()),
             item.get(3 + time.len()).and_then(|v| v.as_str()),
         ) else {
-            return Err(parse_err_with_reason(&format!("{:?}", item), "空教室信息"));
+            return Err(parse_err("解析空教室具体信息失败", &format!("{:?}", item)));
         };
 
         if seat_count_str.len() < 3
             || !seat_count_str.starts_with('(')
             || !seat_count_str.ends_with(')')
         {
-            return Err(parse_err_with_reason(seat_count_str, "座位数"));
+            return Err(parse_err("无法解析座位数", seat_count_str));
         }
         let [Ok(seat_count), Ok(exam_seat_count)] = seat_count_str[1..seat_count_str.len() - 1]
             .split('/')
             .map(|x| x.parse::<u32>())
             .collect::<Vec<_>>()[..]
         else {
-            return Err(parse_err_with_reason(seat_count_str, "座位数"));
+            return Err(parse_err("无法解析座位数", seat_count_str));
         };
         res.push(EmptyClassroom {
             room_name: room_name.to_string(),
