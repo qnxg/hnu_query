@@ -22,6 +22,45 @@ pub(super) async fn courselist_page(token: &CgToken) -> Result<Response, crate::
         .network_err()
 }
 
+/// 进入课程上下文，跟随重定向以建立服务端 session 状态
+pub(super) async fn enter_course_context(
+    token: &CgToken,
+    course_id: u32,
+) -> Result<(), crate::Error<CgError>> {
+    let res = client
+        .get(format!("{}{}", BASE_URL, COURSELIST_URL))
+        .query(&[("courseID", course_id.to_string())])
+        .headers(token.headers().clone())
+        .send()
+        .await
+        .network_err()?;
+
+    if res.status() == StatusCode::FOUND {
+        let location = res
+            .headers()
+            .get(LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if location.contains("simple.jsp") || location.contains("login") {
+            return Err(crate::Error::Other(CgError::TokenExpired));
+        }
+        let redirect_url = if location.starts_with('/') {
+            format!("{}{}", BASE_URL, location)
+        } else {
+            format!("{}/{}", BASE_URL, location)
+        };
+        client
+            .get(&redirect_url)
+            .headers(token.headers().clone())
+            .send()
+            .await
+            .network_err()?;
+    } else {
+        return Err(format!("进入课程失败: HTTP {}", res.status())).unexpected_err();
+    }
+    Ok(())
+}
+
 /// 获取主页 HTML（单课程账号），`html` 为 [`super::parse::courses_from_main`] 的输入数据
 pub(super) async fn main_page(token: &CgToken) -> Result<String, crate::Error<CgError>> {
     client
