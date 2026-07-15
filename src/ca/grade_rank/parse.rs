@@ -9,22 +9,18 @@ use std::{convert::Infallible, sync::LazyLock};
 pub fn preview_file_name(json_str: &str) -> Result<String, crate::Error<Infallible>> {
     let json: Value = serde_json::from_str(json_str).parse_err(json_str)?;
     if json.get("code").and_then(|v| v.as_u64()) != Some(200) {
-        return Err(parse_err(json_str));
+        return Err(parse_err("无法解析响应代码", json_str));
     }
     json.get("message")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
-        .ok_or_else(|| parse_err(json_str))
+        .ok_or_else(|| parse_err("无法解析文件名", json_str))
 }
 
 /// `pdf_bytes` 可接收来自 [super::fetch::file] 的返回值
 pub fn rank(pdf_bytes: Bytes) -> Result<Rank, crate::Error<Infallible>> {
-    let text_extracted = pdf_extract::extract_text_from_mem(&pdf_bytes).map_err(|e| {
-        parse_err(&format!(
-            "failed to extract PDF text ({} bytes): {e}",
-            pdf_bytes.len()
-        ))
-    })?;
+    let text_extracted = pdf_extract::extract_text_from_mem(&pdf_bytes)
+        .parse_err(&format!("{} bytes", pdf_bytes.len()))?;
     rank_with_pdf_text(&text_extracted)
 }
 
@@ -39,9 +35,12 @@ fn rank_with_pdf_text(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> 
 
     let caps = REGEX
         .captures(pdf_text)
-        .ok_or(parse_err(pdf_text))?
+        .ok_or(parse_err("正则匹配失败", pdf_text))?
         .iter()
-        .map(|c| c.map(|v| v.as_str().to_string()).ok_or(parse_err(pdf_text)))
+        .map(|c| {
+            c.map(|v| v.as_str().to_string())
+                .ok_or(parse_err("无法解析 PDF 文本", pdf_text))
+        })
         .collect::<Result<Vec<_>, _>>()?;
     // 12 个捕获组，caps[0] 是完整匹配，共 13 个
     let [
@@ -58,7 +57,9 @@ fn rank_with_pdf_text(pdf_text: &str) -> Result<Rank, crate::Error<Infallible>> 
         all_weighted,
         core_weighted_rank,
         must_weighted,
-    ] = caps.try_into().map_err(|_| parse_err(pdf_text))?;
+    ] = caps
+        .try_into()
+        .map_err(|_| parse_err("无法解析 PDF 文本", pdf_text))?;
     let res = Rank {
         all_gpa,
         all_gpa_rank,

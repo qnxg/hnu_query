@@ -151,11 +151,11 @@ impl CasToken {
         let pubkey: Value = serde_json::from_str(&pubkey_str).parse_err(&pubkey_str)?;
         let modulus = pubkey["modulus"]
             .as_str()
-            .ok_or_else(|| parse_err(&pubkey_str))?
+            .ok_or_else(|| parse_err("无法解析modulus", &pubkey_str))?
             .to_string();
         let exponent = pubkey["exponent"]
             .as_str()
-            .ok_or_else(|| parse_err(&pubkey_str))?
+            .ok_or_else(|| parse_err("无法解析exponent", &pubkey_str))?
             .to_string();
         // 加密密码
         let encrypted_password = utils::rsa_encrypt(password, &exponent, &modulus)

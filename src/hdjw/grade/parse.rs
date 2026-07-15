@@ -85,7 +85,10 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
     let json = crate::hdjw::parse::hdjw_response(html)?;
     // 不要直接 to_string()，
     // 否则会把整段 HTML 当作 JSON 字符串再序列化，导致内部引号变成 \"
-    let raw_data = json.as_str().ok_or_else(|| parse_err(html))?.to_string();
+    let raw_data = json
+        .as_str()
+        .ok_or_else(|| parse_err("无法解析成绩详情", html))?
+        .to_string();
     static REGEX: LazyLock<Regex> = LazyLock::new(|| {
         RegexBuilder::new(r"let\sarr\s=\s(.*);.*window.initQzTable\(\{.*cols:\s\[(.*)\].*\}\);")
             .dot_matches_new_line(true)
@@ -94,14 +97,16 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
     });
     let caps = REGEX
         .captures(&raw_data)
-        .ok_or_else(|| parse_err(&raw_data))?
+        .ok_or_else(|| parse_err("正则匹配失败", &raw_data))?
         .iter()
         .map(|c| {
             c.map(|v| v.as_str().to_string())
-                .ok_or_else(|| parse_err(&raw_data))
+                .ok_or_else(|| parse_err("无法解析成绩详情", &raw_data))
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let [_, data, map] = caps.try_into().map_err(|_| parse_err(&raw_data))?;
+    let [_, data, map] = caps
+        .try_into()
+        .map_err(|_| parse_err("匹配数量错误", &raw_data))?;
     let data = serde_json::from_str::<Vec<Value>>(&data).parse_err(&raw_data)?;
     let data = data
         .first()
@@ -113,12 +118,12 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
                         .as_str()
                         .map(|s| s.to_string())
                         .or(value.as_number().map(|num| num.to_string()))
-                        .ok_or_else(|| parse_err(&raw_data))
+                        .ok_or_else(|| parse_err("解析分数失败", &raw_data))
                         .map(|ok_value| (key, ok_value))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
         })
-        .ok_or_else(|| parse_err(&raw_data))??;
+        .ok_or_else(|| parse_err("无法解析成绩详情", &raw_data))??;
     // map 是 js obj 格式，不是标准 json，我们需要进行一些处理
     let map = map
         .replace("//表头", "")
@@ -136,21 +141,21 @@ pub fn grade_detail(html: &str) -> Result<Vec<GradeDetailItem>, crate::Error<Tok
                 .map(|item| {
                     let key = item.get("field").and_then(|f| f.as_str());
                     key.zip(item.get("title").and_then(|f| f.as_str()))
-                        .ok_or_else(|| parse_err(&raw_data))
+                        .ok_or_else(|| parse_err("无法解析成绩组成", &raw_data))
                 })
                 .collect::<Result<HashMap<_, _>, _>>()
         })
-        .ok_or_else(|| parse_err(&raw_data))??;
+        .ok_or_else(|| parse_err("无法解析成绩组成", &raw_data))??;
     let res = data
         .iter()
         .filter(|(k, _)| k.ends_with("bl"))
         .map(|(k, v)| {
             let score = data
                 .get(&k.trim_end_matches("bl").to_string())
-                .ok_or_else(|| parse_err(&raw_data))?;
+                .ok_or_else(|| parse_err("找不到成绩组成分数", &raw_data))?;
             let name = map
                 .get(k.trim_end_matches("bl"))
-                .ok_or_else(|| parse_err(&raw_data))?;
+                .ok_or_else(|| parse_err("找不到成绩组成名称", &raw_data))?;
             let percentage = v;
             Ok::<_, crate::Error<TokenExpired>>(GradeDetailItem {
                 score: score.clone(),

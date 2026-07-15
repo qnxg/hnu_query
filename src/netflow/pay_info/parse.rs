@@ -16,7 +16,7 @@ pub fn overdue_payment(json_str: &str) -> Result<f64, crate::Error<Infallible>> 
         .get("data")
         .map(|v| serde_json::from_value::<RawPayInfo>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析欠费信息", json_str))?;
     Ok(raw_data.Total)
 }
 

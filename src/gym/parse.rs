@@ -19,16 +19,16 @@ pub fn gym_response(json_str: &str) -> Result<Value, crate::Error<TokenExpired>>
     if json
         .get("info")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| parse_err(json_str))?
+        .ok_or_else(|| parse_err("无法解析响应", json_str))?
         .contains("登录失效")
     {
         return Err(crate::Error::Other(TokenExpired));
     }
     if json.get("status").and_then(|v| v.as_i64()) != Some(1) {
-        return Err(parse_err(json_str));
+        return Err(parse_err("响应状态错误", json_str));
     }
     let Some(data) = json.get("data") else {
-        return Err(parse_err(json_str));
+        return Err(parse_err("无法解析响应数据", json_str));
     };
     Ok(data.clone())
 }

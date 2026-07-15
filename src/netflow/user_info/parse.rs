@@ -11,7 +11,7 @@ pub fn unlock_status(json_str: &str) -> Result<UnlockStatus, crate::Error<Infall
         .get("data")
         .and_then(|d| d.get("IsLocked"))
         .and_then(|v| v.as_i64())
-        .ok_or(parse_err(json_str))?;
+        .ok_or(parse_err("无法解析解锁状态", json_str))?;
     match is_locked {
         0 => Ok(UnlockStatus::Unlocked),
         1 => Ok(UnlockStatus::Locked),

@@ -17,18 +17,20 @@
 
 pub mod ai;
 pub mod ca;
-mod error;
+pub mod cas;
 pub mod gym;
 pub mod hdjw;
 pub mod lab;
 pub mod netflow;
 pub mod pt;
-mod utils;
 pub mod wxpay;
 pub mod xgxt;
 pub mod yjsxt;
-pub use error::Error;
-pub mod cas;
+
+mod error;
+pub use error::{Error, ParseError, UnexpectedError};
+
+mod utils;
 
 #[cfg(test)]
 pub mod test;
