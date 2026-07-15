@@ -96,7 +96,7 @@ impl CgSession {
     /// 可以写入文件后查看，例如：
     ///
     /// ```no_run
-    /// # use hnu_query::cg::CgSession;
+    /// # use hnu_query::cg::login::CgSession;
     /// # async {
     /// let session = CgSession::new().await?;
     /// std::fs::write("captcha.png", session.captcha_image())?;
