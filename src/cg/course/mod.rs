@@ -54,7 +54,7 @@ pub struct CgProblem {
 ///
 /// # Arguments
 ///
-/// - `token`: CG 系统的登录令牌，可通过 [CgToken::login] 或 [crate::cg::login::CgSession::login] 获取
+/// - `token`: CG 系统的登录令牌，可通过 [crate::cg::login::CgSession::login] 获取
 ///
 /// # Returns
 ///

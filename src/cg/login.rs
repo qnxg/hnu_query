@@ -191,28 +191,6 @@ pub struct CgToken {
 }
 
 impl CgToken {
-    /// 使用学号、密码和验证码一步完成登录（便捷方法）
-    ///
-    /// 当你已经知道验证码时可以使用此方法。如果需要查看验证码图片，
-    /// 请使用 [CgSession::new] 获取会话和验证码图片，再调用 [CgSession::login]。
-    ///
-    /// # Arguments
-    ///
-    /// - `stu_id`: 学号
-    /// - `password`: 明文密码（内部使用 AES-ECB 加密）
-    /// - `captcha_code`: 验证码
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(password)))]
-    pub async fn login(
-        stu_id: &str,
-        password: &str,
-        captcha_code: &str,
-    ) -> Result<Self, crate::Error<LoginError>> {
-        CgSession::new()
-            .await?
-            .login(stu_id, password, captcha_code)
-            .await
-    }
-
     /// 从 [HeaderMap] 创建 [CgToken]，用于缓存恢复
     ///
     /// # Preconditions
