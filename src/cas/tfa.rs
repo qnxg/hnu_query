@@ -1,6 +1,6 @@
 use crate::{
     cas::login::{AccountIssue, CasToken},
-    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err_with_reason},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err},
     utils::{client, obs, request::cookie_parser},
 };
 use regex::RegexBuilder;
@@ -67,13 +67,13 @@ impl TFAToken {
             .captures(html)
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
-            .ok_or_else(|| parse_err_with_reason(html, "没有找到execution"))?
+            .ok_or_else(|| parse_err("没有找到execution", html))?
             .to_string();
         let phone = regex_phone
             .captures(html)
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
-            .ok_or_else(|| parse_err_with_reason(html, "没有找到绑定手机号"))?
+            .ok_or_else(|| parse_err("没有找到绑定手机号", html))?
             .to_string();
         Ok(Self {
             phone,

@@ -1,8 +1,6 @@
 use crate::cas;
 use crate::cas::login::CasToken;
-use crate::error::{
-    CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err_with_reason,
-};
+use crate::error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err};
 use crate::utils::client;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
@@ -65,7 +63,7 @@ impl CaToken {
         }
         let token = json["result"]["token"]
             .as_str()
-            .ok_or_else(|| parse_err_with_reason(&json_str, "Ca 系统返回的 token 字段不存在"))?;
+            .ok_or_else(|| parse_err("找不到 token", &json_str))?;
         let cookie = format!("X-Access-Token={token}");
         let mut headers = HeaderMap::new();
         headers.insert("X-Access-Token", token.parse().parse_err(token)?);

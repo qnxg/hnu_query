@@ -1,6 +1,6 @@
 use super::{Course, CourseSchedule, ExtraCourse};
 use crate::{
-    error::{MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err},
     hdjw::error::TokenExpired,
 };
 use regex::Regex;
@@ -84,10 +84,7 @@ fn day_to_u8(c: char) -> Result<u8, crate::Error<TokenExpired>> {
         '五' => Ok(5),
         '六' => Ok(6),
         '日' | '七' => Ok(7),
-        _ => Err(parse_err_with_reason(
-            &format!("未知的星期字符: {c}"),
-            "上课时间: day",
-        )),
+        _ => Err(parse_err("未知的星期字符", &format!("{c}"))),
     }
 }
 
@@ -99,11 +96,9 @@ fn extract_time_list(s: &str, context: &str) -> Result<HashSet<u8>, crate::Error
         let time_l = parts
             .first()
             .and_then(|v| v.parse::<u8>().ok())
-            .ok_or(parse_err_with_reason(context, "上课时间: time"))?;
+            .ok_or(parse_err("找不到上课节次", context))?;
         let time_r = match parts.get(1) {
-            Some(v) => v
-                .parse::<u8>()
-                .parse_err_with_reason(context, "上课时间: time")?,
+            Some(v) => v.parse::<u8>().parse_err(context)?,
             None => time_l,
         };
         time_set.extend(time_l..=time_r);
@@ -119,11 +114,9 @@ fn extract_week_list(s: &str, context: &str) -> Result<HashSet<u8>, crate::Error
         let week_l = parts
             .first()
             .and_then(|v| v.parse::<u8>().ok())
-            .ok_or(parse_err_with_reason(context, "上课时间: week"))?;
+            .ok_or(parse_err("找不到上课周次", context))?;
         let week_r = match parts.get(1) {
-            Some(v) => v
-                .parse::<u8>()
-                .parse_err_with_reason(context, "上课时间: week")?,
+            Some(v) => v.parse::<u8>().parse_err(context)?,
             None => week_l,
         };
         week_set.extend(week_l..=week_r);
@@ -142,25 +135,27 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
     for (i, time) in detail_times.into_iter().enumerate() {
         let caps = SKTIME_RE
             .captures(time)
-            .ok_or(parse_err_with_reason(&raw.sktime, "上课时间: day"))?;
-        let day = day_to_u8(caps.get(1).and_then(|v| v.as_str().chars().next()).ok_or(
-            parse_err_with_reason(&raw.sktime, "上课时间: day: 没有匹配到星期字符"),
-        )?)?;
+            .ok_or(parse_err("无法解析上课时间", &raw.sktime))?;
+        let day = day_to_u8(
+            caps.get(1)
+                .and_then(|v| v.as_str().chars().next())
+                .ok_or(parse_err("找不到上课星期", &raw.sktime))?,
+        )?;
         let time_list = extract_time_list(
             caps.get(2)
-                .ok_or(parse_err_with_reason(&raw.sktime, "上课时间: time"))?
+                .ok_or(parse_err("找不到上课节次", &raw.sktime))?
                 .as_str(),
             &raw.sktime,
         )?;
         let week_list = extract_week_list(
             caps.get(3)
-                .ok_or(parse_err_with_reason(&raw.sktime, "上课时间: week"))?
+                .ok_or(parse_err("找不到上课周次", &raw.sktime))?
                 .as_str(),
             &raw.sktime,
         )?;
         let place = places
             .get(i)
-            .ok_or(parse_err_with_reason(&raw.skddmc, "上课地点"))?;
+            .ok_or(parse_err("找不到上课地点", &raw.skddmc))?;
         week_list.iter().for_each(|&week| {
             schedule
                 .entry((week, day, place.to_string()))
@@ -183,7 +178,7 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
 pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
-        None => return Err(parse_err(json_str)),
+        None => return Err(parse_err("无法解析课程表数据", json_str)),
         Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
         Some(_) => serde_json::from_value::<Vec<RawCourseInfo>>(json["data"].clone())
             .parse_err(json_str)?,
@@ -214,7 +209,7 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
 pub fn class_table_extra(json_str: &str) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
-        None => return Err(parse_err(json_str)),
+        None => return Err(parse_err("无法解析无课程表数据", json_str)),
         Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
         Some(_) => serde_json::from_value::<Vec<RawExtraCourseInfo>>(json["data"].clone())
             .parse_err(json_str)?,

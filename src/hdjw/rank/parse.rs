@@ -13,21 +13,24 @@ fn parse_number(value: &Value) -> Option<String> {
 
 fn rank_detail(value: &Value) -> Result<RankDetail, crate::Error<TokenExpired>> {
     Ok(RankDetail {
-        arithmetic: parse_number(&value["avgzcj"]).ok_or(parse_err(&value.to_string()))?,
+        arithmetic: parse_number(&value["avgzcj"])
+            .ok_or(parse_err("无法解析算数平均成绩", &value.to_string()))?,
         arithmetic_rank: value["avgzcjpm"]
             .as_str()
             .map(|s| s.to_string())
-            .ok_or(parse_err(&value.to_string()))?,
-        weighted: parse_number(&value["pjxfj"]).ok_or(parse_err(&value.to_string()))?,
+            .ok_or(parse_err("无法解析算数平均排名", &value.to_string()))?,
+        weighted: parse_number(&value["pjxfj"])
+            .ok_or(parse_err("无法解析加权平均成绩", &value.to_string()))?,
         weighted_rank: value["pjxfjpm"]
             .as_str()
             .map(|s| s.to_string())
-            .ok_or(parse_err(&value.to_string()))?,
-        gpa: parse_number(&value["pjxfjd"]).ok_or(parse_err(&value.to_string()))?,
+            .ok_or(parse_err("无法解析加权平均排名", &value.to_string()))?,
+        gpa: parse_number(&value["pjxfjd"])
+            .ok_or(parse_err("无法解析加权平均绩点", &value.to_string()))?,
         gpa_rank: value["pjxfjdpm"]
             .as_str()
             .map(|s| s.to_string())
-            .ok_or(parse_err(&value.to_string()))?,
+            .ok_or(parse_err("无法解析加权平均绩点排名", &value.to_string()))?,
     })
 }
 
@@ -36,7 +39,7 @@ pub fn rank(json_str: &str) -> Result<Rank, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("data") {
         Some(data @ Value::Object(_)) => data.clone(),
-        _ => return Err(parse_err(json_str)),
+        _ => return Err(parse_err("无法解析教务系统排名数据", json_str)),
     };
     Ok(Rank {
         all: raw_data.get("allPm").map(rank_detail).transpose()?,

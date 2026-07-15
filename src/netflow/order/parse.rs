@@ -23,7 +23,7 @@ pub fn order(json_str: &str) -> Result<Vec<OrderItem>, crate::Error<Infallible>>
         .get("data")
         .map(|v| serde_json::from_value::<Vec<RawOrderItem>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析校园网订单", json_str))?;
     raw_data
         .into_iter()
         .map(|item| {

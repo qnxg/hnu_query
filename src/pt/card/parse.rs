@@ -38,7 +38,7 @@ pub fn csrf_token(json_str: &str) -> Result<String, crate::Error<Infallible>> {
         .parse_err(json_str)?
         .get("data")
         .and_then(|v| v.as_str().map(|s| s.to_string()))
-        .ok_or_else(|| parse_err(json_str))
+        .ok_or_else(|| parse_err("找不到 CSRF 令牌", json_str))
 }
 
 /// `json_str` 为 [super::fetch::card_info] 的返回数据
@@ -48,7 +48,7 @@ pub fn card_info(json_str: &str) -> Result<CardInfo, crate::Error<Infallible>> {
         .get("data")
         .map(|v| serde_json::from_value::<RawCardInfo>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析校园卡信息", json_str))?;
 
     let raw_balance = raw_data
         .balance
@@ -68,25 +68,22 @@ pub fn card_history(json_str: &str) -> Result<CardHistory, crate::Error<Infallib
         .get("data")
         .map(|v| serde_json::from_value::<RawCardHistory>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析校园卡历史记录", json_str))?;
     let raw_items = raw_data.webTrjnDTO.unwrap_or_default();
     let mut items = Vec::with_capacity(raw_items.len());
     for item in raw_items {
         let date_time = NaiveDateTime::parse_from_str(&item.effectdate, "%Y/%m/%d %H:%M:%S")
-            .parse_err_with_reason(&item.effectdate, "date_time")?;
+            .parse_err(&item.effectdate)?;
         let journal_time = NaiveDateTime::parse_from_str(&item.jndatetime, "%Y/%m/%d %H:%M:%S")
-            .parse_err_with_reason(&item.jndatetime, "journal_time")?;
+            .parse_err(&item.jndatetime)?;
         let now_balance = item
             .nowAmt
             .trim()
             // 可能会有 1,359.30 这种情况
             .replace([',', ' '], "")
             .parse::<f64>()
-            .parse_err_with_reason(&item.nowAmt, "now_balance")?;
-        let amount = item
-            .fTranAmt
-            .parse::<f64>()
-            .parse_err_with_reason(&item.fTranAmt, "amount")?;
+            .parse_err(&item.nowAmt)?;
+        let amount = item.fTranAmt.parse::<f64>().parse_err(&item.fTranAmt)?;
         items.push(CardHistoryItem {
             date_time,
             journal_time,

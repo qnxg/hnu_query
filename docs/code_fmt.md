@@ -15,8 +15,8 @@
 - `src/error.rs` 中提供了一些错误转换的辅助函数：
   - `.network_err()`：网络请求错误。可以作用在 `reqwest` 库中可能返回 `reqwest::Error` 的地方，将其转为 `NetworkError`
   - `.unexpected_err()`：难以归类或理论上不应失败的错误。可以作用在任意的错误类型上，将其转为 `Unexpected`
-  - `.parse_err(data)?` / `.parse_err_with_reason(data, reason)?`：解析失败的错误。可以作用在任意的错误类型上，将其转为 `ParseError`
-  - 有时解析失败可能并非抛出了什么错误导致，而是某些条件不满足，对于这种情况我们可以手动调用函数 `parse_err` / `parse_err_with_reason` 来直接构造解析错误
+  - `.parse_err(data)`：解析失败的错误。可以作用在任意的错误类型上，将其转为 `ParseError`
+  - 有时解析失败可能并非抛出了什么错误导致，而是某些条件不满足，对于这种情况我们可以手动调用函数 `parse_err` 来直接构造解析错误
 - 域内特有的错误放在该系统的 `error.rs`（如 `TokenExpired`）。某个接口的特定错误放在功能子模块内（如 `LoginIssue`、`AccountIssue`）
 - 没有特定错误时，`E` 使用 `std::convert::Infallible`
 - 不应该使用 `unwrap`，已经配置 `clippy` 规则进行禁止。会 panic 的地方（比如 `assert` 和 `expect`），仅用于全局单例初始化（如正则表达式构建）或是文档明确声明会 panic 的前置条件。如果根据代码逻辑，某个代码写了看似会 panic 的地方实际不会执行，那么就无需写到函数的文档注释。

@@ -26,7 +26,7 @@ pub fn course_list(json_str: &str) -> Result<Vec<Course>, crate::Error<Infallibl
         .get("rows")
         .map(|v| serde_json::from_value::<Vec<RawCourse>>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析大物实验课程列表", json_str))?;
     let mut res = Vec::with_capacity(raw_data.len());
     for item in raw_data {
         res.push(Course {

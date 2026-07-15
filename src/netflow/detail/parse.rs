@@ -30,7 +30,7 @@ pub fn detail(json_str: &str) -> Result<Detail, crate::Error<Infallible>> {
         .get("data")
         .map(|v| serde_json::from_value::<RawDetail>(v.clone()).parse_err(json_str))
         .transpose()?
-        .ok_or_else(|| parse_err(json_str))?;
+        .ok_or_else(|| parse_err("无法解析校园网流量详情", json_str))?;
     let res = Detail {
         total: raw_data.AllTotal,
         upload: raw_data.AllUpload,

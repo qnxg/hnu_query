@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err},
     yjsxt::{
         class_table::{Course, CourseSchedule},
         error::TokenExpired,
@@ -36,21 +36,21 @@ fn parse_course_info(
     // 研究生系统返回的信息可能有多余的神秘空格，要去掉
     let course_id = parts
         .first()
-        .ok_or_else(|| parse_err(cell_text))?
+        .ok_or_else(|| parse_err("找不到课程编号", cell_text))?
         .replace("课程编号:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let course_name = parts
         .get(1)
-        .ok_or_else(|| parse_err(cell_text))?
+        .ok_or_else(|| parse_err("找不到课程名称", cell_text))?
         .replace("课程名称:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let class_name = parts
         .get(2)
-        .ok_or_else(|| parse_err(cell_text))?
+        .ok_or_else(|| parse_err("找不到班级", cell_text))?
         .replace("班级:", "")
         .chars()
         .filter(|c| !c.is_whitespace())
@@ -59,7 +59,7 @@ fn parse_course_info(
     // 上课时间: [9-16周] 连续周
     let class_time_str = parts
         .get(3)
-        .ok_or_else(|| parse_err(cell_text))?
+        .ok_or_else(|| parse_err("找不到上课时间", cell_text))?
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -72,16 +72,16 @@ fn parse_course_info(
                 .map(|s| s.parse::<u8>().ok())
                 .collect::<Option<Vec<_>>>()
         })
-        .ok_or_else(|| parse_err_with_reason(&class_time_str, "解析上课时间失败"))?;
+        .ok_or_else(|| parse_err("解析上课时间失败", &class_time_str))?;
     let Some(weeks_l) = class_time.first() else {
-        return Err(parse_err_with_reason(&class_time_str, "解析上课时间失败"));
+        return Err(parse_err("解析上课时间失败", &class_time_str));
     };
     // 可能只有一个周次
     let weeks_r = class_time.get(1).unwrap_or(weeks_l);
 
     let teacher_and_classroom_str = parts
         .get(4)
-        .ok_or_else(|| parse_err(cell_text))?
+        .ok_or_else(|| parse_err("找不到授课老师和上课地点", cell_text))?
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -93,14 +93,14 @@ fn parse_course_info(
                 .collect::<Option<Vec<_>>>()
         })
     else {
-        return Err(parse_err_with_reason(
-            &teacher_and_classroom_str,
+        return Err(parse_err(
             "解析授课老师和上课地点失败",
+            &teacher_and_classroom_str,
         ));
     };
-    let [_, teacher, classroom] = teacher_and_classroom.try_into().map_err(|_| {
-        parse_err_with_reason(&teacher_and_classroom_str, "解析授课老师和上课地点失败")
-    })?;
+    let [_, teacher, classroom] = teacher_and_classroom
+        .try_into()
+        .map_err(|_| parse_err("解析授课老师和上课地点失败", &teacher_and_classroom_str))?;
 
     let res = ParsedCourse {
         course_name,
@@ -122,7 +122,7 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
     let raw_rows = json
         .get("rows")
         .and_then(|rows| rows.as_array())
-        .ok_or_else(|| parse_err(&json_str))?;
+        .ok_or_else(|| parse_err("无法解析课表行", &json_str))?;
 
     // 研究生系统的课表的颗粒度比我们的更细，他们把节次信息也拆掉了
     // 所以我们这里需要把同一个课程，同一周次、周几、上课地点的节次信息合并
@@ -135,7 +135,7 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
     for item in raw_rows {
         let jc = item["mc"]
             .as_str()
-            .ok_or_else(|| parse_err_with_reason(&item.to_string(), "解析节次失败"))?;
+            .ok_or_else(|| parse_err("解析节次失败", &item.to_string()))?;
         for day in 1..=7u8 {
             let key = format!("z{day}");
             if item[&key] == Value::Null {
@@ -144,13 +144,13 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
 
             let cell_text = item[&key]
                 .as_str()
-                .ok_or_else(|| parse_err(&item.to_string()))?;
+                .ok_or_else(|| parse_err("解析课表单元格文本失败", &item.to_string()))?;
             let (course_info, weeks, place) = parse_course_info(cell_text)?;
 
             if jc == "无节次" {
                 extra_courses.insert(course_info, ());
             } else {
-                let jc = jc.parse::<u8>().parse_err_with_reason(jc, "解析节次失败")?;
+                let jc = jc.parse::<u8>().parse_err(jc)?;
                 let entry = course_map.entry(course_info).or_default();
                 for week in weeks {
                     let entry = entry.entry((week, day, place.clone())).or_default();

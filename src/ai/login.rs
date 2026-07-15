@@ -180,7 +180,7 @@ impl AiToken {
         let oauth_json: Value = serde_json::from_str(&oauth_text).parse_err(&oauth_text)?;
         let bearer_token = oauth_json["data"]["token"]
             .as_str()
-            .ok_or_else(|| parse_err(&oauth_text))?;
+            .ok_or_else(|| parse_err("找不到 bearer token", &oauth_text))?;
 
         let mut headers = HeaderMap::new();
         headers.insert(

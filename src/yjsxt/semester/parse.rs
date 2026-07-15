@@ -1,5 +1,5 @@
 use crate::{
-    error::{MapParseErr, parse_err, parse_err_with_reason},
+    error::{MapParseErr, parse_err},
     yjsxt::{error::TokenExpired, semester::Semester},
 };
 use serde::Deserialize;
@@ -19,7 +19,7 @@ pub fn semester(json_str: &str) -> Result<Vec<Semester>, crate::Error<TokenExpir
         let (xn_str, other) = raw_item
             .termname
             .split_once('-')
-            .ok_or_else(|| parse_err(&json_str))?;
+            .ok_or_else(|| parse_err("解析学期失败", &json_str))?;
         let xn = xn_str.parse::<u16>().parse_err(&json_str)?;
         let xq = if other.contains("秋学期") {
             1
@@ -28,7 +28,7 @@ pub fn semester(json_str: &str) -> Result<Vec<Semester>, crate::Error<TokenExpir
         } else if other.contains("暑假学期") {
             3
         } else {
-            return Err(parse_err_with_reason(&json_str, "未知学期"));
+            return Err(parse_err("未知学期", &json_str));
         };
         res.push(Semester {
             xn,
