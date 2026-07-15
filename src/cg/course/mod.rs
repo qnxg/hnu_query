@@ -1,15 +1,17 @@
 mod fetch;
 mod parse;
 
-use reqwest::StatusCode;
-use reqwest::header::LOCATION;
-use serde::{Deserialize, Serialize};
-
 use crate::{
     cg::{CgToken, error::CgError},
     error::{MapNetworkErr, MapUnexpectedErr},
-    utils::client,
+    utils::{
+        client,
+        obs::{fetch_time, parse_time, traced},
+    },
 };
+
+use reqwest::{StatusCode, header::LOCATION};
+use serde::{Deserialize, Serialize};
 
 const BASE_URL: &str = "https://cg.hnu.edu.cn";
 
@@ -50,10 +52,19 @@ pub struct CgProblem {
 /// 如果账号只有一个课程，CG 系统会从 `courselist.jsp` 直接重定向到 `main.jsp`，
 /// 此时从 `main.jsp` 的课程下拉菜单中提取课程信息。
 ///
+/// # Arguments
+///
+/// - `token`: CG 系统的登录令牌，可通过 [CgToken::login] 或 [crate::cg::login::CgSession::login] 获取
+///
+/// # Returns
+///
+/// 返回课程列表，每个元素包含课程 ID 和课程名称
+///
 /// # Errors
 ///
 /// - [CgError::TokenExpired] — 登录已过期
 /// - [CgError::CourseNotFound] — 页面中未找到课程信息
+#[traced(subsystem = "cg", skip(token))]
 pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
     let res = client
         .get(format!("{}/courselist.jsp", BASE_URL))
@@ -73,13 +84,13 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
                 return Err(crate::Error::Other(CgError::TokenExpired));
             }
             // 单课程账号：重定向到 main.jsp，从 main.jsp 提取课程信息
-            let body = fetch::main_page(token).await?;
-            parse::parse_courses_from_main(&body)
+            let body = fetch_time!(fetch::main_page(token).await)?;
+            parse_time!(parse::parse_courses_from_main(&body))
         }
         StatusCode::OK => {
             // 多课程账号：解析课程列表页
-            let body = res.text().await.network_err()?;
-            parse::parse_courses_from_list(&body)
+            let body = fetch_time!(res.text().await.network_err()?);
+            parse_time!(parse::parse_courses_from_list(&body))
         }
         _ => Err(format!("获取课程列表失败: HTTP {}", res.status())).unexpected_err(),
     }
@@ -92,16 +103,27 @@ pub async fn get_course_list(token: &CgToken) -> Result<Vec<CgCourse>, crate::Er
 /// 如果传入无效的 `course_id`，服务器通常仍会重定向到 `main.jsp`，
 /// 但不会返回任何作业内容，调用方会得到空列表。
 ///
+/// # Arguments
+///
+/// - `token`: CG 系统的登录令牌
+/// - `course_id`: 课程 ID，可通过 [get_course_list] 获取
+///
+/// # Returns
+///
+/// 返回作业列表，每个元素包含作业 ID 和作业名称。
+/// 如果课程没有作业，返回空列表。
+///
 /// # Errors
 ///
 /// - [CgError::TokenExpired] — 登录已过期
+#[traced(subsystem = "cg", skip(token))]
 pub async fn get_assignment_list(
     token: &CgToken,
     course_id: u32,
 ) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
-    fetch::enter_course_context(token, course_id).await?;
-    let body = fetch::assignment_list_page(token).await?;
-    parse::parse_assignments(&body)
+    fetch_time!(fetch::enter_course_context(token, course_id).await)?;
+    let body = fetch_time!(fetch::assignment_list_page(token).await)?;
+    parse_time!(parse::parse_assignments(&body))
 }
 
 /// 获取作业的题目列表
@@ -109,18 +131,29 @@ pub async fn get_assignment_list(
 /// 进入课程上下文后，解析 `assignment/index.jsp?assignID=xx` 页面
 /// 提取题目元数据。
 ///
+/// # Arguments
+///
+/// - `token`: CG 系统的登录令牌
+/// - `course_id`: 课程 ID
+/// - `assign_id`: 作业 ID，可通过 [get_assignment_list] 获取
+///
+/// # Returns
+///
+/// 返回题目列表，每个元素包含题目序号、题目 ID、标题和分值
+///
 /// # Errors
 ///
 /// - [CgError::TokenExpired] — 登录已过期
 /// - [CgError::AssignmentNotFound] — 未找到题目
+#[traced(subsystem = "cg", skip(token))]
 pub async fn get_problem_list(
     token: &CgToken,
     course_id: u32,
     assign_id: u32,
 ) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
-    fetch::enter_course_context(token, course_id).await?;
-    let body = fetch::problem_list_page(token, assign_id).await?;
-    parse::parse_problems(&body)
+    fetch_time!(fetch::enter_course_context(token, course_id).await)?;
+    let body = fetch_time!(fetch::problem_list_page(token, assign_id).await)?;
+    parse_time!(parse::parse_problems(&body))
 }
 
 /// 获取题目详情页的原始 HTML
@@ -129,17 +162,29 @@ pub async fn get_problem_list(
 /// 跟随 302 重定向到 `programList_ce.jsp`，返回完整 HTML。
 /// 调用者自行解析题目描述、提交表单等处理。
 ///
+/// # Arguments
+///
+/// - `token`: CG 系统的登录令牌
+/// - `course_id`: 课程 ID
+/// - `assign_id`: 作业 ID
+/// - `pro_num`: 题目序号（1-based），可通过 [get_problem_list] 获取
+///
+/// # Returns
+///
+/// 返回题目详情页的完整 HTML 字符串
+///
 /// # Errors
 ///
 /// - [CgError::TokenExpired] — 登录已过期
+#[traced(subsystem = "cg", skip(token))]
 pub async fn get_problem_page(
     token: &CgToken,
     course_id: u32,
     assign_id: u32,
     pro_num: u32,
 ) -> Result<String, crate::Error<CgError>> {
-    fetch::enter_course_context(token, course_id).await?;
-    fetch::problem_page(token, assign_id, pro_num).await
+    fetch_time!(fetch::enter_course_context(token, course_id).await)?;
+    fetch_time!(fetch::problem_page(token, assign_id, pro_num).await)
 }
 
 #[cfg(test)]

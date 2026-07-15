@@ -19,6 +19,12 @@ const AES_KEY: &str = "Client8Sess!06ID";
 type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
 
 /// 对密码进行 AES-ECB/PKCS7 加密（与前端 CryptoJS 保持一致）
+///
+/// 使用 AES-128-ECB 模式，密钥为 `Client8Sess!06ID`。
+/// 密文经 PKCS7 填充后进行 Base64 编码。
+///
+/// 不采用密码学安全随机 IV（ECB 模式无 IV），因为这是 CG 系统前端
+/// `loginproc.jsp` 页面的 CryptoJS 实现所使用的方法，必须与其保持一致。
 fn encrypt_password(password: &str) -> Result<String, crate::Error<LoginError>> {
     let key = <aes::cipher::generic_array::GenericArray<u8, _>>::from_slice(AES_KEY.as_bytes());
     let cipher = Aes128EcbEnc::new(key);
@@ -42,6 +48,7 @@ impl CgSession {
     /// # Returns
     ///
     /// 返回 [CgSession]，其中包含验证码图片的字节数据。
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub async fn new() -> Result<Self, crate::Error<LoginError>> {
         // 1. 访问登录页面，获取 JSESSIONID
         let res = client
@@ -89,7 +96,7 @@ impl CgSession {
 
     /// 使用学号、密码和验证码完成登录
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `stu_id`: 学号
     /// - `password`: 明文密码（内部使用 AES-ECB 加密）
@@ -100,6 +107,7 @@ impl CgSession {
     /// - [LoginError::CaptchaError] — 验证码错误
     /// - [LoginError::PasswordError] — 密码错误
     /// - [LoginError::LoginFailed] — 其他未知登录失败
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, password)))]
     pub async fn login(
         self,
         stu_id: &str,
@@ -188,11 +196,12 @@ impl CgToken {
     /// 当你已经知道验证码时可以使用此方法。如果需要查看验证码图片，
     /// 请使用 [CgSession::new] 获取会话和验证码图片，再调用 [CgSession::login]。
     ///
-    /// # Parameters
+    /// # Arguments
     ///
     /// - `stu_id`: 学号
     /// - `password`: 明文密码（内部使用 AES-ECB 加密）
     /// - `captcha_code`: 验证码
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(password)))]
     pub async fn login(
         stu_id: &str,
         password: &str,
@@ -221,7 +230,63 @@ impl CgToken {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::cg::test::get_cg_token;
+
+    #[test]
+    fn test_encrypt_password_deterministic() -> crate::test::TestResult<()> {
+        // 相同的输入应得到相同的结果
+        let c1 = encrypt_password("test123")?;
+        let c2 = encrypt_password("test123")?;
+        assert_eq!(c1, c2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_encrypt_password_output_is_base64() -> crate::test::TestResult<()> {
+        let encrypted = encrypt_password("password")?;
+        // Base64 只包含字母数字和 +/= 等字符
+        assert!(
+            encrypted
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=')
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_encrypt_password_different_inputs_different_outputs() -> crate::test::TestResult<()> {
+        let c1 = encrypt_password("password1")?;
+        let c2 = encrypt_password("password2")?;
+        assert_ne!(c1, c2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_encrypt_password_not_contain_plaintext() -> crate::test::TestResult<()> {
+        let encrypted = encrypt_password("mypassword")?;
+        assert!(!encrypted.contains("mypassword"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_cg_token_from_headers_unchecked_and_headers() -> crate::test::TestResult<()> {
+        use reqwest::header::{COOKIE, HeaderMap, HeaderValue};
+
+        let mut headers = HeaderMap::new();
+        headers.insert(COOKIE, HeaderValue::from_static("JSESSIONID=test123"));
+        let token = CgToken::from_headers_unchecked(headers.clone());
+        assert_eq!(
+            token
+                .headers()
+                .get(COOKIE)
+                .expect("COOKIE header should be set")
+                .to_str()
+                .expect("header value should be valid ASCII"),
+            "JSESSIONID=test123"
+        );
+        Ok(())
+    }
 
     /// 此测试仅验证登录流程能否拿到 token，不检测 token 是否过期。
     /// 若缓存中的 token 已过期，测试仍会通过。如需验证有效性，运行
