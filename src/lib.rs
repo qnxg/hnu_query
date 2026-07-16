@@ -13,6 +13,7 @@
 #![warn(clippy::map_unwrap_or)]
 #![warn(clippy::implicit_clone)]
 #![warn(clippy::unused_async)]
+#![warn(clippy::future_not_send)]
 #![warn(clippy::todo, reason = "在`git commit`之前，请确认代码中没有`todo!()`")]
 
 pub mod ai;
