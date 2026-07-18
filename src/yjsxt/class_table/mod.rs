@@ -54,7 +54,7 @@ pub struct CourseSchedule {
 #[traced(subsystem = "yjsxt", skip(yjsxt_token))]
 pub async fn get_class_table(
     yjsxt_token: &YjsxtToken,
-    semester_id: u16,
+    semester_id: &str,
 ) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let json_str = fetch_time!(fetch::class_table(yjsxt_token, semester_id).await)?;
     parse_time!(parse::class_table(&json_str))
@@ -72,7 +72,7 @@ mod tests {
     #[ignore]
     async fn test_get_class_table() -> TestResult<()> {
         let yjsxt_token = get_yjsxt_token().await?;
-        let class_table = get_class_table(&yjsxt_token, *TEST_YJSXT_SEMESTER_ID).await?;
+        let class_table = get_class_table(&yjsxt_token, TEST_YJSXT_SEMESTER_ID).await?;
         println!("{:#?}", class_table);
         Ok(())
     }
