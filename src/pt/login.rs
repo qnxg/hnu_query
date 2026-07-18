@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, obs, request::cookie_parser},
+    utils::{client, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -48,7 +48,12 @@ impl PtToken {
             .await?;
         let status = res.status();
         if status != StatusCode::FOUND {
-            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            #[cfg(feature = "tracing")]
+            {
+                use crate::utils::obs;
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(status = %status, body = %body, "unexpected_status");
+            }
             return Err(format!("登录个人门户失败，HTTP 状态码: {}", status)).unexpected_err();
         }
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");

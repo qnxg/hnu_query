@@ -1,4 +1,3 @@
-use crate::utils::obs;
 use std::error::Error as StdError;
 
 #[derive(thiserror::Error, Debug)]
@@ -218,7 +217,12 @@ impl CheckStatusCodeErr for reqwest::Response {
         async move {
             let status = self.status();
             if status.is_client_error() || status.is_server_error() {
-                obs::error!(status = %status, body = %self.text().await.unwrap_or_default(), "status code error");
+                #[cfg(feature = "tracing")]
+                {
+                    use crate::utils::obs;
+                    let body = self.text().await.unwrap_or_default();
+                    obs::error!(status = %status, body = %body, "status code error");
+                }
                 Err(Error::Unexpected(UnexpectedError {
                     error: format!("status code error: {status}").into(),
                     file,
