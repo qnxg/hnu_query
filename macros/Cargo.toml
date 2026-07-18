@@ -1,11 +1,10 @@
 [package]
 name = "hnu_query_macros"
-version = "3.0.1"
+version = "0.0.1"
 edition = "2024"
 license = "AGPL-3.0-only"
-description = "Proc-macros for hnu_query observability helpers."
+description = "Internal proc-macros for hnu_query. Not intended for direct use."
 repository = "https://github.com/qnxg/hnu_query"
-publish = false
 
 [lib]
 proc-macro = true

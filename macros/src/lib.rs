@@ -41,7 +41,7 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     if input.sig.asyncness.is_none() {
         return syn::Error::new_spanned(
-            &input.sig.fn_token,
+            input.sig.fn_token,
             "#[traced] only supports async functions (needs task-local scope)",
         )
         .to_compile_error()

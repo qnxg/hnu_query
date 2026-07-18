@@ -1,5 +1,3 @@
-/logs
-/traffic_stats
-/target
+target
 /cache
 __pycache__
