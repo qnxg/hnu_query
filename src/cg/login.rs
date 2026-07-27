@@ -1,6 +1,6 @@
 use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, request::cookie_parser},
+    utils::{client, obs, request::cookie_parser},
 };
 
 /// CG 系统登录相关的错误
@@ -22,6 +22,7 @@ use reqwest::{
     StatusCode,
     header::{COOKIE, HeaderMap, LOCATION, SET_COOKIE},
 };
+use std::convert::Infallible;
 
 const BASE_URL: &str = "https://cg.hnu.edu.cn";
 const LOGIN_PAGE: &str = "/indexcs/simple.jsp";
@@ -31,13 +32,7 @@ const AES_KEY: &str = "Client8Sess!06ID";
 
 type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
 
-/// 对密码进行 AES-ECB/PKCS7 加密（与前端 CryptoJS 保持一致）
-///
-/// 使用 AES-128-ECB 模式，密钥为 `Client8Sess!06ID`。
-/// 密文经 PKCS7 填充后进行 Base64 编码。
-///
-/// 不采用密码学安全随机 IV（ECB 模式无 IV），因为这是 CG 系统前端
-/// `loginproc.jsp` 页面的 CryptoJS 实现所使用的方法，必须与其保持一致。
+/// CG 前端的加密函数
 fn encrypt_password(password: &str) -> Result<String, crate::Error<LoginError>> {
     let key = <aes::cipher::generic_array::GenericArray<u8, _>>::from_slice(AES_KEY.as_bytes());
     let cipher = Aes128EcbEnc::new(key);
@@ -47,8 +42,8 @@ fn encrypt_password(password: &str) -> Result<String, crate::Error<LoginError>> 
 
 /// CG 系统的登录会话
 ///
-/// 创建一个与服务器绑定的 session（包含 JSESSIONID），并下载验证码图片。
-/// 用户识别验证码后，调用 [CgSession::login] 完成登录。
+/// 创建会话时会下载验证码图片。
+/// 识别验证码后，调用 [CgSession::login] 完成登录。
 #[derive(Debug, Clone)]
 pub struct CgSession {
     headers: HeaderMap,
@@ -62,7 +57,7 @@ impl CgSession {
     ///
     /// 返回 [CgSession]，其中包含验证码图片的字节数据。
     #[cfg_attr(feature = "tracing", tracing::instrument)]
-    pub async fn new() -> Result<Self, crate::Error<LoginError>> {
+    pub async fn new() -> Result<Self, crate::Error<Infallible>> {
         // 1. 访问登录页面，获取 JSESSIONID
         let res = client
             .get(format!("{}{}", BASE_URL, LOGIN_PAGE))
@@ -112,7 +107,7 @@ impl CgSession {
     /// # Arguments
     ///
     /// - `stu_id`: 学号
-    /// - `password`: 明文密码（内部使用 AES-ECB 加密）
+    /// - `password`: 密码
     /// - `captcha_code`: 验证码，需调用者识别 [captcha_image](CgSession::captcha_image) 后传入
     ///
     /// # Errors
@@ -190,16 +185,12 @@ impl CgSession {
         }
 
         let status = res.status();
-        let body = res.text().await.unwrap_or_default();
-        Err(format!(
-            "登录失败，HTTP {status}: {}",
-            &body[..body.len().min(200)]
-        ))
-        .unexpected_err()
+        obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+        Err(format!("登录失败，HTTP {status}")).unexpected_err()
     }
 }
 
-/// CG 系统的会话 Cookie
+/// CG 系统的会话 Cookie，可以通过 [CgSession::login] 获得
 #[derive(Debug, Clone)]
 pub struct CgToken {
     headers: HeaderMap,
@@ -234,8 +225,7 @@ mod tests {
     use crate::cg::test::get_cg_token;
 
     /// 此测试仅验证登录流程能否拿到 token，不检测 token 是否过期。
-    /// 若缓存中的 token 已过期，测试仍会通过。如需验证有效性，运行
-    /// `test_get_course_list` 或 `test_get_assignment_list`。
+    /// 若缓存中的 token 已过期，测试仍会通过。
     #[tokio::test]
     #[ignore]
     async fn test_login() -> crate::test::TestResult<()> {
