@@ -65,6 +65,7 @@ impl LabToken {
         feature = "tracing",
         tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab", tried = tracing::field::Empty), err)
     )]
+    #[expect(clippy::future_not_send)]
     pub async fn acquire_by_login(
         stu_id: &str,
         password: &str,

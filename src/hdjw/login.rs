@@ -1,7 +1,7 @@
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, obs, request::cookie_parser},
+    utils::{client, request::cookie_parser},
 };
 use reqwest::{
     StatusCode,
@@ -75,7 +75,12 @@ impl HdjwToken {
         // 随后又会被重定向到一个新的链接，再请求一下就会得到 hdjw 鉴权的 cookie
         let status = res.status();
         if status != StatusCode::FOUND {
-            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            #[cfg(feature = "tracing")]
+            {
+                use crate::utils::obs;
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(status = %status, body = %body, "unexpected_status");
+            }
             return Err(format!("获取教务系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let target_url = res

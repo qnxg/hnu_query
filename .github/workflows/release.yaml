@@ -31,5 +31,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cd macros && cargo publish
-          cd .. && cargo publish
+          # 过程宏 crate 版本独立于主库，未改宏代码时版本不变，需跳过已发布的版本
+          python3 scripts/cargo_publish_if_new.py macros
+          cargo publish

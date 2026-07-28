@@ -9,7 +9,7 @@ const CLASS_TABLE_URL: &str = "/student/pygl/py_kbcx_ew";
 
 pub async fn class_table(
     yjsxt_token: &YjsxtToken,
-    semester_id: u16,
+    semester_id: &str,
 ) -> Result<String, crate::Error<TokenExpired>> {
     let url = format!(
         "{}{}{}",
@@ -19,7 +19,7 @@ pub async fn class_table(
     );
     client
         .post(&url)
-        .form(&[("kblx", "xs"), ("termcode", &semester_id.to_string())])
+        .form(&[("kblx", "xs"), ("termcode", semester_id)])
         .send()
         .await
         .network_err()?

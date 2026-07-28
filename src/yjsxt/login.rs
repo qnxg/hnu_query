@@ -46,7 +46,11 @@ impl YjsxtToken {
             .await?;
         let status = res.status();
         if status != StatusCode::FOUND {
-            obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+            #[cfg(feature = "tracing")]
+            {
+                let body = res.text().await.unwrap_or_default();
+                obs::error!(status = %status, body = %body, "unexpected_status");
+            }
             return Err(format!("获取研究生系统失败，HTTP代码 {}", status)).unexpected_err();
         }
         let redirection = res
