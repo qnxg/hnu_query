@@ -13,7 +13,7 @@ pub enum LoginError {
     #[error("密码错误")]
     PasswordError,
     /// 未知登录失败
-    #[error("登录失败: {0}")]
+    #[error("登录失败，错误码: {0}")]
     LoginFailed(String),
 }
 use aes::cipher::{BlockEncryptMut, KeyInit, block_padding::Pkcs7};
@@ -41,9 +41,6 @@ fn encrypt_password(password: &str) -> Result<String, crate::Error<LoginError>> 
 }
 
 /// CG 系统的登录会话
-///
-/// 创建会话时会下载验证码图片。
-/// 识别验证码后，调用 [CgSession::login] 完成登录。
 #[derive(Debug, Clone)]
 pub struct CgSession {
     headers: HeaderMap,
@@ -163,9 +160,9 @@ impl CgSession {
                 return match err_code {
                     "1" => Err(crate::Error::Other(LoginError::PasswordError)),
                     "6" => Err(crate::Error::Other(LoginError::CaptchaError)),
-                    _ => Err(crate::Error::Other(LoginError::LoginFailed(format!(
-                        "未知错误码: {err_code}"
-                    )))),
+                    _ => Err(crate::Error::Other(LoginError::LoginFailed(
+                        err_code.to_string(),
+                    ))),
                 };
             }
 
@@ -185,7 +182,8 @@ impl CgSession {
         }
 
         let status = res.status();
-        obs::error!(status = %status, body = %res.text().await.unwrap_or_default(), "unexpected_status");
+        let body = res.text().await.unwrap_or_default();
+        obs::error!(status = %status, body = %body, "unexpected_status");
         Err(format!("登录失败，HTTP {status}")).unexpected_err()
     }
 }
