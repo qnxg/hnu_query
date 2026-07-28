@@ -182,8 +182,11 @@ impl CgSession {
         }
 
         let status = res.status();
-        let body = res.text().await.unwrap_or_default();
-        obs::error!(status = %status, body = %body, "unexpected_status");
+        #[cfg(feature = "tracing")]
+        {
+            let body = res.text().await.unwrap_or_default();
+            obs::error!(status = %status, body = %body, "unexpected_status");
+        }
         Err(format!("登录失败，HTTP {status}")).unexpected_err()
     }
 }
