@@ -1,6 +1,6 @@
 use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
-    utils::{client, obs, request::cookie_parser},
+    utils::{client, request::cookie_parser},
 };
 
 /// CG 系统登录相关的错误
@@ -184,6 +184,7 @@ impl CgSession {
         let status = res.status();
         #[cfg(feature = "tracing")]
         {
+            use crate::utils::obs;
             let body = res.text().await.unwrap_or_default();
             obs::error!(status = %status, body = %body, "unexpected_status");
         }
