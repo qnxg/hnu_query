@@ -2,20 +2,6 @@ use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
-
-/// CG 系统登录相关的错误
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum LoginError {
-    /// 验证码错误
-    #[error("验证码错误")]
-    CaptchaError,
-    /// 密码错误
-    #[error("密码错误")]
-    PasswordError,
-    /// 未知登录失败
-    #[error("登录失败，错误码: {0}")]
-    LoginFailed(String),
-}
 use aes::cipher::{BlockEncryptMut, KeyInit, block_padding::Pkcs7};
 use base64::engine::{Engine, general_purpose::STANDARD as base64};
 use reqwest::{
@@ -31,6 +17,20 @@ const LOGIN_URL: &str = "/login/loginproc.jsp";
 const AES_KEY: &str = "Client8Sess!06ID";
 
 type Aes128EcbEnc = ecb::Encryptor<aes::Aes128>;
+
+/// CG 系统登录相关的错误
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum LoginError {
+    /// 验证码错误
+    #[error("验证码错误")]
+    CaptchaError,
+    /// 密码错误
+    #[error("密码错误")]
+    PasswordError,
+    /// 未知登录失败
+    #[error("登录失败，错误码: {0}")]
+    LoginFailed(String),
+}
 
 /// CG 前端的加密函数
 fn encrypt_password(password: &str) -> Result<String, crate::Error<LoginError>> {
@@ -53,7 +53,10 @@ impl CgSession {
     /// # Returns
     ///
     /// 返回 [CgSession]，其中包含验证码图片的字节数据。
-    #[cfg_attr(feature = "tracing", tracing::instrument)]
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(fields(subsystem = "cg"), err)
+    )]
     pub async fn new() -> Result<Self, crate::Error<Infallible>> {
         // 1. 访问登录页面，获取 JSESSIONID
         let res = client
@@ -112,7 +115,10 @@ impl CgSession {
     /// - [LoginError::CaptchaError] — 验证码错误
     /// - [LoginError::PasswordError] — 密码错误
     /// - [LoginError::LoginFailed] — 其他未知登录失败
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, password)))]
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self, password), fields(subsystem = "cg"), err)
+    )]
     pub async fn login(
         self,
         stu_id: &str,

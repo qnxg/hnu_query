@@ -1,6 +1,4 @@
 use super::{CgAssignment, CgCourse, CgProblem};
-use crate::cg::error::CgError;
-
 use scraper::{Html, Selector};
 use std::sync::LazyLock;
 
@@ -25,10 +23,10 @@ static PROBLEM_LINK_SEL: LazyLock<Selector> =
 static PROBLEM_TD_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("td").expect("td CSS 选择器"));
 
-/// 从多课程列表页 (`courselist.jsp`) 解析课程
+/// 从多课程列表页 (`courselist.jsp`) 解析课程，页面中没有课程时返回 `None`
 ///
-/// `html` 为 [`super::fetch::main_page`] 在 HTTP 200 时返回的 HTML 数据
-pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
+/// `html` 为 [`super::fetch::course_list`] 返回的 `CourseListPage::List` 中的 HTML
+pub fn courses_from_list(html: &str) -> Option<Vec<CgCourse>> {
     let document = Html::parse_document(html);
 
     let courses: Vec<CgCourse> = document
@@ -50,15 +48,15 @@ pub(super) fn courses_from_list(html: &str) -> Result<Vec<CgCourse>, crate::Erro
         .collect();
 
     if courses.is_empty() {
-        return Err(crate::Error::Other(CgError::CourseNotFound));
+        return None;
     }
-    Ok(dedup_by_id(courses))
+    Some(dedup_by_id(courses))
 }
 
-/// 从 `main.jsp` 的课程下拉菜单中解析课程
+/// 从 `main.jsp` 的课程下拉菜单中解析课程，页面中没有课程时返回 `None`
 ///
-/// `html` 为 [`super::fetch::main_page`] 返回的 HTML 数据
-pub(super) fn courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Error<CgError>> {
+/// `html` 为 [`super::fetch::course_list`] 返回的 `CourseListPage::Main` 中的 HTML
+pub fn courses_from_main(html: &str) -> Option<Vec<CgCourse>> {
     let document = Html::parse_document(html);
 
     let courses: Vec<CgCourse> = document
@@ -75,15 +73,15 @@ pub(super) fn courses_from_main(html: &str) -> Result<Vec<CgCourse>, crate::Erro
         .collect();
 
     if courses.is_empty() {
-        return Err(crate::Error::Other(CgError::CourseNotFound));
+        return None;
     }
-    Ok(dedup_by_id(courses))
+    Some(dedup_by_id(courses))
 }
 
-/// 从 `assignment/mainActiveAssigns.jsp` 的返回 HTML 中解析作业列表
+/// 从 `assignment/mainActiveAssigns.jsp` 的返回 HTML 中解析作业列表，没有作业时返回 `None`
 ///
 /// `html` 为 [`super::fetch::assignment_list_page`] 返回的 HTML 数据
-pub(super) fn assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<CgError>> {
+pub fn assignments(html: &str) -> Option<Vec<CgAssignment>> {
     let document = Html::parse_document(html);
 
     let assignments: Vec<CgAssignment> = document
@@ -104,13 +102,16 @@ pub(super) fn assignments(html: &str) -> Result<Vec<CgAssignment>, crate::Error<
         })
         .collect();
 
-    Ok(assignments)
+    if assignments.is_empty() {
+        return None;
+    }
+    Some(assignments)
 }
 
-/// 从 `assignment/index.jsp` 的题目列表页解析题目元数据
+/// 从 `assignment/index.jsp` 的题目列表页解析题目元数据，没有题目时返回 `None`
 ///
 /// `html` 为 [`super::fetch::problem_list_page`] 返回的 HTML 数据
-pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgError>> {
+pub fn problems(html: &str) -> Option<Vec<CgProblem>> {
     let document = Html::parse_document(html);
 
     let problems: Vec<CgProblem> = document
@@ -118,14 +119,14 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
         .filter_map(|row| {
             let links: Vec<_> = row.select(&PROBLEM_LINK_SEL).collect();
 
-            // 找 programList.jsp 链接 → pro_num + title
+            // 找 programList.jsp 链接 → index + title
             let pro_link = links.iter().find(|el| {
                 el.value()
                     .attr("href")
                     .is_some_and(|h| h.contains("programList.jsp"))
             })?;
             let href = pro_link.value().attr("href")?;
-            let pro_num: u32 = href
+            let index: u32 = href
                 .split("proNum=")
                 .nth(1)?
                 .split('&')
@@ -138,14 +139,14 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
                 return None;
             }
 
-            // 找 judgeDetailsRedirect.jsp 链接 → problem_id
+            // 找 judgeDetailsRedirect.jsp 链接 → id
             let judge_link = links.iter().find(|el| {
                 el.value()
                     .attr("href")
                     .is_some_and(|h| h.contains("judgeDetailsRedirect.jsp"))
             })?;
             let judge_href = judge_link.value().attr("href")?;
-            let problem_id: u32 = judge_href
+            let id: u32 = judge_href
                 .split("problemID=")
                 .nth(1)?
                 .split('&')
@@ -158,8 +159,8 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
             let score: f64 = score_text.trim().parse().ok()?;
 
             Some(CgProblem {
-                pro_num,
-                problem_id,
+                index,
+                id,
                 title,
                 score,
             })
@@ -167,9 +168,9 @@ pub(super) fn problems(html: &str) -> Result<Vec<CgProblem>, crate::Error<CgErro
         .collect();
 
     if problems.is_empty() {
-        return Err(crate::Error::Other(CgError::AssignmentNotFound));
+        return None;
     }
-    Ok(problems)
+    Some(problems)
 }
 
 /// 按 id 去重，保留首次出现的记录
@@ -186,7 +187,7 @@ mod tests {
     #[test]
     fn test_parse_courses_from_list() -> TestResult<()> {
         let html = include_str!("test_data/courselist.html");
-        let courses = courses_from_list(html)?;
+        let courses = courses_from_list(html).expect("应解析出课程");
         assert!(!courses.is_empty(), "应解析出至少一门课程");
         let first = &courses[0];
         assert!(first.id > 0, "课程 ID 应大于 0");
@@ -198,7 +199,7 @@ mod tests {
     fn test_parse_courses_from_list_dedup() -> TestResult<()> {
         // 包含重复课程的 HTML
         let html = include_str!("test_data/courselist_dup.html");
-        let courses = courses_from_list(html)?;
+        let courses = courses_from_list(html).expect("应解析出课程");
         // 应去重：两个相同 ID 的链接只保留一个
         let ids: Vec<u32> = courses.iter().map(|c| c.id).collect();
         let unique_ids: std::collections::HashSet<_> = ids.iter().copied().collect();
@@ -209,15 +210,14 @@ mod tests {
     #[test]
     fn test_parse_courses_from_list_empty() -> TestResult<()> {
         let html = "<html><body>no courses here</body></html>";
-        let result = courses_from_list(html);
-        assert!(result.is_err(), "无课程时应返回错误");
+        assert!(courses_from_list(html).is_none(), "无课程时应返回 None");
         Ok(())
     }
 
     #[test]
     fn test_parse_courses_from_main() -> TestResult<()> {
         let html = include_str!("test_data/main_single_course.html");
-        let courses = courses_from_main(html)?;
+        let courses = courses_from_main(html).expect("应解析出课程");
         assert!(!courses.is_empty(), "应解析出至少一门课程");
         let first = &courses[0];
         assert!(first.id > 0, "课程 ID 应大于 0");
@@ -228,15 +228,14 @@ mod tests {
     #[test]
     fn test_parse_courses_from_main_empty() -> TestResult<()> {
         let html = "<html><body>no dropdown here</body></html>";
-        let result = courses_from_main(html);
-        assert!(result.is_err(), "无课程时应返回错误");
+        assert!(courses_from_main(html).is_none(), "无课程时应返回 None");
         Ok(())
     }
 
     #[test]
     fn test_parse_assignments() -> TestResult<()> {
         let html = include_str!("test_data/assignment_list.html");
-        let assignments = assignments(html)?;
+        let assignments = assignments(html).expect("应解析出作业");
         assert!(!assignments.is_empty(), "应解析出至少一个作业");
         let first = &assignments[0];
         assert!(first.id > 0, "作业 ID 应大于 0");
@@ -247,21 +246,20 @@ mod tests {
     #[test]
     fn test_parse_assignments_empty() -> TestResult<()> {
         let html = "<html><body>no assignments here</body></html>";
-        let assignments = assignments(html)?;
-        assert!(assignments.is_empty(), "无作业时应返回空列表");
+        assert!(assignments(html).is_none(), "无作业时应返回 None");
         Ok(())
     }
 
     #[test]
     fn test_parse_problems() -> TestResult<()> {
         let html = include_str!("test_data/problem_list.html");
-        let problems = problems(html)?;
+        let problems = problems(html).expect("应解析出题目");
         assert_eq!(problems.len(), 3, "应解析出 3 道题");
 
         // 第一题
         let first = &problems[0];
-        assert_eq!(first.pro_num, 1);
-        assert_eq!(first.problem_id, 20001);
+        assert_eq!(first.index, 1);
+        assert_eq!(first.id, 20001);
         assert_eq!(first.title, "第一题");
         assert!(
             (first.score - 100.0).abs() < f64::EPSILON,
@@ -270,15 +268,15 @@ mod tests {
 
         // 第二题
         let second = &problems[1];
-        assert_eq!(second.pro_num, 2);
-        assert_eq!(second.problem_id, 20002);
+        assert_eq!(second.index, 2);
+        assert_eq!(second.id, 20002);
         assert_eq!(second.title, "第二题");
         assert!((second.score - 50.0).abs() < f64::EPSILON, "分数应为 50.00");
 
         // 第三题
         let third = &problems[2];
-        assert_eq!(third.pro_num, 3);
-        assert_eq!(third.problem_id, 20003);
+        assert_eq!(third.index, 3);
+        assert_eq!(third.id, 20003);
         assert_eq!(third.title, "第三题");
         assert!((third.score - 75.50).abs() < f64::EPSILON, "分数应为 75.50");
 
@@ -288,8 +286,7 @@ mod tests {
     #[test]
     fn test_parse_problems_empty() -> TestResult<()> {
         let html = "<html><body>no problems here</body></html>";
-        let result = problems(html);
-        assert!(result.is_err(), "无题目时应返回错误");
+        assert!(problems(html).is_none(), "无题目时应返回 None");
         Ok(())
     }
 
