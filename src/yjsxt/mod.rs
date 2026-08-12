@@ -2,7 +2,6 @@ pub mod class_table;
 pub mod error;
 mod fetch;
 pub mod login;
-mod parse;
 pub mod semester;
 
 #[cfg(test)]
