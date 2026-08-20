@@ -2,8 +2,7 @@ mod fetch;
 mod parse;
 
 use crate::{
-    hdjw::{error::TokenExpired, login::HdjwToken},
-    utils::obs::{fetch_time, parse_time, traced},
+    hdjw::{error::TokenExpired, login::HdjwToken}, utils::{chrono::TimeRange, obs::{fetch_time, parse_time, traced}},
 };
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -34,7 +33,7 @@ pub struct ExamSchedule {
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
     ///
     /// `date` 和 `time` 会同时为 `None` 或同时为 `Some`
-    pub time: Option<String>,
+    pub time: Option<TimeRange>,
     /// 考试的座位号
     ///
     /// 一些比如体育理论这样的课程，没有该信息，则该字段为 `None`
