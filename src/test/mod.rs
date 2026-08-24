@@ -28,7 +28,8 @@ pub static TEST_XQ: LazyLock<u8> = LazyLock::new(|| test_env_parse("TEST_XQ"));
 pub static TEST_YEAR: LazyLock<u16> = LazyLock::new(|| test_env_parse("TEST_YEAR"));
 pub static TEST_MONTH: LazyLock<u8> = LazyLock::new(|| test_env_parse("TEST_MONTH"));
 pub static TEST_DAY: LazyLock<u8> = LazyLock::new(|| test_env_parse("TEST_DAY"));
-pub static TEST_CAS_CACHE: LazyLock<bool> = LazyLock::new(|| {
-    let v = env_var("TEST_CAS_CACHE");
+
+pub static TEST_CACHE: LazyLock<bool> = LazyLock::new(|| {
+    let v = env_var("TEST_CACHE");
     v == "true" || v == "1"
 });
