@@ -2,10 +2,9 @@ mod fetch;
 mod parse;
 
 use crate::{
-    cg::{error::CgError, login::CgToken},
+    cg::{error::TokenExpired, login::CgToken},
     utils::obs::{fetch_time, parse_time, traced},
 };
-
 use serde::{Deserialize, Serialize};
 
 /// CG 系统中的课程
@@ -54,11 +53,11 @@ pub struct CgProblem {
 ///
 /// # Errors
 ///
-/// - [CgError::TokenExpired] — 登录已过期
+/// - [TokenExpired] — 登录已过期
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_course_list(
     token: &CgToken,
-) -> Result<Option<Vec<CgCourse>>, crate::Error<CgError>> {
+) -> Result<Option<Vec<CgCourse>>, crate::Error<TokenExpired>> {
     // 单课程账号会从 `courselist.jsp` 重定向到 `main.jsp`，此时从 `main.jsp` 的课程下拉菜单提取
     let page = fetch_time!(fetch::course_list(token).await)?;
     let courses = match page {
@@ -83,12 +82,12 @@ pub async fn get_course_list(
 ///
 /// # Errors
 ///
-/// - [CgError::TokenExpired] — 登录已过期
+/// - [TokenExpired] — 登录已过期
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_assignment_list(
     token: &CgToken,
     course_id: u32,
-) -> Result<Option<Vec<CgAssignment>>, crate::Error<CgError>> {
+) -> Result<Option<Vec<CgAssignment>>, crate::Error<TokenExpired>> {
     // 需要先进入课程上下文，服务端才会返回该课程的在线作业
     fetch_time!(fetch::enter_course_context(token, course_id).await)?;
     let body = fetch_time!(fetch::assignment_list_page(token).await)?;
@@ -110,12 +109,12 @@ pub async fn get_assignment_list(
 ///
 /// # Errors
 ///
-/// - [CgError::TokenExpired] — 登录已过期
+/// - [TokenExpired] — 登录已过期
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_problem_list(
     token: &CgToken,
     assign_id: u32,
-) -> Result<Option<Vec<CgProblem>>, crate::Error<CgError>> {
+) -> Result<Option<Vec<CgProblem>>, crate::Error<TokenExpired>> {
     let body = fetch_time!(fetch::problem_list_page(token, assign_id).await)?;
     Ok(parse_time!(parse::problems(&body)))
 }
@@ -134,13 +133,13 @@ pub async fn get_problem_list(
 ///
 /// # Errors
 ///
-/// - [CgError::TokenExpired] — 登录已过期
+/// - [TokenExpired] — 登录已过期
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_problem_page(
     token: &CgToken,
     assign_id: u32,
     index: u32,
-) -> Result<String, crate::Error<CgError>> {
+) -> Result<String, crate::Error<TokenExpired>> {
     // 访问 `assignment/programList.jsp` 后跟随 302 重定向到 `programList_ce.jsp` 才能拿到完整页面
     fetch_time!(fetch::problem_page(token, assign_id, index).await)
 }

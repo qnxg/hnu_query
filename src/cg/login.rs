@@ -230,13 +230,13 @@ impl CgToken {
 
 #[cfg(test)]
 mod tests {
-    use crate::cg::test::get_cg_token;
+    use crate::{cg::test::get_cg_token, test::TestResult};
 
     /// 此测试仅验证登录流程能否拿到 token，不检测 token 是否过期。
     /// 若缓存中的 token 已过期，测试仍会通过。
     #[tokio::test]
     #[ignore]
-    async fn test_login() -> crate::test::TestResult<()> {
+    async fn test_login() -> TestResult<()> {
         let token = get_cg_token().await?;
         println!("{token:#?}");
         Ok(())

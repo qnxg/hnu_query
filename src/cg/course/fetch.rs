@@ -1,5 +1,5 @@
 use crate::{
-    cg::{error::CgError, login::CgToken},
+    cg::{error::TokenExpired, login::CgToken},
     error::{MapNetworkErr, MapUnexpectedErr},
     utils::client,
 };
@@ -13,7 +13,7 @@ const PROBLEM_LIST_URL: &str = "/assignment/index.jsp";
 const PROBLEM_PAGE_URL: &str = "/assignment/programList.jsp";
 
 /// 检查响应是否指示登录已过期（跳转到了登录页）
-fn check_token_expired(res: &Response) -> Result<(), crate::Error<CgError>> {
+fn check_token_expired(res: &Response) -> Result<(), crate::Error<TokenExpired>> {
     if res.status() == StatusCode::FOUND {
         let location = res
             .headers()
@@ -21,7 +21,7 @@ fn check_token_expired(res: &Response) -> Result<(), crate::Error<CgError>> {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
         if location.contains("simple.jsp") || location.contains("login") {
-            return Err(crate::Error::Other(CgError::TokenExpired));
+            return Err(crate::Error::Other(TokenExpired));
         }
     }
     Ok(())
@@ -39,7 +39,7 @@ pub enum CourseListPage {
 /// 获取课程列表页
 ///
 /// 单课程账号会从 `courselist.jsp` 重定向到 `main.jsp`，此时返回 [CourseListPage::Main]
-pub async fn course_list(token: &CgToken) -> Result<CourseListPage, crate::Error<CgError>> {
+pub async fn course_list(token: &CgToken) -> Result<CourseListPage, crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, COURSELIST_URL))
         .headers(token.headers().clone())
@@ -59,7 +59,7 @@ pub async fn course_list(token: &CgToken) -> Result<CourseListPage, crate::Error
 pub async fn enter_course_context(
     token: &CgToken,
     course_id: u32,
-) -> Result<(), crate::Error<CgError>> {
+) -> Result<(), crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, COURSELIST_URL))
         .query(&[("courseID", course_id.to_string())])
@@ -93,7 +93,7 @@ pub async fn enter_course_context(
 }
 
 /// 获取主页 HTML（单课程账号）
-pub async fn main_page(token: &CgToken) -> Result<String, crate::Error<CgError>> {
+pub async fn main_page(token: &CgToken) -> Result<String, crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, MAIN_URL))
         .headers(token.headers().clone())
@@ -105,7 +105,7 @@ pub async fn main_page(token: &CgToken) -> Result<String, crate::Error<CgError>>
 }
 
 /// 获取作业列表页 HTML
-pub async fn assignment_list_page(token: &CgToken) -> Result<String, crate::Error<CgError>> {
+pub async fn assignment_list_page(token: &CgToken) -> Result<String, crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, ASSIGNMENT_LIST_URL))
         .headers(token.headers().clone())
@@ -120,7 +120,7 @@ pub async fn assignment_list_page(token: &CgToken) -> Result<String, crate::Erro
 pub async fn problem_list_page(
     token: &CgToken,
     assign_id: u32,
-) -> Result<String, crate::Error<CgError>> {
+) -> Result<String, crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, PROBLEM_LIST_URL))
         .query(&[("assignID", assign_id.to_string())])
@@ -137,7 +137,7 @@ pub async fn problem_page(
     token: &CgToken,
     assign_id: u32,
     index: u32,
-) -> Result<String, crate::Error<CgError>> {
+) -> Result<String, crate::Error<TokenExpired>> {
     let res = client
         .get(format!("{}{}", BASE_URL, PROBLEM_PAGE_URL))
         .query(&[
