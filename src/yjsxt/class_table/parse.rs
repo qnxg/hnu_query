@@ -117,12 +117,11 @@ fn parse_course_info(
 
 /// `json_str` 为 [super::fetch::class_table] 的返回数据
 pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
-    let json_str = crate::yjsxt::parse::decrypt_response(json_str)?;
-    let json = serde_json::from_str::<Value>(&json_str).parse_err(&json_str)?;
+    let json = serde_json::from_str::<Value>(json_str).parse_err(json_str)?;
     let raw_rows = json
         .get("rows")
         .and_then(|rows| rows.as_array())
-        .ok_or_else(|| parse_err("无法解析课表行", &json_str))?;
+        .ok_or_else(|| parse_err("无法解析课表行", json_str))?;
 
     // 研究生系统的课表的颗粒度比我们的更细，他们把节次信息也拆掉了
     // 所以我们这里需要把同一个课程，同一周次、周几、上课地点的节次信息合并
@@ -192,4 +191,95 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
     }
 
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::TestResult;
+
+    #[test]
+    fn test_class_table() -> TestResult<()> {
+        // py_kbcx_ew 接口返回的是明文 JSON，未经过加密
+        let courses = class_table(include_str!("test_data/py_kbcx_ew.json"))?;
+        assert_eq!(courses.len(), 5);
+
+        fn find_course<'a>(courses: &'a [Course], id: &str) -> &'a Course {
+            courses
+                .iter()
+                .find(|c| c.course_id == id)
+                .unwrap_or_else(|| panic!("测试数据中找不到课程 '{}'", id))
+        }
+
+        // 解析会把同一课程、周次、周几、地点的节次合并，这里按 (week, day, place) 汇总便于断言
+        fn schedule_map(course: &Course) -> HashMap<(u8, u8, String), Vec<u8>> {
+            let schedule = course.schedule.as_ref().expect("课程应该有课表");
+            schedule
+                .iter()
+                .map(|s| {
+                    let mut time = s.time.clone();
+                    time.sort_unstable();
+                    ((s.week, s.day, s.place.clone()), time)
+                })
+                .collect()
+        }
+
+        fn expand(
+            map: &mut HashMap<(u8, u8, String), Vec<u8>>,
+            weeks: std::ops::RangeInclusive<u8>,
+            day: u8,
+            place: &str,
+            times: Vec<u8>,
+        ) {
+            for week in weeks {
+                map.insert((week, day, place.to_string()), times.clone());
+            }
+        }
+
+        // 示例课程1：周一、周三各占第 1-8 周
+        let c1 = find_course(&courses, "1001");
+        assert_eq!(c1.course_name, "示例课程1");
+        assert_eq!(c1.class_name, "示例班");
+        assert_eq!(c1.teacher.as_deref(), Some("教师甲"));
+        let mut expected = HashMap::new();
+        expand(&mut expected, 1..=8, 1, "教学楼101", vec![1, 2]);
+        expand(&mut expected, 1..=8, 3, "教学楼101", vec![3, 4]);
+        assert_eq!(schedule_map(c1), expected);
+
+        // 示例课程2：周四占第 1-16 周
+        let c2 = find_course(&courses, "1002");
+        assert_eq!(c2.course_name, "示例课程2");
+        assert_eq!(c2.teacher.as_deref(), Some("教师乙"));
+        let mut expected = HashMap::new();
+        expand(&mut expected, 1..=16, 4, "教学楼102", vec![2, 3, 4]);
+        assert_eq!(schedule_map(c2), expected);
+
+        // 示例课程3：周四、周五各占第 9-16 周
+        let c3 = find_course(&courses, "1003");
+        assert_eq!(c3.course_name, "示例课程3");
+        assert_eq!(c3.teacher.as_deref(), Some("教师丙"));
+        let mut expected = HashMap::new();
+        expand(&mut expected, 9..=16, 5, "教学楼103", vec![3, 4]);
+        expand(&mut expected, 9..=16, 4, "教学楼103", vec![9, 10]);
+        assert_eq!(schedule_map(c3), expected);
+
+        // 示例课程4：周五占第 1-11 周
+        let c4 = find_course(&courses, "1004");
+        assert_eq!(c4.course_name, "示例课程4");
+        assert_eq!(c4.teacher.as_deref(), Some("教师丁"));
+        let mut expected = HashMap::new();
+        expand(&mut expected, 1..=11, 5, "教学楼104", vec![5, 6, 7]);
+        assert_eq!(schedule_map(c4), expected);
+
+        // 示例课程5：周一、周四各占第 1-8 周
+        let c5 = find_course(&courses, "1005");
+        assert_eq!(c5.course_name, "示例课程5");
+        assert_eq!(c5.teacher.as_deref(), Some("教师戊"));
+        let mut expected = HashMap::new();
+        expand(&mut expected, 1..=8, 4, "教学楼105", vec![7, 8]);
+        expand(&mut expected, 1..=8, 1, "教学楼105", vec![9, 10]);
+        assert_eq!(schedule_map(c5), expected);
+
+        Ok(())
+    }
 }
