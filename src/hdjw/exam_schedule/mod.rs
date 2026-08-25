@@ -2,7 +2,11 @@ mod fetch;
 mod parse;
 
 use crate::{
-    hdjw::{error::TokenExpired, login::HdjwToken}, utils::{chrono::TimeRange, obs::{fetch_time, parse_time, traced}},
+    hdjw::{error::TokenExpired, login::HdjwToken},
+    utils::{
+        chrono::TimeRange,
+        obs::{fetch_time, parse_time, traced},
+    },
 };
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
