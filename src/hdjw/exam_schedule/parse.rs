@@ -36,7 +36,7 @@ pub fn exam_schedule(json_str: &str) -> Result<Vec<ExamSchedule>, crate::Error<T
                     return Err(parse_err("无法解析考试时间", &kssj));
                 };
                 let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").parse_err(date)?;
-                (Some(date), Some(time.into()))
+                (Some(date), Some(time.parse().parse_err(time)?))
             }
             None => (None, None),
         };
@@ -72,7 +72,7 @@ mod tests {
             first_item.date,
             Some(NaiveDate::from_ymd_opt(2026, 6, 23).expect("this should not panic"))
         );
-        assert_eq!(first_item.time, Some("15:00~17:00".into()));
+        assert_eq!(first_item.time, Some("15:00~17:00".parse().unwrap()));
         assert_eq!(first_item.area, Some("南校区(天马)".to_string()));
         assert_eq!(first_item.classroom, Some("综301".to_string()));
         assert_eq!(first_item.seat, Some("1".to_string()));

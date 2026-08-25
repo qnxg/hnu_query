@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 /// 时间段
 /// 应为`14:00~16:00`的形式
@@ -24,16 +24,18 @@ impl fmt::Display for TimeRange {
 }
 
 /// 从形如`14:00~16:00`的字符串构建时间段
-impl Into<TimeRange> for &str {
-    fn into(self) -> TimeRange {
-        let parts = self.splitn(2, ['~', '-']).collect::<Vec<_>>();
+impl FromStr for TimeRange {
+    type Err = std::fmt::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts = s.splitn(2, ['~', '-']).collect::<Vec<_>>();
         let (start_time, end_time) = match parts[..] {
             [s, e] => (s, e),
-            [_] => panic!("时间区间应有分隔符"),
+            [_] => return Err(std::fmt::Error),
             _ => unreachable!(),
         };
 
-        TimeRange::new(start_time, end_time)
+        Ok(TimeRange::new(start_time, end_time))
     }
 }
 
