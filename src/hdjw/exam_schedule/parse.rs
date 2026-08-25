@@ -72,7 +72,10 @@ mod tests {
             first_item.date,
             Some(NaiveDate::from_ymd_opt(2026, 6, 23).expect("this should not panic"))
         );
-        assert_eq!(first_item.time, Some("15:00~17:00".parse().unwrap()));
+        assert_eq!(
+            first_item.time,
+            Some("15:00~17:00".parse().expect("this should not panic"))
+        );
         assert_eq!(first_item.area, Some("南校区(天马)".to_string()));
         assert_eq!(first_item.classroom, Some("综301".to_string()));
         assert_eq!(first_item.seat, Some("1".to_string()));
