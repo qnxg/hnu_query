@@ -8,7 +8,8 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-/// 教务 `教学运行 > 我的课表 > 有课表课程` 返回数据单项
+/// 教务 `教学运行 > 我的课表 > 列表模式` 返回数据单项
+/// 无课表课程不含 `sktime`/`skddmc` 字段
 /// 还有其他一些具体学时信息的字段，懒得搞了
 #[derive(Deserialize, Debug)]
 #[expect(unused)]
@@ -35,9 +36,9 @@ struct RawCourseInfo {
     /// 分组名称，这里当作课程的备注信息
     fz_mc: Option<String>,
     /// 上课时间
-    sktime: String,
+    sktime: Option<String>,
     /// 上课地点
-    skddmc: String,
+    skddmc: Option<String>,
     /// 上课校区
     skxqmc: String,
     /// 开课院系（暂时不用）
@@ -50,29 +51,6 @@ struct RawCourseInfo {
     zxs: u16,
     /// 考核方式（暂时不用）
     khfs: String,
-}
-
-/// 教务 `教学运行 > 我的课表 > 列表模式` 返回数据中不含 `sktime` 的项
-#[derive(Deserialize, Debug)]
-struct RawExtraCourseInfo {
-    /// 课程代码
-    kch: String,
-    /// 课程名称
-    kc_mc: String,
-    /// 教师名称
-    jg0101mc: Option<String>,
-    /// 分组名称
-    fz_mc: Option<String>,
-    /// 课程性质（通识必修/专业核心等）
-    kcxz: String,
-    /// 上课班级
-    kt_mc: String,
-    /// 上课人数
-    xkrs: u16,
-    /// 上课校区
-    skxqmc: String,
-    /// 学分
-    xf: f32,
 }
 
 fn day_to_u8(c: char) -> Result<u8, crate::Error<TokenExpired>> {
@@ -125,38 +103,39 @@ fn extract_week_list(s: &str, context: &str) -> Result<HashSet<u8>, crate::Error
 }
 
 /// 解析上课时间地点
+/// 调用方需保证 `sktime` 存在（无课表课程已过滤），`skddmc` 与之成对出现
 fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Error<TokenExpired>> {
+    let sktime = raw.sktime.as_deref().expect("sktime 应存在");
+    let skddmc = raw.skddmc.as_deref().expect("skddmc 应存在");
     // sktime 格式：`星期五3、4节{ 7-8周}(全周)`（周次可能带前导空格）
     static SKTIME_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"星期(.)(.*)节.*\{\s*(.*)周\}").expect("创建正则表达式失败"));
-    let places: Vec<_> = raw.skddmc.split(';').collect();
-    let detail_times = raw.sktime.split(';');
+    let places: Vec<_> = skddmc.split(';').collect();
+    let detail_times = sktime.split(';');
     // 第几周+周几+地点作为 key，节次作为 value，进行去重
     let mut schedule: HashMap<(u8, u8, String), HashSet<u8>> = HashMap::new();
     for (i, time) in detail_times.into_iter().enumerate() {
         let caps = SKTIME_RE
             .captures(time)
-            .ok_or(parse_err("无法解析上课时间", &raw.sktime))?;
+            .ok_or(parse_err("无法解析上课时间", sktime))?;
         let day = day_to_u8(
             caps.get(1)
                 .and_then(|v| v.as_str().chars().next())
-                .ok_or(parse_err("找不到上课星期", &raw.sktime))?,
+                .ok_or(parse_err("找不到上课星期", sktime))?,
         )?;
         let time_list = extract_time_list(
             caps.get(2)
-                .ok_or(parse_err("找不到上课节次", &raw.sktime))?
+                .ok_or(parse_err("找不到上课节次", sktime))?
                 .as_str(),
-            &raw.sktime,
+            sktime,
         )?;
         let week_list = extract_week_list(
             caps.get(3)
-                .ok_or(parse_err("找不到上课周次", &raw.sktime))?
+                .ok_or(parse_err("找不到上课周次", sktime))?
                 .as_str(),
-            &raw.sktime,
+            sktime,
         )?;
-        let place = places
-            .get(i)
-            .ok_or(parse_err("找不到上课地点", &raw.skddmc))?;
+        let place = places.get(i).ok_or(parse_err("找不到上课地点", skddmc))?;
         week_list.iter().for_each(|&week| {
             schedule
                 .entry((week, day, place.to_string()))
@@ -175,36 +154,18 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
         .collect())
 }
 
-/// 从接口返回的 `data` 数组中按是否存在 `sktime` 字段过滤课程
-fn filter_by_sktime(
-    json: &serde_json::Value,
-    has_sktime: bool,
-    json_str: &str,
-) -> Result<serde_json::Value, crate::Error<TokenExpired>> {
-    let data = json["data"]
-        .as_array()
-        .ok_or(parse_err("无法解析课程表数据", json_str))?;
-    Ok(serde_json::Value::Array(
-        data.iter()
-            .filter(|item| item.get("sktime").and_then(|v| v.as_str()).is_some() == has_sktime)
-            .cloned()
-            .collect(),
-    ))
-}
-
 /// `json_str` 为 [`super::fetch::class_table`] 返回的数据
 pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpired>> {
     let json = crate::hdjw::parse::hdjw_response(json_str)?;
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
         None => return Err(parse_err("无法解析课程表数据", json_str)),
         Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
-        Some(_) => {
-            serde_json::from_value::<Vec<RawCourseInfo>>(filter_by_sktime(&json, true, json_str)?)
-                .parse_err(json_str)?
-        }
+        Some(_) => serde_json::from_value::<Vec<RawCourseInfo>>(json["data"].clone())
+            .parse_err(json_str)?,
     };
     let mut courses = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
+    // 无课表课程不含 sktime 字段
+    for item in raw_data.into_iter().filter(|item| item.sktime.is_some()) {
         let schedule = course_schedule(&item)?;
         courses.push(Course {
             // 教务系统可能会返回空格或制表符开头/结尾的课程名
@@ -230,13 +191,12 @@ pub fn class_table_extra(json_str: &str) -> Result<Vec<ExtraCourse>, crate::Erro
     let raw_data = match json.get("count").and_then(|c| c.as_u64()) {
         None => return Err(parse_err("无法解析无课程表数据", json_str)),
         Some(0) => return Ok(vec![]), // 有可能 count 是 0 但是不带 data 字段
-        Some(_) => serde_json::from_value::<Vec<RawExtraCourseInfo>>(filter_by_sktime(
-            &json, false, json_str,
-        )?)
-        .parse_err(json_str)?,
+        Some(_) => serde_json::from_value::<Vec<RawCourseInfo>>(json["data"].clone())
+            .parse_err(json_str)?,
     };
     let mut courses = Vec::with_capacity(raw_data.len());
-    for item in raw_data {
+    // 无课表课程不含 sktime 字段
+    for item in raw_data.into_iter().filter(|item| item.sktime.is_none()) {
         courses.push(ExtraCourse {
             // 教务系统可能会返回空格或制表符开头/结尾的课程名
             course_name: item.kc_mc.trim().to_string(),
