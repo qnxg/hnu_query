@@ -91,7 +91,7 @@ pub struct ExtraCourse {
     pub people: u16,
 }
 
-/// 获取课表信息
+/// 获取有课表课程信息
 ///
 /// # Arguments
 ///
@@ -101,7 +101,7 @@ pub struct ExtraCourse {
 ///
 /// # Returns
 ///
-/// 返回所选课程的列表
+/// 返回有课表课程的列表
 ///
 /// # Errors
 ///
@@ -137,7 +137,7 @@ pub async fn get_class_table_extra(
     xn: u16,
     xq: u8,
 ) -> Result<Vec<ExtraCourse>, crate::Error<TokenExpired>> {
-    let json_str = fetch_time!(fetch::class_table_extra(hdjw_token, xn, xq).await)?;
+    let json_str = fetch_time!(fetch::class_table(hdjw_token, xn, xq).await)?;
     parse_time!(parse::class_table_extra(&json_str))
 }
 
