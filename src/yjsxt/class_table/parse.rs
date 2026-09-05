@@ -24,7 +24,7 @@ fn parse_course_info(
     cell_text: &str,
 ) -> Result<(ParsedCourse, HashSet<u8>, String), crate::Error<TokenExpired>> {
     static CLASS_TIME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"上课时间:.*\[([0-9\-]+)周\].*连续周")
+        Regex::new(r"上课时间:.*\[([0-9\-]+)周\](连续周|单周|双周)")
             .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
     });
     static TEACHER_AND_CLASSROOM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -56,7 +56,7 @@ fn parse_course_info(
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
 
-    // 上课时间: [9-16周] 连续周
+    // 上课时间: [9-16周] 连续周，也可能是 单周/双周
     let class_time_str = parts
         .get(3)
         .ok_or_else(|| parse_err("找不到上课时间", cell_text))?
@@ -65,7 +65,9 @@ fn parse_course_info(
         .collect::<String>();
     let class_time = CLASS_TIME_REGEX
         .captures(&class_time_str)
-        .and_then(|c| c.get(1))
+        .ok_or_else(|| parse_err("解析上课时间失败", &class_time_str))?;
+    let week_range = class_time
+        .get(1)
         .and_then(|c| {
             c.as_str()
                 .split('-')
@@ -73,11 +75,19 @@ fn parse_course_info(
                 .collect::<Option<Vec<_>>>()
         })
         .ok_or_else(|| parse_err("解析上课时间失败", &class_time_str))?;
-    let Some(weeks_l) = class_time.first() else {
+    let Some(weeks_l) = week_range.first() else {
         return Err(parse_err("解析上课时间失败", &class_time_str));
     };
     // 可能只有一个周次
-    let weeks_r = class_time.get(1).unwrap_or(weeks_l);
+    let weeks_r = week_range.get(1).unwrap_or(weeks_l);
+    // 单周只有奇数周上课，双周只有偶数周上课
+    let weeks: HashSet<u8> = (*weeks_l..=*weeks_r)
+        .filter(|week| match class_time.get(2).map(|m| m.as_str()) {
+            Some("单周") => week % 2 == 1,
+            Some("双周") => week % 2 == 0,
+            _ => true,
+        })
+        .collect();
 
     let teacher_and_classroom_str = parts
         .get(4)
@@ -112,7 +122,7 @@ fn parse_course_info(
             Some(teacher)
         },
     };
-    Ok((res, (*weeks_l..=*weeks_r).collect(), classroom))
+    Ok((res, weeks, classroom))
 }
 
 /// `json_str` 为 [super::fetch::class_table] 的返回数据
@@ -202,7 +212,7 @@ mod tests {
     fn test_class_table() -> TestResult<()> {
         // py_kbcx_ew 接口返回的是明文 JSON，未经过加密
         let courses = class_table(include_str!("test_data/py_kbcx_ew.json"))?;
-        assert_eq!(courses.len(), 5);
+        assert_eq!(courses.len(), 6);
 
         fn find_course<'a>(courses: &'a [Course], id: &str) -> &'a Course {
             courses
@@ -279,6 +289,16 @@ mod tests {
         expand(&mut expected, 1..=8, 4, "教学楼105", vec![7, 8]);
         expand(&mut expected, 1..=8, 1, "教学楼105", vec![9, 10]);
         assert_eq!(schedule_map(c5), expected);
+
+        // 示例课程6：单周课程，周二占第 1-15 周中的奇数周
+        let c6 = find_course(&courses, "1006");
+        assert_eq!(c6.course_name, "示例课程6");
+        assert_eq!(c6.teacher.as_deref(), Some("教师己"));
+        let mut expected = HashMap::new();
+        for week in (1..=15).step_by(2) {
+            expected.insert((week, 2, "教学楼106".to_string()), vec![1, 2]);
+        }
+        assert_eq!(schedule_map(c6), expected);
 
         Ok(())
     }
