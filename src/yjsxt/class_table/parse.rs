@@ -24,7 +24,7 @@ fn parse_course_info(
     cell_text: &str,
 ) -> Result<(ParsedCourse, HashSet<u8>, String), crate::Error<TokenExpired>> {
     static CLASS_TIME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"上课时间:.*\[([0-9\-]+)周\](连续周|单周|双周)")
+        Regex::new(r"上课时间:.*\[([0-9\-]+)周\](.*)")
             .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
     });
     static TEACHER_AND_CLASSROOM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -81,12 +81,15 @@ fn parse_course_info(
     // 可能只有一个周次
     let weeks_r = week_range.get(1).unwrap_or(weeks_l);
     // 单周只有奇数周上课，双周只有偶数周上课
+    // 未知的周次类型报错
+    let parity = match class_time.get(2).map(|m| m.as_str()) {
+        Some("连续周") => None,
+        Some("单周") => Some(1),
+        Some("双周") => Some(0),
+        _ => return Err(parse_err("未知的周次类型", &class_time_str)),
+    };
     let weeks: HashSet<u8> = (*weeks_l..=*weeks_r)
-        .filter(|week| match class_time.get(2).map(|m| m.as_str()) {
-            Some("单周") => week % 2 == 1,
-            Some("双周") => week % 2 == 0,
-            _ => true,
-        })
+        .filter(|week| parity.is_none_or(|p| week % 2 == p))
         .collect();
 
     let teacher_and_classroom_str = parts
@@ -207,6 +210,13 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
 mod tests {
     use super::*;
     use crate::test::TestResult;
+
+    #[test]
+    fn test_unknown_week_type_errors() {
+        // 未知的周次类型应报错
+        let cell = "<br/>课程编号:1007<br/>课程名称:示例课程7<br/>班级:示例班<br/>上课时间:[1-15周]三周<br/>教师庚[教学楼107]";
+        assert!(parse_course_info(cell).is_err());
+    }
 
     #[test]
     fn test_class_table() -> TestResult<()> {
