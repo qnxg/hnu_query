@@ -218,43 +218,43 @@ mod tests {
         assert!(parse_course_info(cell).is_err());
     }
 
+    fn find_course<'a>(courses: &'a [Course], id: &str) -> &'a Course {
+        courses
+            .iter()
+            .find(|c| c.course_id == id)
+            .unwrap_or_else(|| panic!("测试数据中找不到课程 '{}'", id))
+    }
+
+    // 解析会把同一课程、周次、周几、地点的节次合并，这里按 (week, day, place) 汇总便于断言
+    fn schedule_map(course: &Course) -> HashMap<(u8, u8, String), Vec<u8>> {
+        let schedule = course.schedule.as_ref().expect("课程应该有课表");
+        schedule
+            .iter()
+            .map(|s| {
+                let mut time = s.time.clone();
+                time.sort_unstable();
+                ((s.week, s.day, s.place.clone()), time)
+            })
+            .collect()
+    }
+
+    fn expand(
+        map: &mut HashMap<(u8, u8, String), Vec<u8>>,
+        weeks: std::ops::RangeInclusive<u8>,
+        day: u8,
+        place: &str,
+        times: Vec<u8>,
+    ) {
+        for week in weeks {
+            map.insert((week, day, place.to_string()), times.clone());
+        }
+    }
+
     #[test]
     fn test_class_table() -> TestResult<()> {
         // py_kbcx_ew 接口返回的是明文 JSON，未经过加密
         let courses = class_table(include_str!("test_data/py_kbcx_ew.json"))?;
-        assert_eq!(courses.len(), 6);
-
-        fn find_course<'a>(courses: &'a [Course], id: &str) -> &'a Course {
-            courses
-                .iter()
-                .find(|c| c.course_id == id)
-                .unwrap_or_else(|| panic!("测试数据中找不到课程 '{}'", id))
-        }
-
-        // 解析会把同一课程、周次、周几、地点的节次合并，这里按 (week, day, place) 汇总便于断言
-        fn schedule_map(course: &Course) -> HashMap<(u8, u8, String), Vec<u8>> {
-            let schedule = course.schedule.as_ref().expect("课程应该有课表");
-            schedule
-                .iter()
-                .map(|s| {
-                    let mut time = s.time.clone();
-                    time.sort_unstable();
-                    ((s.week, s.day, s.place.clone()), time)
-                })
-                .collect()
-        }
-
-        fn expand(
-            map: &mut HashMap<(u8, u8, String), Vec<u8>>,
-            weeks: std::ops::RangeInclusive<u8>,
-            day: u8,
-            place: &str,
-            times: Vec<u8>,
-        ) {
-            for week in weeks {
-                map.insert((week, day, place.to_string()), times.clone());
-            }
-        }
+        assert_eq!(courses.len(), 5);
 
         // 示例课程1：周一、周三各占第 1-8 周
         let c1 = find_course(&courses, "1001");
@@ -300,6 +300,15 @@ mod tests {
         expand(&mut expected, 1..=8, 1, "教学楼105", vec![9, 10]);
         assert_eq!(schedule_map(c5), expected);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_class_table_odd_even_weeks() -> TestResult<()> {
+        // 单双周课程：单周只在奇数周上课，双周只在偶数周上课
+        let courses = class_table(include_str!("test_data/py_kbcx_ew_dsz.json"))?;
+        assert_eq!(courses.len(), 2);
+
         // 示例课程6：单周课程，周二占第 1-15 周中的奇数周
         let c6 = find_course(&courses, "1006");
         assert_eq!(c6.course_name, "示例课程6");
@@ -309,6 +318,16 @@ mod tests {
             expected.insert((week, 2, "教学楼106".to_string()), vec![1, 2]);
         }
         assert_eq!(schedule_map(c6), expected);
+
+        // 示例课程7：双周课程，周三占第 2-16 周中的偶数周
+        let c7 = find_course(&courses, "1007");
+        assert_eq!(c7.course_name, "示例课程7");
+        assert_eq!(c7.teacher.as_deref(), Some("教师庚"));
+        let mut expected = HashMap::new();
+        for week in (2..=16).step_by(2) {
+            expected.insert((week, 3, "教学楼107".to_string()), vec![1, 2]);
+        }
+        assert_eq!(schedule_map(c7), expected);
 
         Ok(())
     }
