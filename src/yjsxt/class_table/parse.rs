@@ -20,46 +20,81 @@ struct ParsedCourse {
     teacher: Option<String>,
 }
 
+/// 课程信息、上课周次集合、上课地点
+type ParsedCourseBlock = (ParsedCourse, HashSet<u8>, String);
+
+/// 解析课表单元格文本
+///
+/// 一个单元格可能包含多个课程块，块之间以空行分隔，每个块以“课程编号:”开头
 fn parse_course_info(
     cell_text: &str,
-) -> Result<(ParsedCourse, HashSet<u8>, String), crate::Error<TokenExpired>> {
+) -> Result<Vec<ParsedCourseBlock>, crate::Error<TokenExpired>> {
+    let parts: Vec<&str> = cell_text
+        .split("<br/>")
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // 按“课程编号:”把单元格切分为多个课程块。
+    // 注意：第一个“课程编号:”之前不允许出现非空行，否则说明有内容被漏掉，必须报错
+    let blocks: Vec<&[&str]> = parts
+        .chunk_by(|_, next| !next.starts_with("课程编号:"))
+        .collect();
+    let Some(first) = blocks.first() else {
+        return Err(parse_err("找不到课程编号", cell_text));
+    };
+    if !first[0].starts_with("课程编号:") {
+        return Err(parse_err("课程块之前存在无法识别的内容", cell_text));
+    }
+
+    blocks
+        .into_iter()
+        .map(|block| parse_course_block(block, cell_text))
+        .collect()
+}
+
+/// 去掉课程块一行的前缀和多余的空白字符
+///
+/// 前缀不匹配说明行的内容或顺序与预期不符，属于未知格式，报错
+fn strip_line_prefix(
+    line: &str,
+    prefix: &str,
+    cell_text: &str,
+) -> Result<String, crate::Error<TokenExpired>> {
+    let s = line
+        .strip_prefix(prefix)
+        .ok_or_else(|| parse_err("课程块格式异常", cell_text))?;
+    Ok(s.chars().filter(|c| !c.is_whitespace()).collect())
+}
+
+/// 解析单个课程块，应为 课程编号/课程名称/班级/上课时间/老师和地点 共 5 行
+fn parse_course_block(
+    block: &[&str],
+    cell_text: &str,
+) -> Result<ParsedCourseBlock, crate::Error<TokenExpired>> {
+    // 注意必须全行锚定匹配：若一行内出现多个周次区间，
+    // 非锚定的贪婪匹配会静默只取最后一个，丢弃前面的区间
     static CLASS_TIME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"上课时间:.*\[([0-9\-]+)周\](.*)")
+        Regex::new(r"^上课时间:\[([0-9\-]+)周\](.*)$")
             .unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
     });
     static TEACHER_AND_CLASSROOM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"(.*)\[(.*)\]").unwrap_or_else(|e| panic!("创建正则表达式失败: {:?}", e))
     });
 
-    let parts: Vec<&str> = cell_text.split("<br/>").filter(|s| !s.is_empty()).collect();
+    // 块内出现多余或缺失的行说明格式未知，直接报错
+    if block.len() != 5 {
+        return Err(parse_err("课程块格式异常", cell_text));
+    }
 
     // 研究生系统返回的信息可能有多余的神秘空格，要去掉
-    let course_id = parts
-        .first()
-        .ok_or_else(|| parse_err("找不到课程编号", cell_text))?
-        .replace("课程编号:", "")
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
-    let course_name = parts
-        .get(1)
-        .ok_or_else(|| parse_err("找不到课程名称", cell_text))?
-        .replace("课程名称:", "")
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
-    let class_name = parts
-        .get(2)
-        .ok_or_else(|| parse_err("找不到班级", cell_text))?
-        .replace("班级:", "")
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
+    // 每行都必须以预期的前缀开头，否则说明格式未知，直接报错
+    let course_id = strip_line_prefix(block[0], "课程编号:", cell_text)?;
+    let course_name = strip_line_prefix(block[1], "课程名称:", cell_text)?;
+    let class_name = strip_line_prefix(block[2], "班级:", cell_text)?;
 
     // 上课时间: [9-16周] 连续周，也可能是 单周/双周
-    let class_time_str = parts
-        .get(3)
-        .ok_or_else(|| parse_err("找不到上课时间", cell_text))?
+    let class_time_str = block[3]
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -78,6 +113,10 @@ fn parse_course_info(
     let Some(weeks_l) = week_range.first() else {
         return Err(parse_err("解析上课时间失败", &class_time_str));
     };
+    // 周次区间最多两段（如 9-16），出现更多段说明格式未知，必须报错而不是静默丢弃
+    if week_range.len() > 2 {
+        return Err(parse_err("解析上课时间失败", &class_time_str));
+    }
     // 可能只有一个周次
     let weeks_r = week_range.get(1).unwrap_or(weeks_l);
     // 单周只有奇数周上课，双周只有偶数周上课
@@ -92,9 +131,7 @@ fn parse_course_info(
         .filter(|week| parity.is_none_or(|p| week % 2 == p))
         .collect();
 
-    let teacher_and_classroom_str = parts
-        .get(4)
-        .ok_or_else(|| parse_err("找不到授课老师和上课地点", cell_text))?
+    let teacher_and_classroom_str = block[4]
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
@@ -157,16 +194,17 @@ pub fn class_table(json_str: &str) -> Result<Vec<Course>, crate::Error<TokenExpi
             let cell_text = item[&key]
                 .as_str()
                 .ok_or_else(|| parse_err("解析课表单元格文本失败", &item.to_string()))?;
-            let (course_info, weeks, place) = parse_course_info(cell_text)?;
 
-            if jc == "无节次" {
-                extra_courses.insert(course_info, ());
-            } else {
-                let jc = jc.parse::<u8>().parse_err(jc)?;
-                let entry = course_map.entry(course_info).or_default();
-                for week in weeks {
-                    let entry = entry.entry((week, day, place.clone())).or_default();
-                    entry.push(jc);
+            for (course_info, weeks, place) in parse_course_info(cell_text)? {
+                if jc == "无节次" {
+                    extra_courses.insert(course_info, ());
+                } else {
+                    let jc = jc.parse::<u8>().parse_err(jc)?;
+                    let entry = course_map.entry(course_info).or_default();
+                    for week in weeks {
+                        let entry = entry.entry((week, day, place.clone())).or_default();
+                        entry.push(jc);
+                    }
                 }
             }
         }
@@ -215,6 +253,25 @@ mod tests {
     fn test_unknown_week_type_errors() {
         // 未知的周次类型应报错
         let cell = "<br/>课程编号:1007<br/>课程名称:示例课程7<br/>班级:示例班<br/>上课时间:[1-15周]三周<br/>教师庚[教学楼107]";
+        assert!(parse_course_info(cell).is_err());
+    }
+
+    #[test]
+    fn test_unconsumed_content_errors() {
+        // 一行内出现多个周次区间属于未知格式，必须报错而不是只解析其中一个
+        let cell = "<br/>课程编号:1007<br/>课程名称:示例课程7<br/>班级:示例班<br/>上课时间:[1-4周]连续周[5-8周]连续周<br/>教师庚[教学楼107]";
+        assert!(parse_course_info(cell).is_err());
+
+        // 课程块之前出现无法识别的内容必须报错
+        let cell = "<br/>备注:这是一行未知内容<br/>课程编号:1007<br/>课程名称:示例课程7<br/>班级:示例班<br/>上课时间:[1-15周]连续周<br/>教师庚[教学楼107]";
+        assert!(parse_course_info(cell).is_err());
+
+        // 行的前缀与预期不符必须报错
+        let cell = "<br/>课程编号:1007<br/>课程名称:示例课程7<br/>教学班:示例班<br/>上课时间:[1-15周]连续周<br/>教师庚[教学楼107]";
+        assert!(parse_course_info(cell).is_err());
+
+        // 周次区间超过两段属于未知格式，必须报错
+        let cell = "<br/>课程编号:1007<br/>课程名称:示例课程7<br/>班级:示例班<br/>上课时间:[1-2-3周]连续周<br/>教师庚[教学楼107]";
         assert!(parse_course_info(cell).is_err());
     }
 
@@ -299,6 +356,40 @@ mod tests {
         expand(&mut expected, 1..=8, 4, "教学楼105", vec![7, 8]);
         expand(&mut expected, 1..=8, 1, "教学楼105", vec![9, 10]);
         assert_eq!(schedule_map(c5), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_class_table_multi_teacher_phases() -> TestResult<()> {
+        // 一门课分阶段由两个老师授课时，同一单元格内会包含两个课程块，
+        // 两个阶段都要解析出来（此处按老师拆分为两门课程记录）
+        let courses = class_table(include_str!("test_data/py_kbcx_ew_multi_phase.json"))?;
+        assert_eq!(courses.len(), 12);
+
+        let mut phases = courses
+            .iter()
+            .filter(|c| c.course_id == "1018")
+            .collect::<Vec<_>>();
+        assert_eq!(phases.len(), 2);
+        // 按起始周次排序，区分两个阶段
+        phases.sort_by_key(|c| {
+            c.schedule
+                .as_ref()
+                .and_then(|s| s.iter().map(|s| s.week).min())
+        });
+
+        // 第一阶段：1-4 周，教师辛
+        let mut expected = HashMap::new();
+        expand(&mut expected, 1..=4, 5, "文科楼101", vec![9, 10]);
+        assert_eq!(phases[0].teacher.as_deref(), Some("教师辛"));
+        assert_eq!(schedule_map(phases[0]), expected);
+
+        // 第二阶段：5-8 周，教师未
+        let mut expected = HashMap::new();
+        expand(&mut expected, 5..=8, 5, "文科楼101", vec![9, 10]);
+        assert_eq!(phases[1].teacher.as_deref(), Some("教师未"));
+        assert_eq!(schedule_map(phases[1]), expected);
 
         Ok(())
     }
