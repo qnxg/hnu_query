@@ -21,6 +21,7 @@ pub fn convert_dormitory(
         "德智留学生公寓" => 5,
         "望麓桥学生公寓" => 6,
         "牛头山学生公寓" => 7,
+        // TODO 白泉河苑、船形山苑（南校区新园区）的 parkNo 及各栋 buildingNo 待核对后补充
         _ => return Err(parse_err("未知校区", &format!("{:?}", dormitory))),
     };
     let build_id = match (park_id, build) {

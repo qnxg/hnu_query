@@ -47,6 +47,8 @@ impl Dormitory {
     /// - `德智留学生公寓`
     /// - `望麓桥学生公寓`
     /// - `牛头山学生公寓`
+    /// - `白泉河苑`
+    /// - `船形山苑`
     ///
     /// 如果解析失败，则返回 None
     pub fn park(&self) -> Option<&str> {
@@ -83,6 +85,10 @@ impl Dormitory {
     ///     - `1栋` 到 `4栋`
     /// - 当园区为`牛头山学生公寓`时：
     ///     - `2栋` 到 `7栋`
+    /// - 当园区为`白泉河苑`时：
+    ///     - `N栋`，如 `8栋`
+    /// - 当园区为`船形山苑`时：
+    ///     - `N栋`，如 `5栋`
     ///
     /// 如果解析失败，则返回 None
     pub fn build(&self) -> Option<&str> {
@@ -129,6 +135,21 @@ pub fn parse_dormitory(dormitory: String, room: String) -> Dormitory {
         build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
     if dormitory.contains("牛头山") {
+        park = Some("牛头山学生公寓");
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+    }
+    if dormitory.contains("白泉河") {
+        park = Some("白泉河苑");
+        static REGEX: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+        });
+        build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
+    }
+    if dormitory.contains("船形山") {
+        park = Some("船形山苑");
         static REGEX: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r"\d+栋").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
         });
@@ -145,7 +166,7 @@ pub fn parse_dormitory(dormitory: String, room: String) -> Dormitory {
     if dormitory.contains("南校区") {
         park = Some("南校区");
         static REGEX: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r"[1-9]+舍").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
+            Regex::new(r"\d+舍").unwrap_or_else(|e| panic!("构建正则表达式失败: {:?}", e))
         });
         build = REGEX.find_iter(&dormitory).map(|mat| mat.as_str()).next();
     }
@@ -154,5 +175,25 @@ pub fn parse_dormitory(dormitory: String, room: String) -> Dormitory {
         build: build.map(|s| s.to_string()),
         room,
         raw_dormitory: dormitory,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_dormitory() {
+        let cases = [
+            ("白泉河苑8栋", Some("白泉河苑"), Some("8栋")),
+            ("船形山苑5栋", Some("船形山苑"), Some("5栋")),
+            ("南校区南10舍", Some("南校区"), Some("10舍")),
+            ("老留学生公寓", None, None),
+        ];
+        for (raw, park, build) in cases {
+            let dormitory = parse_dormitory(raw.to_string(), "315".to_string());
+            assert_eq!(dormitory.park(), park, "raw_dormitory: {}", raw);
+            assert_eq!(dormitory.build(), build, "raw_dormitory: {}", raw);
+        }
     }
 }
