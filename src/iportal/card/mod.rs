@@ -71,7 +71,8 @@ where
 {
     let s = String::deserialize(deserializer)?;
     let dt = NaiveDateTime::parse_from_str(&s, "%Y%m%d%H%M%S").map_err(serde::de::Error::custom)?;
-    let timezone = FixedOffset::east_opt(8 * 3600).unwrap();
+    let timezone = FixedOffset::east_opt(8 * 3600)
+        .ok_or_else(|| serde::de::Error::custom("invalid timezone"))?;
     let dt = timezone
         .from_local_datetime(&dt)
         .single()

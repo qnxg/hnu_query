@@ -8,7 +8,7 @@ use reqwest::{Response, header::COOKIE};
 use reqwest_middleware::RequestBuilder;
 use serde::{Deserialize, Deserializer};
 
-pub(crate) trait IPortalRequestBuilderExt {
+pub trait IPortalRequestBuilderExt {
     async fn send_with_token(
         self,
         token: &IPortalToken,
@@ -57,7 +57,6 @@ pub fn iportal_jsondata_precheck(
     Ok(data.clone())
 }
 
-
 pub fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
     D: Deserializer<'de>,
@@ -65,7 +64,8 @@ where
     let s = String::deserialize(deserializer)?;
     let dt =
         NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S").map_err(serde::de::Error::custom)?;
-    let timezone = FixedOffset::east_opt(8 * 3600).unwrap();
+    let timezone = FixedOffset::east_opt(8 * 3600)
+        .ok_or_else(|| serde::de::Error::custom("invalid timezone"))?;
     let dt = timezone
         .from_local_datetime(&dt)
         .single()

@@ -69,8 +69,7 @@ mod tests {
         let info = get_term_info(
             &token,
             time::SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .duration_since(UNIX_EPOCH)?
                 .as_secs() as i64,
         )
         .await?;

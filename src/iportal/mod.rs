@@ -7,8 +7,8 @@ pub mod card;
 pub mod info;
 pub mod login;
 pub mod personal;
-pub mod term;
 pub mod task;
+pub mod term;
 
 mod util;
 

@@ -1,5 +1,10 @@
 use crate::{
-    cas::error::TokenExpired, error::MapUnexpectedErr, iportal::{login::IPortalToken, personal::PersonalDataTypeEnum, util::IPortalRequestBuilderExt}, utils::client,
+    cas::error::TokenExpired,
+    error::MapUnexpectedErr,
+    iportal::{
+        login::IPortalToken, personal::PersonalDataTypeEnum, util::IPortalRequestBuilderExt,
+    },
+    utils::client,
 };
 
 pub async fn fetch_personal_data_query_ids(

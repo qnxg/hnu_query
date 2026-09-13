@@ -1,9 +1,6 @@
 use crate::{
-    cas,
-    error::MapUnexpectedErr,
-    iportal::login::IPortalToken,
-    iportal::util::IPortalRequestBuilderExt,
-    utils::client,
+    cas, error::MapUnexpectedErr, iportal::login::IPortalToken,
+    iportal::util::IPortalRequestBuilderExt, utils::client,
 };
 
 const INFO_ENDPOINT: &str = "https://iportal.hnu.edu.cn/personal/frontend/data/info";
