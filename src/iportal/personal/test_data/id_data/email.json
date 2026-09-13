@@ -1,0 +1,12 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "data": {
+            "name": "未读邮件",
+            "value": 1,
+            "url": "",
+            "email": "admin@hnu.edu.cn"
+        }
+    }
+}

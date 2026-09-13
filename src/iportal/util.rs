@@ -1,25 +1,22 @@
 use crate::{
-    cas::error::TokenExpired,
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err},
-    iportal::login::IPortalToken,
+    iportal::{error::IPortalExpired, login::IPortalToken},
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 use reqwest::{Response, header::COOKIE};
 use reqwest_middleware::RequestBuilder;
-use serde::{Deserialize, Deserializer};
 
 pub trait IPortalRequestBuilderExt {
     async fn send_with_token(
         self,
         token: &IPortalToken,
-    ) -> Result<Response, crate::Error<TokenExpired>>;
+    ) -> Result<Response, crate::Error<IPortalExpired>>;
 }
 
 impl IPortalRequestBuilderExt for RequestBuilder {
     async fn send_with_token(
         self,
         token: &IPortalToken,
-    ) -> Result<Response, crate::Error<TokenExpired>> {
+    ) -> Result<Response, crate::Error<IPortalExpired>> {
         let cookie = token
             .headers()
             .get(COOKIE)
@@ -38,7 +35,7 @@ impl IPortalRequestBuilderExt for RequestBuilder {
 
 pub fn iportal_jsondata_precheck(
     json_str: &str,
-) -> Result<serde_json::Value, crate::Error<TokenExpired>> {
+) -> Result<serde_json::Value, crate::Error<IPortalExpired>> {
     let json_value: serde_json::Value = serde_json::from_str(json_str)
         .map_err(|e| parse_err(format!("JSON解析错误: {}", e).as_str(), json_str))?;
     if json_value.get("e").and_then(|e| e.as_i64()) != Some(0) {
@@ -57,18 +54,20 @@ pub fn iportal_jsondata_precheck(
     Ok(data.clone())
 }
 
-pub fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    let dt =
-        NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S").map_err(serde::de::Error::custom)?;
-    let timezone = FixedOffset::east_opt(8 * 3600)
-        .ok_or_else(|| serde::de::Error::custom("invalid timezone"))?;
-    let dt = timezone
-        .from_local_datetime(&dt)
-        .single()
-        .ok_or_else(|| serde::de::Error::custom("invalid datetime"))?;
-    Ok(dt.to_utc())
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_iportal_jsondata_precheck_error_response() {
+        let result = iportal_jsondata_precheck(
+            r#"{
+                "e": 1,
+                "m": "参数错误",
+                "d": null
+            }"#,
+        );
+
+        assert!(result.is_err());
+    }
 }

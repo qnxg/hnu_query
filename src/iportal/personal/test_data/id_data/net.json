@@ -1,0 +1,14 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "data": {
+            "title": "流量查询",
+            "value": 114514,
+            "unit": "G",
+            "prefix": "本月已用",
+            "url": "http:\/\/ll.hnu.edu.cn\/pc\/#\/meal",
+            "mobile_url": "http:\/\/ll.hnu.edu.cn\/app\/#\/user"
+        }
+    }
+}

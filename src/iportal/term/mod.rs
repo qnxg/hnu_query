@@ -1,53 +1,64 @@
-//! 学年、学期与周次查询。
+//! 学年、学期与周次查询
 
 mod fetch;
 mod parse;
 
-use hnu_query_macros::traced;
-use serde::{Deserialize, Serialize};
-
 use crate::{
-    iportal::login::IPortalToken,
+    iportal::{error::IPortalExpired, login::IPortalToken},
     utils::obs::{fetch_time, parse_time},
 };
+use chrono::NaiveDateTime;
+use hnu_query_macros::traced;
+use serde::{Deserialize, Deserializer, Serialize};
 
-/// 给定时间所在学期的信息。
+/// 学期信息
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TermInfo {
-    /// 学期开始日期。
-    pub start_date: String,
-    /// 学期结束日期。
-    pub end_date: String,
-    /// 学期描述。
+    /// 学期开始日期
+    #[serde(deserialize_with = "deserialize_date_as_naive_datetime")]
+    pub start_date: NaiveDateTime,
+    /// 学期结束日期
+    #[serde(deserialize_with = "deserialize_date_as_naive_datetime")]
+    pub end_date: NaiveDateTime,
+    /// 学期描述
     #[serde(rename = "dsc")]
     pub description: String,
-    /// 学期。
+    /// 学期
     pub term: String,
-    /// 学年。
+    /// 学年
     pub year: String,
-    /// 给定时间位于该学期的周次。
+    /// 给定时间位于该学期的周次
     pub week: u16,
 }
 
-/// 获取指定时间所在学期的信息。
+fn deserialize_date_as_naive_datetime<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    NaiveDateTime::parse_from_str(&format!("{value} 00:00:00"), "%Y-%m-%d %H:%M:%S")
+        .map_err(serde::de::Error::custom)
+}
+
+/// 获取指定时间所在学期的信息
 ///
 /// # Arguments
 ///
-/// - `token`: 个人门户令牌，可以通过 [`IPortalToken::acquire_by_cas_login`] 获取
+/// - `token`: iportal令牌，可以通过 [`IPortalToken::acquire_by_cas_login`] 获取
 /// - `timestamp`: Unix 时间戳，单位为秒
 ///
 /// # Returns
 ///
-/// 返回该时间对应的 [`TermInfo`]。
+/// 返回该时间对应的 [`TermInfo`]
 ///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误。
+/// 当令牌失效、网络请求失败或响应无法解析时返回错误
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_term_info(
     token: &IPortalToken,
     timestamp: i64,
-) -> Result<TermInfo, crate::Error<crate::cas::error::TokenExpired>> {
+) -> Result<TermInfo, crate::Error<IPortalExpired>> {
     let json_str = fetch_time!(fetch::fetch_term_info(token, timestamp).await)?;
     let info = parse_time!(parse::parse_term_info(&json_str))?;
     Ok(info)
@@ -58,7 +69,7 @@ mod tests {
     use std::time::{self, UNIX_EPOCH};
 
     use crate::{
-        iportal::{term::get_term_info, test::get_iportal_token},
+        iportal::{login::get_iportal_token, term::get_term_info},
         test::TestResult,
     };
 

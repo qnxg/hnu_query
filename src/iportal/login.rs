@@ -1,18 +1,20 @@
-//! iPortal 登录与令牌管理。
-
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
 };
+
 use reqwest::{
     StatusCode,
     header::{COOKIE, HeaderMap, LOCATION, SET_COOKIE},
 };
 
+#[cfg(test)]
+use crate::test::TestResult;
+
 const IPORTAL_URL: &str = "https://cas.hnu.edu.cn/cas/login?service=https%3A%2F%2Fiportal.hnu.edu.cn%2Fhnu%2Ffrontend%2Flogin%3Fredirect%3Dhttps%253A%252F%252Fiportal.hnu.edu.cn%252Fhome&isotherLogin=true";
 
-/// 个人门户令牌
+/// IPortal令牌
 #[derive(Debug, Clone)]
 pub struct IPortalToken {
     headers: HeaderMap,
@@ -31,7 +33,7 @@ impl IPortalToken {
     ///
     /// # Errors
     ///
-    /// 当 [`CasToken`] 过期、网络请求失败或登录响应不符合预期时返回错误。
+    /// 当 [`CasToken`] 过期、网络请求失败或登录响应不符合预期时返回错误
     #[cfg_attr(
         feature = "tracing",
         tracing::instrument(skip(cas_token), fields(subsystem = "pt"), err)
@@ -55,15 +57,12 @@ impl IPortalToken {
                 let body = res.text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "unexpected_status");
             }
-            return Err(format!("登录个人门户失败，HTTP 状态码: {}", status)).unexpected_err();
+            return Err(format!("登录iportal失败，HTTP 状态码: {}", status)).unexpected_err();
         }
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
-        cookies.extend(cookie_parser(res.headers().get_all(SET_COOKIE)));
-        // CAS may return the ticket response before the iPortal server creates
-        // its own session cookie. Follow that redirect manually because the
-        // shared client intentionally disables automatic redirects.
+
         if let Some(location) = res.headers().get(LOCATION) {
-            let location = location.to_str().parse_err("iPortal redirect location")?;
+            let location = location.to_str().parse_err("统一登陆跳转地址异常")?;
             let redirect_response = client
                 .get(location)
                 .send()
@@ -78,7 +77,7 @@ impl IPortalToken {
 
         let cookies = cookies.join("; ");
         if cookies.is_empty() {
-            return Err("登录个人门户失败：响应中没有 Cookie".to_string()).unexpected_err();
+            return Err("登录iportal失败: 响应中没有 Cookie".to_string()).unexpected_err();
         }
         let mut headers = HeaderMap::new();
         headers.insert(COOKIE, cookies.parse().parse_err(&cookies)?);
@@ -92,12 +91,12 @@ impl IPortalToken {
     ///
     /// # Returns
     ///
-    /// 返回一个使用给定请求头的 [`IPortalToken`]。
+    /// 返回一个使用给定请求头的 [`IPortalToken`]
     ///
     /// # Preconditions
     ///
-    /// `headers` 应包含当前有效 iPortal 会话的 `Cookie` 请求头；本函数不会验证其有效性。
-    /// 无效请求头会使后续查询返回错误。
+    /// `headers` 应包含当前有效 iportal 会话的 `Cookie` 请求头；本函数不会验证其有效性
+    /// 无效请求头会使后续查询返回错误
     pub fn from_headers_unchecked(headers: HeaderMap) -> Self {
         Self { headers }
     }
@@ -109,4 +108,10 @@ impl IPortalToken {
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
+}
+
+#[cfg(test)]
+pub async fn get_iportal_token() -> TestResult<IPortalToken> {
+    let cas_token = cas::test::get_cas_token().await?;
+    Ok(IPortalToken::acquire_by_cas_login(&cas_token).await?)
 }

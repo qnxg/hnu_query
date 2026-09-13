@@ -1,0 +1,32 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "info": {
+            "uid": "114514",
+            "name": "电棍",
+            "xgh": "191908100721",
+            "identity": "本科生",
+            "identity_id": "2002",
+            "sex": 1,
+            "depart": "神秘学院",
+            "mobile": "",
+            "email": "",
+            "organ": {
+                "?": 1
+            },
+            "organs": {
+                "1": [
+                    "?"
+                ]
+            },
+            "avatar": "http:\/\/filtered",
+            "avatar_url": "",
+            "time": "2077-06-15 16:04:00",
+            "is_manager": false,
+            "is_app_manager": false,
+            "is_process_manager": false,
+            "user_config": null
+        }
+    }
+}

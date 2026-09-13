@@ -1,6 +1,6 @@
 use crate::{
     error::MapUnexpectedErr,
-    iportal::{login::IPortalToken, util::IPortalRequestBuilderExt},
+    iportal::{error::IPortalExpired, login::IPortalToken, util::IPortalRequestBuilderExt},
     utils::client,
 };
 
@@ -8,7 +8,7 @@ pub async fn fetch_apply_list(
     token: &IPortalToken,
     page: i32,
     page_size: i32,
-) -> Result<String, crate::Error<crate::cas::error::TokenExpired>> {
+) -> Result<String, crate::Error<IPortalExpired>> {
     let url = format!(
         "https://iportal.hnu.edu.cn/personal/frontend/task/apply?type=all&page={}&pageSize={}",
         page, page_size
