@@ -4,7 +4,7 @@ mod fetch;
 mod parse;
 
 use crate::{
-    iportal::{error::IPortalExpired, login::IPortalToken},
+    iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::obs::{fetch_time, parse_time},
 };
 use chrono::NaiveDateTime;
@@ -58,7 +58,7 @@ where
 pub async fn get_term_info(
     token: &IPortalToken,
     timestamp: i64,
-) -> Result<TermInfo, crate::Error<IPortalExpired>> {
+) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::fetch_term_info(token, timestamp).await)?;
     let info = parse_time!(parse::parse_term_info(&json_str))?;
     Ok(info)

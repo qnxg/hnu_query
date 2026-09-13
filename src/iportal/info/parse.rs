@@ -1,9 +1,11 @@
 use crate::{
     error::parse_err,
-    iportal::{error::IPortalExpired, info::AccountInfo, util::iportal_jsondata_precheck},
+    iportal::{error::IPortalTokenExpired, info::AccountInfo, util::iportal_jsondata_precheck},
 };
 
-pub fn parse_account_info(json_str: &str) -> Result<AccountInfo, crate::Error<IPortalExpired>> {
+pub fn parse_account_info(
+    json_str: &str,
+) -> Result<AccountInfo, crate::Error<IPortalTokenExpired>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let info = data
         .get("info")

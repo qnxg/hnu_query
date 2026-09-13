@@ -1,10 +1,10 @@
-use serde::Deserialize;
 use chrono::NaiveDateTime;
+use serde::Deserialize;
 
 use crate::{
     error::parse_err,
     iportal::{
-        error::IPortalExpired,
+        error::IPortalTokenExpired,
         task::{ApplyItem, ApplyList, ApplyStatus},
         util::iportal_jsondata_precheck,
     },
@@ -14,7 +14,7 @@ use crate::{
 ///
 /// 包含申请所对应的应用、发起人、部门、处理进度、时间以及详情链接等信息
 #[derive(Debug, Deserialize)]
-#[allow(unused)]
+#[expect(unused)]
 struct RawApplyItem {
     id: i64,
     apps_id: i32,
@@ -46,7 +46,7 @@ struct RawApplyItem {
     third_name: String,
 }
 
-pub fn parse_apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalExpired>> {
+pub fn parse_apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let total = data
         .get("total")
@@ -56,7 +56,7 @@ pub fn parse_apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPorta
         .get("list")
         .and_then(|v| v.as_array())
         .ok_or_else(|| parse_err("无法解析 list 字段", json_str))?
-        .into_iter()
+        .iter()
         .map(|item| {
             let raw_item: RawApplyItem = serde_json::from_value(item.clone())
                 .map_err(|e| parse_err(&format!("无法解析申请记录: {}", e), json_str))?;
@@ -102,7 +102,10 @@ mod tests {
         assert_eq!(item.id, 100001);
         assert_eq!(item.app_name, "测试事项");
         assert_eq!(item.creator_name, "测试用户");
-        assert_eq!(item.creator_department, "测试学院");
+        assert_eq!(
+            item.creator_department,
+            "测试学院"
+        );
         assert_eq!(
             item.created,
             NaiveDateTime::parse_from_str("2024-01-01 10:00:01", "%Y-%m-%d %H:%M:%S")?

@@ -1,12 +1,12 @@
 //! 流程申请记录查询
 
 use crate::{
-    iportal::error::IPortalExpired,
+    iportal::error::IPortalTokenExpired,
     utils::obs::{fetch_time, parse_time},
 };
+use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
-use chrono::NaiveDateTime;
 
 mod fetch;
 mod parse;
@@ -74,7 +74,7 @@ pub async fn get_apply_list(
     token: &crate::iportal::login::IPortalToken,
     page: i32,
     page_size: i32,
-) -> Result<ApplyList, crate::Error<IPortalExpired>> {
+) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::fetch_apply_list(token, page, page_size).await)?;
     let task_list = parse_time!(parse::parse_apply_list(&json_str))?;
     Ok(task_list)

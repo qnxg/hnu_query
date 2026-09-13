@@ -4,7 +4,7 @@ use hnu_query_macros::traced;
 use serde::{Deserialize, Deserializer};
 
 use crate::{
-    iportal::{error::IPortalExpired, login::IPortalToken},
+    iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::obs::{fetch_time, parse_time},
 };
 
@@ -92,7 +92,7 @@ where
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_personal_data_lists(
     token: &IPortalToken,
-) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalExpired>> {
+) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::fetch_personal_data_query_ids(token).await)?;
     let items = parse_time!(parse::parse_personal_data_query_ids(&json_str))?;
     Ok(items)
@@ -116,7 +116,7 @@ pub async fn get_personal_data_lists(
 pub async fn get_personal_data(
     token: &IPortalToken,
     type_enum: PersonalDataTypeEnum,
-) -> Result<PersonalDataItem, crate::Error<IPortalExpired>> {
+) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::fetch_personal_data(token, type_enum.clone()).await)?;
     let item = parse_time!(parse::parse_personal_data(&json_str))?;
     Ok(item)

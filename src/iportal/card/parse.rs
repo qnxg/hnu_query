@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 use crate::{
     error::parse_err,
-    iportal::{error::IPortalExpired, util::iportal_jsondata_precheck},
+    iportal::{error::IPortalTokenExpired, util::iportal_jsondata_precheck},
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -31,7 +31,7 @@ struct RawTransactionRecord {
 }
 pub fn parse_card_balance(
     json_str: &str,
-) -> Result<crate::iportal::card::CardInfo, crate::Error<IPortalExpired>> {
+) -> Result<crate::iportal::card::CardInfo, crate::Error<IPortalTokenExpired>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     let balance = serde_json::from_value(json_value)
         .map_err(|e| parse_err(format!("JSON解析错误: {}", e).as_str(), json_str))?;
@@ -40,7 +40,7 @@ pub fn parse_card_balance(
 
 pub fn parse_card_transaction_records(
     json_str: &str,
-) -> Result<crate::iportal::card::CardTransactionDetail, crate::Error<IPortalExpired>> {
+) -> Result<crate::iportal::card::CardTransactionDetail, crate::Error<IPortalTokenExpired>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     let next_page = json_value
         .get("nextpage")
@@ -78,55 +78,57 @@ pub fn parse_card_transaction_records(
                 json_str,
             )
         })?;
-    let data = json_value
-        .get("total")
-        .ok_or_else(|| parse_err("无法解析 data 字段", json_str))?.as_array()
-        .ok_or_else(|| parse_err("无法解析 data 字段为数组", json_str))?
-        .iter()
-        .map(|item| {
-            let raw_item: RawTransactionRecord = serde_json::from_value(item.clone())
-                .map_err(|e| parse_err(&format!("无法解析交易记录: {}", e), json_str))?;
-            Ok(crate::iportal::card::TransactionRecord {
-                merchant_name: raw_item.merchant_name,
-                merchant_account: raw_item.merchant_account.parse::<u64>().map_err(|e| {
-                    parse_err(
-                        format!("无法解析商户账号为数字: {}", e).as_str(),
-                        json_str,
+    let data =
+        json_value
+            .get("total")
+            .ok_or_else(|| parse_err("无法解析 data 字段", json_str))?
+            .as_array()
+            .ok_or_else(|| parse_err("无法解析 data 字段为数组", json_str))?
+            .iter()
+            .map(|item| {
+                let raw_item: RawTransactionRecord = serde_json::from_value(item.clone())
+                    .map_err(|e| parse_err(&format!("无法解析交易记录: {}", e), json_str))?;
+                Ok(crate::iportal::card::TransactionRecord {
+                    merchant_name: raw_item.merchant_name,
+                    merchant_account: raw_item.merchant_account.parse::<u64>().map_err(|e| {
+                        parse_err(format!("无法解析商户账号为数字: {}", e).as_str(), json_str)
+                    })?,
+                    pay_time: chrono::NaiveDateTime::parse_from_str(
+                        &raw_item.pay_time,
+                        "%Y%m%d%H%M%S",
                     )
-                })?,
-                pay_time: chrono::NaiveDateTime::parse_from_str(&raw_item.pay_time, "%Y%m%d%H%M%S")
                     .map_err(|e| {
                         parse_err(
                             &format!("无法解析交易时间 {}: {}", raw_item.pay_time, e),
                             json_str,
                         )
                     })?,
-                transcation_amount: raw_item.sign_trans_amount.parse::<i64>().map_err(|e| {
-                    parse_err(
-                        format!("无法解析交易金额为数字: {}", e).as_str(),
-                        json_str,
-                    )
-                })?,
-                transaction_type: match raw_item._trans_code.parse::<u32>() {
-                    Ok(code) => match code {
-                        15 => crate::iportal::card::TransactionType::Consumption,
-                        16 => crate::iportal::card::TransactionType::Recharge,
-                        17 => crate::iportal::card::TransactionType::Benefit,
-                        22 => crate::iportal::card::TransactionType::TransferMoneyToCard,
-                        6 => crate::iportal::card::TransactionType::EAccountOpening,
-                        1 => crate::iportal::card::TransactionType::HolderAccountOpening,
-                        _ => crate::iportal::card::TransactionType::Other(code),
+                    transcation_amount: raw_item.sign_trans_amount.parse::<i64>().map_err(|e| {
+                        parse_err(format!("无法解析交易金额为数字: {}", e).as_str(), json_str)
+                    })?,
+                    transaction_type: match raw_item._trans_code.parse::<u32>() {
+                        Ok(code) => match code {
+                            15 => crate::iportal::card::TransactionType::Consumption,
+                            16 => crate::iportal::card::TransactionType::Recharge,
+                            17 => crate::iportal::card::TransactionType::Benefit,
+                            22 => crate::iportal::card::TransactionType::TransferMoneyToCard,
+                            6 => crate::iportal::card::TransactionType::EAccountOpening,
+                            1 => crate::iportal::card::TransactionType::HolderAccountOpening,
+                            _ => crate::iportal::card::TransactionType::Other(code),
+                        },
+                        Err(e) => {
+                            return Err(parse_err(
+                                format!("无法解析交易类型代码为数字: {}", e).as_str(),
+                                json_str,
+                            ));
+                        }
                     },
-                    Err(e) => {
-                        return Err(parse_err(
-                            format!("无法解析交易类型代码为数字: {}", e).as_str(),
-                            json_str,
-                        ))
-                    }
-                },
+                })
             })
-        })
-        .collect::<Result<Vec<crate::iportal::card::TransactionRecord>, crate::Error<IPortalExpired>>>()?;
+            .collect::<Result<
+                Vec<crate::iportal::card::TransactionRecord>,
+                crate::Error<IPortalTokenExpired>,
+            >>()?;
     Ok(crate::iportal::card::CardTransactionDetail {
         next_page,
         page_size,
@@ -152,8 +154,7 @@ mod tests {
 
     #[test]
     fn test_parse_card_transaction_records() -> TestResult<()> {
-        let detail =
-            parse_card_transaction_records(include_str!("test_data/transactions.json"))?;
+        let detail = parse_card_transaction_records(include_str!("test_data/transactions.json"))?;
 
         assert_eq!(detail.next_page, 2);
         assert_eq!(detail.page_size, 10);

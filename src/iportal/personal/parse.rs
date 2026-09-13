@@ -1,7 +1,7 @@
 use crate::{
     error::parse_err,
     iportal::{
-        error::IPortalExpired,
+        error::IPortalTokenExpired,
         personal::{PersonalDataItem, PersonalDataTypeEnum},
         util::iportal_jsondata_precheck,
     },
@@ -9,7 +9,7 @@ use crate::{
 
 pub fn parse_personal_data_query_ids(
     json_str: &str,
-) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalExpired>> {
+) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalTokenExpired>> {
     let json_value = iportal_jsondata_precheck(json_str);
     let arr = json_value?
         .get("data")
@@ -28,8 +28,8 @@ pub fn parse_personal_data_query_ids(
 
 pub fn parse_personal_data(
     json_str: &str,
-) -> Result<PersonalDataItem, crate::Error<IPortalExpired>> {
-    let json_value: Result<serde_json::Value, crate::Error<IPortalExpired>> =
+) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {
+    let json_value: Result<serde_json::Value, crate::Error<IPortalTokenExpired>> =
         iportal_jsondata_precheck(json_str);
     let data_item = json_value?
         .get("data")
@@ -85,9 +85,7 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_last_login() -> TestResult<()> {
-        let last_login = parse_personal_data(include_str!(
-            "test_data/id_data/lastlogin.json"
-        ))?;
+        let last_login = parse_personal_data(include_str!("test_data/id_data/lastlogin.json"))?;
         assert_eq!(last_login.name, "最近一次登录时间");
         assert_eq!(last_login.value, "2077-06-15 16:04:00");
         assert_eq!(last_login.unit, None);

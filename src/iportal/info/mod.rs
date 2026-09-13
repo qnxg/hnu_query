@@ -1,6 +1,6 @@
 //! 当前登录账号信息查询
 
-use crate::iportal::error::IPortalExpired;
+use crate::iportal::error::IPortalTokenExpired;
 use crate::iportal::login::IPortalToken;
 use crate::utils::obs::{fetch_time, parse_time};
 use chrono::NaiveDateTime;
@@ -48,8 +48,7 @@ where
     D: Deserializer<'de>,
 {
     let value = String::deserialize(deserializer)?;
-    NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S")
-        .map_err(serde::de::Error::custom)
+    NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S").map_err(serde::de::Error::custom)
 }
 
 mod fetch;
@@ -70,7 +69,7 @@ mod parse;
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_account_info(
     token: &IPortalToken,
-) -> Result<AccountInfo, crate::Error<IPortalExpired>> {
+) -> Result<AccountInfo, crate::Error<IPortalTokenExpired>> {
     let json_str: String = fetch_time!(fetch::fetch_info(token).await)?;
     let info = parse_time!(parse::parse_account_info(&json_str))?;
     Ok(info)

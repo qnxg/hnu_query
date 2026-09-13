@@ -1,6 +1,6 @@
-use crate::iportal::{error::IPortalExpired, term::TermInfo, util::iportal_jsondata_precheck};
+use crate::iportal::{error::IPortalTokenExpired, term::TermInfo, util::iportal_jsondata_precheck};
 
-pub fn parse_term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalExpired>> {
+pub fn parse_term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
     let term_info: TermInfo = serde_json::from_value(iportal_jsondata_precheck(json_str)?)
         .map_err(|e| crate::error::parse_err(format!("JSON解析错误: {}", e).as_str(), json_str))?;
     Ok(term_info)

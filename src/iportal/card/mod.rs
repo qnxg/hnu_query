@@ -1,10 +1,10 @@
 //! 校园卡账户与交易明细查询
 
+use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
-use chrono::NaiveDateTime;
 
-use crate::iportal::error::IPortalExpired;
+use crate::iportal::error::IPortalTokenExpired;
 use crate::utils::obs::{fetch_time, parse_time};
 
 mod fetch;
@@ -86,7 +86,7 @@ pub struct CardTransactionDetail {
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_card_balance_info(
     token: &crate::iportal::login::IPortalToken,
-) -> Result<crate::iportal::card::CardInfo, crate::Error<IPortalExpired>> {
+) -> Result<crate::iportal::card::CardInfo, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::fetch_balance(token).await)?;
     let balance = parse_time!(parse::parse_card_balance(&json_str))?;
     Ok(balance)
@@ -116,14 +116,15 @@ pub async fn get_card_balance_info(
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_card_transaction_records(
     token: &crate::iportal::login::IPortalToken,
-    start: String,
-    end: String,
+    start: NaiveDateTime,
+    end: NaiveDateTime,
     pagesize: Option<u32>,
     page: Option<u32>,
     account: &str,
-) -> Result<crate::iportal::card::CardTransactionDetail, crate::Error<IPortalExpired>> {
-    let json_str =
-        fetch_time!(fetch::fetch_card_transaction_records(token, start, end, pagesize, page, account).await)?;
+) -> Result<crate::iportal::card::CardTransactionDetail, crate::Error<IPortalTokenExpired>> {
+    let json_str = fetch_time!(
+        fetch::fetch_card_transaction_records(token, start, end, pagesize, page, account).await
+    )?;
     let details = parse_time!(parse::parse_card_transaction_records(&json_str))?;
     Ok(details)
 }
@@ -153,12 +154,10 @@ mod tests {
             chrono::Utc::now()
                 .with_timezone(&FixedOffset::east_opt(8 * 3600).unwrap())
                 .add(-chrono::Duration::days(30))
-                .format("%Y-%m-%d")
-                .to_string(),
+                .naive_local(),
             chrono::Utc::now()
                 .with_timezone(&FixedOffset::east_opt(8 * 3600).unwrap())
-                .format("%Y-%m-%d")
-                .to_string(),
+                .naive_local(),
             Some(10),
             Some(1),
             card.account.as_str(),
