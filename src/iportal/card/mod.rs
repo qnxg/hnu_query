@@ -103,11 +103,11 @@ pub async fn get_card_balance_info(
 /// - `end`: 查询结束时间, 格式为 `yyyy-MM-dd`
 /// - `pagesize`: 每页记录数，`None` 时为 10
 /// - `page`: 页码，`None` 时为 1
-/// - `account`: 校园卡账号，可以通过 [`get_card_info`] 获取
+/// - `account`: 校园卡账号，可以通过 [`get_card_balance_info`] 获取
 ///
 /// # Returns
 ///
-/// 返回一页 [`CardDetailsItem`]；其中交易时间为 UTC，`next_page` 为 `"0"`
+/// 返回一页 [`CardTransactionDetail`]；其中交易时间为 UTC，`next_page` 为 `"0"`
 /// 表示没有下一页
 ///
 /// # Errors
