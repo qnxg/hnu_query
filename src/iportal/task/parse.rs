@@ -102,10 +102,7 @@ mod tests {
         assert_eq!(item.id, 100001);
         assert_eq!(item.app_name, "测试事项");
         assert_eq!(item.creator_name, "测试用户");
-        assert_eq!(
-            item.creator_department,
-            "测试学院"
-        );
+        assert_eq!(item.creator_department, "测试学院");
         assert_eq!(
             item.created,
             NaiveDateTime::parse_from_str("2024-01-01 10:00:01", "%Y-%m-%d %H:%M:%S")?
