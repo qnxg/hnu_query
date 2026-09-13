@@ -3,52 +3,36 @@
 use crate::iportal::error::IPortalTokenExpired;
 use crate::iportal::login::IPortalToken;
 use crate::utils::obs::{fetch_time, parse_time};
-use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// 当前登录账号的信息
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccountInfo {
-    /// 用户 ID
+    /// iportal 用户唯一标识，例如：`"114514"`
     pub uid: String,
     /// 姓名
     pub name: String,
-    /// 学工号
-    pub xgh: String,
-    /// 当前身份名称
+    /// 学工号；学生通常为学号，教职工通常为工号，例如：`"191908100721"`
+    pub id: String,
+    /// 当前身份名称，例如: `本科生`
     pub identity: String,
-    /// 当前身份 ID
-    pub identity_id: String,
-    /// 性别代码
-    pub sex: u8,
-    /// 所属部门
+    /// 当前身份在 iportal 中的内部 ID，例如：身份名称为 `本科生` 时可能为 `"2002"`
+    pub identity_id: u64,
+    /// 性别代码。具体代码含义由 iportal 服务端定义
+    pub gender: Gender,
+    /// 所属学院、部门或其他组织名称，例如：`"计算机学院"`
     pub depart: String,
-    /// 手机号码
-    pub mobile: String,
-    /// 电子邮箱
-    pub email: String,
-    // organ: HashMap<String, u8>,
-    /// 头像地址
+    /// 头像 URL；服务端未提供时可能为空字符串
     pub avatar: String,
-    /// 登录时间
-    #[serde(deserialize_with = "deserialize_naive_datetime")]
-    pub time: NaiveDateTime,
-    /// 是否为系统管理员
-    pub is_manager: bool,
-    /// 是否为应用管理员
-    pub is_app_manager: bool,
-    /// 是否为流程管理员
-    pub is_process_manager: bool,
-    //user_config: Option<serde_json::Value>,
 }
 
-fn deserialize_naive_datetime<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value = String::deserialize(deserializer)?;
-    NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S").map_err(serde::de::Error::custom)
+#[repr(u8)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum Gender {
+    Male = 1,
+    Female = 2,
+    Other(u8),
 }
 
 mod fetch;

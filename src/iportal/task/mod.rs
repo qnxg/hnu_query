@@ -14,7 +14,7 @@ mod parse;
 /// 分页的申请记录列表
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplyList {
-    /// 申请记录总数
+    /// 总申请记录总数, **注意: 不是当前页的记录数**
     pub total: i64,
     /// 当前页的申请记录
     pub list: Vec<ApplyItem>,
@@ -23,9 +23,9 @@ pub struct ApplyList {
 /// 申请记录
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplyItem {
-    /// 申请记录ID
+    /// 申请记录ID, 用于区分不同申请记录
     pub id: i64,
-    /// 对应申请名称
+    /// 对应申请操作的名称, 如 `校园卡及个人门户照片自助更换`
     pub app_name: String,
     /// 发起人姓名
     pub creator_name: String,
@@ -33,7 +33,7 @@ pub struct ApplyItem {
     pub creator_department: String,
     /// 发起时间, 格式`yyyy-MM-dd HH:mm:ss`
     pub created: NaiveDateTime,
-    /// 完成时间, 格式`yyyy-MM-dd HH:mm:ss`, 可能为 `null`
+    /// 完成时间, 格式`yyyy-MM-dd HH:mm:ss`, 在没有完成时可能为 `null`
     pub finished: Option<NaiveDateTime>,
     /// 当前申请状态,
     pub status: ApplyStatus,
@@ -48,7 +48,7 @@ pub enum ApplyStatus {
     Processing = 1,
     /// 已完成
     Completed = 2,
-    /// 未知
+    /// 未知, 当服务端返回的状态码不在 0, 1, 2 范围内时使用
     Other(i8),
 }
 

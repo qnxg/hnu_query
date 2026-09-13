@@ -9,35 +9,42 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// 学期信息
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TermInfo {
     /// 学期开始日期
-    #[serde(deserialize_with = "deserialize_date_as_naive_datetime")]
+    ///
+    /// 格式为 `yyyy-MM-dd`, 例如: `2026-07-05`
+    ///
+    ///  **注意: 开始日期为学期第一天的 00:00:00, 不是学期第一天的 23:59:59**
     pub start_date: NaiveDateTime,
-    /// 学期结束日期
-    #[serde(deserialize_with = "deserialize_date_as_naive_datetime")]
+    /// 学期结束日期, **注意: 结束日期为学期最后一天的 00:00:00, 不是学期最后一天的 23:59:59**
     pub end_date: NaiveDateTime,
-    /// 学期描述
-    #[serde(rename = "dsc")]
+    /// 学期描述, 例如: `夏季`
     pub description: String,
-    /// 学期
-    pub term: String,
-    /// 学年
+    /// 学期编号, 秋季学期为 `1`, 寒
+    pub term: TermType,
+    /// 学年，例如: `2025-2026`
     pub year: String,
     /// 给定时间位于该学期的周次
     pub week: u16,
 }
 
-fn deserialize_date_as_naive_datetime<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value = String::deserialize(deserializer)?;
-    NaiveDateTime::parse_from_str(&format!("{value} 00:00:00"), "%Y-%m-%d %H:%M:%S")
-        .map_err(serde::de::Error::custom)
+#[repr(u8)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum TermType {
+    /// 秋季学期
+    Autumn = 1,
+    /// 春季学期
+    Spring = 2,
+    /// 寒假
+    WinterVacation = 3,
+    /// 暑假
+    SummerVacation = 4,
+    /// 未知学期类型, 回退类型
+    Other(u8),
 }
 
 /// 获取指定时间所在学期的信息

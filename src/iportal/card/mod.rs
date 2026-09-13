@@ -15,7 +15,7 @@ mod parse;
 pub struct CardInfo {
     /// 校园卡账号
     pub account: String,
-    /// 校园卡余额
+    /// 校园卡余额, 单位为人民币元
     pub balance: f64,
 }
 
@@ -24,27 +24,30 @@ pub struct CardInfo {
 /// **交易金额单位为人民币分**
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionRecord {
-    /// 商户名称
+    /// 商户名称，例如: `天马二食堂二楼`
     pub merchant_name: String,
     /// 商户账号
     pub merchant_account: u64,
     /// 交易时间, 格式为 `yyyy-MM-dd HH:mm:ss`
     pub pay_time: NaiveDateTime,
     /// 交易金额, 正值为收入，负值为支出，单位为分
-    pub transcation_amount: i64,
-    /// 交易类型
+    pub transaction_amount: i64,
+    /// 交易类型，例如: `消费`、`充值`、`领取补助 (电子账户->校园卡)`、`补助`、`电子账户开户`、`持卡人开户`等
     pub transaction_type: TransactionType,
 }
 
 #[repr(u32)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// 交易类型，枚举可能不完全
 pub enum TransactionType {
     /// 消费
     Consumption = 15,
     /// 充值
     Recharge = 16,
-    /// 领取补助 (电子账户->校园卡)
-    TransferMoneyToCard = 22,
+    /// 领取补助 (电子账户->校园卡), **注意: 不一定是正值**
+    /// 计算总收入/支出金额时需要排除掉这个类型
+    // 这个交易类型怪怪的，可能是正值也可能是负值
+    MoneyTransfer = 22,
     /// 补助
     Benefit = 17,
     /// 电子账户开户
@@ -55,14 +58,32 @@ pub enum TransactionType {
     Other(u32),
 }
 
+impl TransactionType {
+    /// 获取对应的交易类型代码
+    pub fn get_type_code(&self) -> u32 {
+        match self {
+            TransactionType::Consumption => 15,
+            TransactionType::Recharge => 16,
+            TransactionType::MoneyTransfer => 22,
+            TransactionType::Benefit => 17,
+            TransactionType::EAccountOpening => 6,
+            TransactionType::HolderAccountOpening => 1,
+            TransactionType::Other(code) => *code,
+        }
+    }
+}
 /// 分页的校园卡交易明细
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CardTransactionDetail {
     /// 下一页页码; `0` 表示没有下一页
+    ///
+    /// 例如: `next_page = 2` 表示当前页为第 1 页，下一页为第 2 页
+    ///
+    /// 可以继续调用 [`get_card_transaction_records`] 获取下一页数据
     pub next_page: u32,
     /// 每页记录数
     pub page_size: u32,
-    /// 符合查询条件的记录总数
+    /// 符合查询条件的记录总数，**不是当前页的记录数**
     pub row_count: u32,
     /// 当前页的交易记录
     pub records: Vec<TransactionRecord>,

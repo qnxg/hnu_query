@@ -26,7 +26,7 @@ pub async fn fetch_personal_data(
     client
         .get(format!(
             "https://iportal.hnu.edu.cn/personal/frontend/data/detail?id={}",
-            type_enum.into_value()
+            type_enum.get_value()
         ))
         .send_with_token(token)
         .await?

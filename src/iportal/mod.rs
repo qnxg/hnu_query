@@ -9,9 +9,6 @@ pub mod term;
 mod util;
 
 #[cfg(test)]
-mod test;
-
-#[cfg(test)]
 mod tests {
     use crate::{iportal::login::get_iportal_token, test::TestResult};
 

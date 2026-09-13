@@ -1,4 +1,4 @@
-//! iPortal 首页个人数据查询
+//! iportal 首页个人数据查询
 
 use hnu_query_macros::traced;
 use serde::{Deserialize, Deserializer};
@@ -11,8 +11,10 @@ use crate::{
 mod fetch;
 mod parse;
 
-/// iPortal 首页可查询的个人数据类型及其详情 ID
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+/// iportal 首页可查询的个人数据类型及其详情 ID
+///
+/// **注意: 该枚举的值是动态的, 可能会随时间变化而变化, 不要将其硬编码在代码中**
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
 #[serde(tag = "key", content = "id")]
 pub enum PersonalDataTypeEnum {
     /// 图书馆借阅数量
@@ -33,7 +35,8 @@ pub enum PersonalDataTypeEnum {
 }
 
 impl PersonalDataTypeEnum {
-    pub fn into_value(self) -> String {
+    /// 获取个人数据类型的查询 ID
+    pub fn get_value(self) -> String {
         match self {
             Self::LibBorrow(value)
             | Self::MailUnread(value)
@@ -50,7 +53,7 @@ pub struct PersonalDataItem {
     /// 数据值
     #[serde(deserialize_with = "deserialize_string_or_float")]
     pub value: String,
-    /// 数据单位；服务端未提供单位时为 `None`
+    /// 数据单位；服务端未提供单位时为 `None`, 提供时可能为 `"元"`、`"GB"` 等
     pub unit: Option<String>,
     /// 数据项名称
     #[serde(alias = "title")]
