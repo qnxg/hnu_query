@@ -131,9 +131,7 @@ pub async fn get_card_transaction_records(
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Add;
-
-    use chrono::FixedOffset;
+    use chrono::{Duration, Utc};
 
     #[tokio::test]
     #[ignore]
@@ -149,15 +147,12 @@ mod tests {
     async fn test_get_card_transaction_records() -> crate::test::TestResult<()> {
         let token = crate::iportal::login::get_iportal_token().await?;
         let card = crate::iportal::card::get_card_balance_info(&token).await?;
+        let now: chrono::NaiveDateTime = Utc::now().naive_utc();
+        let before_30d: chrono::NaiveDateTime = now - Duration::days(30);
         let info = crate::iportal::card::get_card_transaction_records(
             &token,
-            chrono::Utc::now()
-                .with_timezone(&FixedOffset::east_opt(8 * 3600).unwrap())
-                .add(-chrono::Duration::days(30))
-                .naive_local(),
-            chrono::Utc::now()
-                .with_timezone(&FixedOffset::east_opt(8 * 3600).unwrap())
-                .naive_local(),
+            before_30d,
+            now,
             Some(10),
             Some(1),
             card.account.as_str(),
