@@ -1,57 +1,31 @@
 use crate::{
-    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err},
-    iportal::{error::IPortalTokenExpired, login::IPortalToken},
+    error::{MapParseErr, parse_err},
+    iportal::error::IPortalTokenExpired,
 };
-use reqwest::{Response, header::COOKIE};
-use reqwest_middleware::RequestBuilder;
 
-pub trait IPortalRequestBuilderExt {
-    async fn send_with_token(
-        self,
-        token: &IPortalToken,
-    ) -> Result<Response, crate::Error<IPortalTokenExpired>>;
-}
-
-impl IPortalRequestBuilderExt for RequestBuilder {
-    async fn send_with_token(
-        self,
-        token: &IPortalToken,
-    ) -> Result<Response, crate::Error<IPortalTokenExpired>> {
-        let cookie = token
-            .headers()
-            .get(COOKIE)
-            .cloned()
-            .ok_or_else(|| "缺少 Cookie".to_string())
-            .unexpected_err()?;
-
-        self.header(COOKIE, cookie)
-            .send()
-            .await
-            .network_err()?
-            .status_code_err()
-            .await
-    }
-}
-
-pub fn iportal_jsondata_precheck(
+pub(super) fn iportal_jsondata_precheck(
     json_str: &str,
 ) -> Result<serde_json::Value, crate::Error<IPortalTokenExpired>> {
-    let json_value: serde_json::Value = serde_json::from_str(json_str)
-        .map_err(|e| parse_err(format!("JSON解析错误: {}", e).as_str(), json_str))?;
-    if json_value.get("e").and_then(|e| e.as_i64()) != Some(0) {
+    let json_value: serde_json::Value = serde_json::from_str(json_str).parse_err(json_str)?;
+    let error_code = json_value
+        .get("e")
+        .and_then(serde_json::Value::as_i64)
+        .ok_or_else(|| parse_err("无法解析 e 字段", json_str))?;
+    if error_code != 0 {
         let msg = json_value
             .get("m")
-            .and_then(|m| m.as_str())
+            .and_then(serde_json::Value::as_str)
             .unwrap_or("未知错误");
         return Err(parse_err(
-            format!("参数错误, 服务器返回信息: {}", msg).as_str(),
+            format!("参数错误, 服务器返回信息: {msg}").as_str(),
             json_str,
         ));
     }
     let data = json_value
         .get("d")
-        .ok_or(parse_err("JSON解析错误", json_str))?;
-    Ok(data.clone())
+        .cloned()
+        .ok_or_else(|| parse_err("无法解析数据", json_str))?;
+    Ok(data)
 }
 
 #[cfg(test)]
@@ -59,15 +33,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_iportal_jsondata_precheck_error_response() {
-        let result = iportal_jsondata_precheck(
-            r#"{
-                "e": 1,
-                "m": "参数错误",
-                "d": null
-            }"#,
-        );
+    fn test_iportal_jsondata_precheck_error_response() -> crate::test::TestResult<()> {
+        let json_str = include_str!("test_data/error.json");
+        let result = iportal_jsondata_precheck(json_str);
 
-        assert!(result.is_err());
+        match result {
+            Err(crate::Error::Parse(error)) => assert_eq!(error.data(), json_str),
+            _ => return Err("错误响应未返回 ParseError".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_iportal_jsondata_precheck_malformed_json() -> crate::test::TestResult<()> {
+        let json_str = include_str!("test_data/malformed.json");
+        let result = iportal_jsondata_precheck(json_str);
+
+        match result {
+            Err(crate::Error::Parse(error)) => assert_eq!(error.data(), json_str),
+            _ => return Err("格式错误的 JSON 未返回 ParseError".into()),
+        }
+        Ok(())
     }
 }

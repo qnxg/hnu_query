@@ -12,19 +12,15 @@ use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
 
 /// 学期信息
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TermInfo {
     /// 学期开始日期
-    ///
-    /// 格式为 `yyyy-MM-dd`, 例如: `2026-07-05`
-    ///
-    ///  **注意: 开始日期为学期第一天的 00:00:00, 不是学期第一天的 23:59:59**
     pub start_date: NaiveDateTime,
-    /// 学期结束日期, **注意: 结束日期为学期最后一天的 00:00:00, 不是学期最后一天的 23:59:59**
+    /// 学期结束日期
     pub end_date: NaiveDateTime,
     /// 学期描述, 例如: `夏季`
     pub description: String,
-    /// 学期编号, 秋季学期为 `1`, 寒
+    /// 学期编号, 秋季学期为 `1`,
     pub term: TermType,
     /// 学年，例如: `2025-2026`
     pub year: String,
@@ -34,13 +30,14 @@ pub struct TermInfo {
 
 #[repr(u8)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+/// 学期类型
 pub enum TermType {
     /// 秋季学期
     Autumn = 1,
     /// 春季学期
-    Spring = 2,
+    Spring = 3,
     /// 寒假
-    WinterVacation = 3,
+    WinterVacation = 2,
     /// 暑假
     SummerVacation = 4,
     /// 未知学期类型, 回退类型
@@ -60,14 +57,14 @@ pub enum TermType {
 ///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误
+/// `token` 失效时返回 [`IPortalTokenExpired`]
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_term_info(
     token: &IPortalToken,
     timestamp: i64,
 ) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
-    let json_str = fetch_time!(fetch::fetch_term_info(token, timestamp).await)?;
-    let info = parse_time!(parse::parse_term_info(&json_str))?;
+    let json_str = fetch_time!(fetch::term_info(token, timestamp).await)?;
+    let info = parse_time!(parse::term_info(&json_str))?;
     Ok(info)
 }
 

@@ -43,6 +43,7 @@ cargo test ca:: -- --ignored --nocapture --test-threads 1 # 测试可信电子�
 cargo test gym:: -- --ignored --nocapture --test-threads 1 # 测试体测系统相关
 cargo test netflow:: -- --ignored --nocapture --test-threads 1 # 测试校园网流量相关
 cargo test pt:: -- --ignored --nocapture --test-threads 1 # 测试个人门户相关
+cargo test iportal:: -- --ignored --nocapture --test-threads 1 # 测试 iportal 相关
 cargo test xgxt:: -- --ignored --nocapture --test-threads 1 # 测试学工系统相关
 cargo test ai:: -- --ignored --nocapture --test-threads 1 # 测试 ai 大模型平台相关
 ```

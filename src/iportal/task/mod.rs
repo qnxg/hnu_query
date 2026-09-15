@@ -1,5 +1,8 @@
 //! 流程申请记录查询
 
+mod fetch;
+mod parse;
+
 use crate::{
     iportal::error::IPortalTokenExpired,
     utils::obs::{fetch_time, parse_time},
@@ -7,9 +10,6 @@ use crate::{
 use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
-
-mod fetch;
-mod parse;
 
 /// 分页的申请记录列表
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -31,16 +31,17 @@ pub struct ApplyItem {
     pub creator_name: String,
     /// 发起人所属部门, 例如: `计算机学院（软件学院、国家保密学院）`
     pub creator_department: String,
-    /// 发起时间, 格式`yyyy-MM-dd HH:mm:ss`
+    /// 发起时间
     pub created: NaiveDateTime,
-    /// 完成时间, 格式`yyyy-MM-dd HH:mm:ss`, 在没有完成时可能为 `null`
+    /// 完成时间, 在没有完成时可能为 `null`
     pub finished: Option<NaiveDateTime>,
     /// 当前申请状态,
     pub status: ApplyStatus,
 }
 
 #[repr(i8)]
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+/// 流程申请的处理状态
 pub enum ApplyStatus {
     /// 已提交，但尚未开始处理
     Pending = 0,
@@ -68,15 +69,15 @@ pub enum ApplyStatus {
 ///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误
+/// `token` 失效时返回 [`IPortalTokenExpired`]
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_apply_list(
     token: &crate::iportal::login::IPortalToken,
     page: i32,
     page_size: i32,
 ) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
-    let json_str = fetch_time!(fetch::fetch_apply_list(token, page, page_size).await)?;
-    let task_list = parse_time!(parse::parse_apply_list(&json_str))?;
+    let json_str = fetch_time!(fetch::apply_list(token, page, page_size).await)?;
+    let task_list = parse_time!(parse::apply_list(&json_str))?;
     Ok(task_list)
 }
 

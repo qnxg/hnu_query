@@ -1,15 +1,14 @@
 //! iportal 首页个人数据查询
 
-use hnu_query_macros::traced;
-use serde::{Deserialize, Deserializer};
+mod fetch;
+mod parse;
 
 use crate::{
     iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::obs::{fetch_time, parse_time},
 };
-
-mod fetch;
-mod parse;
+use hnu_query_macros::traced;
+use serde::{Deserialize, Deserializer};
 
 /// iportal 首页可查询的个人数据类型及其详情 ID
 ///
@@ -36,6 +35,10 @@ pub enum PersonalDataTypeEnum {
 
 impl PersonalDataTypeEnum {
     /// 获取个人数据类型的查询 ID
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(skip(self), fields(subsystem = "iportal"))
+    )]
     pub fn get_value(self) -> String {
         match self {
             Self::LibBorrow(value)
@@ -87,17 +90,17 @@ where
 ///
 /// # Returns
 ///
-/// 返回个人数据类型列表列表中的值可以传给 [`get_personal_data`] 获取详情
+/// 返回的个人数据类型中的值可以传给 [`get_personal_data`] 获取详情
 ///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误
+/// `token` 失效时返回 [`IPortalTokenExpired`]
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_personal_data_lists(
     token: &IPortalToken,
 ) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalTokenExpired>> {
-    let json_str = fetch_time!(fetch::fetch_personal_data_query_ids(token).await)?;
-    let items = parse_time!(parse::parse_personal_data_query_ids(&json_str))?;
+    let json_str = fetch_time!(fetch::personal_data_query_ids(token).await)?;
+    let items = parse_time!(parse::personal_data_query_ids(&json_str))?;
     Ok(items)
 }
 
@@ -114,20 +117,19 @@ pub async fn get_personal_data_lists(
 ///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误
+/// `token` 失效时返回 [`IPortalTokenExpired`]
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_personal_data(
     token: &IPortalToken,
     type_enum: PersonalDataTypeEnum,
 ) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {
-    let json_str = fetch_time!(fetch::fetch_personal_data(token, type_enum.clone()).await)?;
-    let item = parse_time!(parse::parse_personal_data(&json_str))?;
+    let json_str = fetch_time!(fetch::personal_data(token, type_enum.clone()).await)?;
+    let item = parse_time!(parse::personal_data(&json_str))?;
     Ok(item)
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         iportal::{
             login::get_iportal_token,

@@ -1,36 +1,47 @@
 use crate::{
-    error::MapUnexpectedErr,
-    iportal::{error::IPortalTokenExpired, login::IPortalToken, util::IPortalRequestBuilderExt},
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
+    iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::client,
 };
-use chrono::NaiveDateTime;
+use chrono::NaiveDate;
 
-pub async fn fetch_balance(
-    token: &IPortalToken,
-) -> Result<String, crate::Error<IPortalTokenExpired>> {
+pub async fn balance(token: &IPortalToken) -> Result<String, crate::Error<IPortalTokenExpired>> {
+    let url = "https://iportal.hnu.edu.cn/hnu/frontend/user/card-balance";
     client
-        .get("https://iportal.hnu.edu.cn/hnu/frontend/user/card-balance")
-        .send_with_token(token)
+        .get(url)
+        .headers(token.headers().clone())
+        .send()
+        .await
+        .network_err()?
+        .status_code_err()
         .await?
         .text()
         .await
         .unexpected_err()
 }
 
-pub async fn fetch_card_transaction_records(
+pub async fn transaction_records(
     token: &IPortalToken,
-    start: NaiveDateTime,
-    end: NaiveDateTime,
-    pagesize: Option<u32>,
-    page: Option<u32>,
-    account: &str,
+    account: String,
+    start: NaiveDate,
+    end: NaiveDate,
+    page_size: u32,
+    page: u32,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    client.get(format!(
-        "https://iportal.hnu.edu.cn/hnu/frontend/user/card-details?query_start={}&query_end={}&page_size={}&page={}&account={}",
+    let url = format!(
+        "https://iportal.hnu.edu.cn/hnu/frontend/user/card-details?query_start={}&query_end={}&page_size={page_size}&page={page}&account={account}",
         start.format("%Y-%m-%d"),
         end.format("%Y-%m-%d"),
-        pagesize.unwrap_or(10),
-        page.unwrap_or(1),
-        account
-    )).send_with_token(token).await?.text().await.unexpected_err()
+    );
+    client
+        .get(url)
+        .headers(token.headers().clone())
+        .send()
+        .await
+        .network_err()?
+        .status_code_err()
+        .await?
+        .text()
+        .await
+        .unexpected_err()
 }

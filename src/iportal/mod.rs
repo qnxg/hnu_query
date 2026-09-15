@@ -5,18 +5,10 @@ pub mod login;
 pub mod personal;
 pub mod task;
 pub mod term;
-
 mod util;
 
-#[cfg(test)]
-mod tests {
-    use crate::{iportal::login::get_iportal_token, test::TestResult};
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_login() -> TestResult<()> {
-        let token = get_iportal_token().await?;
-        println!("{token:#?}");
-        Ok(())
-    }
-}
+pub use card::{get_card_info, get_card_transaction_records};
+pub use info::get_account_info;
+pub use personal::{get_personal_data, get_personal_data_lists};
+pub use task::get_apply_list;
+pub use term::get_term_info;

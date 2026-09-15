@@ -1,14 +1,18 @@
 use crate::{
-    error::MapUnexpectedErr,
-    iportal::util::IPortalRequestBuilderExt,
+    error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::client,
 };
 
-pub async fn fetch_info(token: &IPortalToken) -> Result<String, crate::Error<IPortalTokenExpired>> {
+pub async fn info(token: &IPortalToken) -> Result<String, crate::Error<IPortalTokenExpired>> {
+    let url = "https://iportal.hnu.edu.cn/personal/frontend/data/info";
     client
-        .get("https://iportal.hnu.edu.cn/personal/frontend/data/info")
-        .send_with_token(token)
+        .get(url)
+        .headers(token.headers().clone())
+        .send()
+        .await
+        .network_err()?
+        .status_code_err()
         .await?
         .text()
         .await

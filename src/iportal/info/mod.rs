@@ -1,8 +1,12 @@
 //! 当前登录账号信息查询
 
-use crate::iportal::error::IPortalTokenExpired;
-use crate::iportal::login::IPortalToken;
-use crate::utils::obs::{fetch_time, parse_time};
+mod fetch;
+mod parse;
+
+use crate::{
+    iportal::{error::IPortalTokenExpired, login::IPortalToken},
+    utils::obs::{fetch_time, parse_time},
+};
 use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
 
@@ -29,14 +33,15 @@ pub struct AccountInfo {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+/// 性别
 pub enum Gender {
+    /// 男性
     Male = 1,
+    /// 女性
     Female = 2,
+    /// 服务端返回的其他性别代码
     Other(u8),
 }
-
-mod fetch;
-mod parse;
 
 /// 获取当前登录账号的信息
 ///
@@ -47,15 +52,16 @@ mod parse;
 /// # Returns
 ///
 /// 返回包含用户、身份、联系方式及管理员状态的 [`AccountInfo`]
+///
 /// # Errors
 ///
-/// 当令牌失效、网络请求失败或响应无法解析时返回错误
+/// `token` 失效时返回 [`IPortalTokenExpired`]
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_account_info(
     token: &IPortalToken,
 ) -> Result<AccountInfo, crate::Error<IPortalTokenExpired>> {
-    let json_str: String = fetch_time!(fetch::fetch_info(token).await)?;
-    let info = parse_time!(parse::parse_account_info(&json_str))?;
+    let json_str: String = fetch_time!(fetch::info(token).await)?;
+    let info = parse_time!(parse::account_info(&json_str))?;
     Ok(info)
 }
 
@@ -68,7 +74,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_fetch_info() -> TestResult<()> {
+    async fn test_get_account_info() -> TestResult<()> {
         let token = get_iportal_token().await?;
         let info = get_account_info(&token).await?;
         println!("{info:#?}");
