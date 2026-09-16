@@ -22,12 +22,22 @@ struct RawTransactionRecord {
     trancode: String,
 }
 
+/// 解析校园卡账户信息响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::balance`] 返回的数据
 pub fn card_info(json_str: &str) -> Result<CardInfo, crate::Error<IPortalTokenExpired>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     let info = serde_json::from_value(json_value).parse_err(json_str)?;
     Ok(info)
 }
 
+/// 解析校园卡交易明细响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::transaction_records`] 返回的数据
 pub fn card_transaction_records(
     json_str: &str,
 ) -> Result<CardTransactionDetail, crate::Error<IPortalTokenExpired>> {

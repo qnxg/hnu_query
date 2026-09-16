@@ -45,6 +45,11 @@ struct RawApplyItem {
     third_name: String,
 }
 
+/// 解析流程申请记录列表响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::apply_list`] 返回的数据
 pub fn apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let total = data

@@ -20,6 +20,11 @@ struct RawAccountInfo {
     avatar: String,
 }
 
+/// 解析当前登录账号信息响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::info`] 返回的数据
 pub fn account_info(json_str: &str) -> Result<AccountInfo, crate::Error<IPortalTokenExpired>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let info = data

@@ -122,6 +122,7 @@ pub async fn get_card_info(
 /// - `token`: iportal 令牌, 可以通过
 ///   [`IPortalToken::acquire_by_cas_login`](crate::iportal::login::IPortalToken::acquire_by_cas_login)
 ///   获取
+/// - `account`: 校园卡账号，可以通过 [`get_card_info`] 获取
 /// - `start`: 查询开始日期
 /// - `end`: 查询结束日期
 /// - `page_size`: 每页记录数

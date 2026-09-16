@@ -7,6 +7,11 @@ use crate::{
     },
 };
 
+/// 解析当前账号可查询的个人数据类型响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::personal_data_query_ids`] 返回的数据
 pub fn personal_data_query_ids(
     json_str: &str,
 ) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalTokenExpired>> {
@@ -21,6 +26,11 @@ pub fn personal_data_query_ids(
         .collect()
 }
 
+/// 解析一项个人数据的详情响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::personal_data`] 返回的数据
 pub fn personal_data(
     json_str: &str,
 ) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {

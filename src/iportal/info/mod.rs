@@ -51,7 +51,7 @@ pub enum Gender {
 ///
 /// # Returns
 ///
-/// 返回包含用户、身份、联系方式及管理员状态的 [`AccountInfo`]
+/// 返回当前登录账号的 [`AccountInfo`]
 ///
 /// # Errors
 ///

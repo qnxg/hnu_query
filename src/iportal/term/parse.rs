@@ -22,6 +22,11 @@ struct RawTermInfo {
     week: u16,
 }
 
+/// 解析学期信息响应
+///
+/// # Arguments
+///
+/// - `json_str`: [`super::fetch::term_info`] 返回的数据
 pub fn term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
     let raw: RawTermInfo =
         serde_json::from_value(iportal_jsondata_precheck(json_str)?).parse_err(json_str)?;
