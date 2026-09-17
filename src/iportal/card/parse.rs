@@ -107,8 +107,15 @@ mod tests {
 
     #[test]
     fn test_parse_card_transaction_records() -> TestResult<()> {
-        let result = card_transaction_records(include_str!("test_data/transactions.json"));
-        assert!(result.is_err());
+        let result = card_transaction_records(include_str!("test_data/transactions.json"))?;
+        assert!(result.has_next_page);
+        assert_eq!(result.total_count, 11);
+        assert_eq!(result.records.len(), 10);
+        assert_eq!(result.records[0].merchant_name, "天马二食堂二楼");
+        assert_eq!(
+            result.records[0].transaction_type,
+            TransactionType::Consumption
+        );
 
         Ok(())
     }
