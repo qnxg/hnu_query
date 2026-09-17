@@ -6,6 +6,31 @@ use crate::{
         util::iportal_jsondata_precheck,
     },
 };
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "key", content = "id")]
+enum RawPersonalDataType {
+    #[serde(rename = "book.bookNum")]
+    LibBorrow(String),
+    #[serde(rename = "mail.unread")]
+    MailUnread(String),
+    #[serde(rename = "card.balance")]
+    Balance(String),
+    #[serde(rename = "statistic.lastLoginTime")]
+    LastLoginTime(String),
+    #[serde(rename = "net.used")]
+    NetUsed(String),
+}
+
+#[derive(Debug, Deserialize)]
+struct RawPersonalDataItem {
+    value: serde_json::Value,
+    unit: Option<String>,
+    #[serde(alias = "title")]
+    name: String,
+    email: Option<String>,
+}
 
 /// 解析当前账号可查询的个人数据类型响应
 ///
@@ -22,7 +47,16 @@ pub fn personal_data_query_ids(
         .ok_or_else(|| parse_err("无法解析 data 字段为数组", json_str))?
         .iter()
         .cloned()
-        .map(|item| serde_json::from_value(item).parse_err(json_str))
+        .map(|item| {
+            let raw: RawPersonalDataType = serde_json::from_value(item).parse_err(json_str)?;
+            Ok(match raw {
+                RawPersonalDataType::LibBorrow(v) => PersonalDataTypeEnum::LibBorrow(v),
+                RawPersonalDataType::MailUnread(v) => PersonalDataTypeEnum::MailUnread(v),
+                RawPersonalDataType::Balance(v) => PersonalDataTypeEnum::Balance(v),
+                RawPersonalDataType::LastLoginTime(v) => PersonalDataTypeEnum::LastLoginTime(v),
+                RawPersonalDataType::NetUsed(v) => PersonalDataTypeEnum::NetUsed(v),
+            })
+        })
         .collect()
 }
 
@@ -39,8 +73,18 @@ pub fn personal_data(
         .get("data")
         .ok_or_else(|| parse_err("无法解析 data 字段", json_str))?
         .clone();
-    let item: PersonalDataItem = serde_json::from_value(data_item).parse_err(json_str)?;
-    Ok(item)
+    let raw: RawPersonalDataItem = serde_json::from_value(data_item).parse_err(json_str)?;
+    let value = match raw.value {
+        serde_json::Value::String(v) => v,
+        serde_json::Value::Number(v) => v.to_string(),
+        _ => return Err(parse_err("无法解析 value 字段", json_str)),
+    };
+    Ok(PersonalDataItem {
+        value,
+        unit: raw.unit,
+        name: raw.name,
+        email: raw.email,
+    })
 }
 
 #[cfg(test)]

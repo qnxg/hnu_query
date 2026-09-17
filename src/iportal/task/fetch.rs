@@ -6,8 +6,8 @@ use crate::{
 
 pub async fn apply_list(
     token: &IPortalToken,
-    page: i32,
-    page_size: i32,
+    page: u32,
+    page_size: u32,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
     let url = format!(
         "https://iportal.hnu.edu.cn/personal/frontend/task/apply?type=all&page={page}&pageSize={page_size}"

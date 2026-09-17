@@ -21,8 +21,6 @@ pub struct CardInfo {
 }
 
 /// 一条校园卡交易记录
-///
-/// **交易金额单位为人民币分**
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionRecord {
     /// 商户名称
@@ -37,45 +35,28 @@ pub struct TransactionRecord {
     pub transaction_type: TransactionType,
 }
 
-#[repr(u32)]
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-/// 交易类型, 枚举可能不完全
+/// 交易类型
 pub enum TransactionType {
-    /// 消费
-    Consumption = 15,
+    /// 拍卡消费
+    Consumption,
+    /// 扫码支付
+    QRCodeConsumption,
     /// 充值
-    Recharge = 16,
+    Recharge,
     /// 领取补助 (电子账户 -> 校园卡), **注意: 不一定是正值**
+    ///
     /// 计算总收入/支出金额时需要排除掉这个类型
     // 这个交易类型语义不明确, 可能是正值, 也可能是负值
-    MoneyTransfer = 22,
+    MoneyTransfer,
     /// 补助
-    Benefit = 17,
-    /// 电子账户开户
-    EAccountOpening = 6,
-    /// 持卡人开户
-    HolderAccountOpening = 1,
-    /// 其他
-    Other(u32),
-}
-
-impl TransactionType {
-    /// 获取对应的交易类型代码
-    #[cfg_attr(
-        feature = "tracing",
-        tracing::instrument(skip(self), fields(subsystem = "iportal"))
-    )]
-    pub fn get_type_code(&self) -> u32 {
-        match self {
-            TransactionType::Consumption => 15,
-            TransactionType::Recharge => 16,
-            TransactionType::MoneyTransfer => 22,
-            TransactionType::Benefit => 17,
-            TransactionType::EAccountOpening => 6,
-            TransactionType::HolderAccountOpening => 1,
-            TransactionType::Other(code) => *code,
-        }
-    }
+    Benefit,
+    /// 电子账户开户, 出现于新生开卡
+    EAccountOpening,
+    /// 持卡人开户, 出现于新生开卡
+    HolderAccountOpening,
+    /// 代扣代缴, 出现于洗衣机/烘干机收费
+    Withholding,
 }
 
 /// 分页的校园卡交易明细
@@ -116,6 +97,10 @@ pub async fn get_card_info(
 }
 
 /// 分页获取指定日期范围内的校园卡交易明细
+///
+/// # Preconditions
+///
+/// 需要确保传入的 `account` 是使用同一个 `token` 调用 [`get_card_info`] 得到的，否则会出现未定义行为。
 ///
 /// # Arguments
 ///

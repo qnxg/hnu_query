@@ -41,7 +41,7 @@ pub fn account_info(json_str: &str) -> Result<AccountInfo, crate::Error<IPortalT
         gender: match raw.sex {
             1 => Gender::Male,
             2 => Gender::Female,
-            _ => Gender::Other(raw.sex),
+            _ => return Err(parse_err("未知性别代码", json_str)),
         },
         depart: raw.depart,
         avatar: raw.avatar,

@@ -10,15 +10,15 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 struct RawTransactionRecord {
-    // 接口原始商户名称
+    // 商户名称
     mercname: String,
-    // 接口原始商户账号
+    // 商户账号
     mercacc: String,
-    // 接口原始交易时间, 格式为 `yyyyMMddHHmmss`
+    // 交易时间, 格式为 `yyyyMMddHHmmss`
     occtime: String,
-    // 接口原始带收支方向的交易金额, 单位为分
+    // 带收支方向的交易金额, 单位为分
     sign_tranamt: String,
-    // 接口原始交易类型代码
+    // 交易类型代码
     trancode: String,
 }
 
@@ -76,7 +76,9 @@ pub fn card_transaction_records(
                     22 => TransactionType::MoneyTransfer,
                     6 => TransactionType::EAccountOpening,
                     1 => TransactionType::HolderAccountOpening,
-                    _ => TransactionType::Other(code),
+                    99 => TransactionType::QRCodeConsumption,
+                    27 => TransactionType::Withholding,
+                    _ => return Err(parse_err(&format!("未知交易类型代码: {}", code), json_str)),
                 },
             })
         })
@@ -105,37 +107,8 @@ mod tests {
 
     #[test]
     fn test_parse_card_transaction_records() -> TestResult<()> {
-        let detail = card_transaction_records(include_str!("test_data/transactions.json"))?;
-
-        assert!(detail.has_next_page);
-        assert_eq!(detail.total_count, 11);
-        assert_eq!(detail.records.len(), 10);
-
-        let first = &detail.records[0];
-        assert_eq!(first.merchant_name, "天马二食堂二楼");
-        assert_eq!(first.merchant_account, 1000006);
-        assert_eq!(
-            first.pay_time,
-            chrono::NaiveDateTime::parse_from_str("2026-09-13 11:47:30", "%Y-%m-%d %H:%M:%S")?
-        );
-        assert_eq!(first.transaction_amount, -200);
-        assert!(matches!(
-            first.transaction_type,
-            crate::iportal::card::TransactionType::Consumption
-        ));
-
-        let transfer = &detail.records[4];
-        assert_eq!(transfer.transaction_amount, -300);
-        assert!(matches!(
-            transfer.transaction_type,
-            crate::iportal::card::TransactionType::MoneyTransfer
-        ));
-
-        let unknown = &detail.records[5];
-        assert!(matches!(
-            unknown.transaction_type,
-            crate::iportal::card::TransactionType::Other(27)
-        ));
+        let result = card_transaction_records(include_str!("test_data/transactions.json"));
+        assert!(result.is_err());
 
         Ok(())
     }

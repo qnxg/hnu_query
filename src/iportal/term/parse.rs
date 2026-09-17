@@ -1,5 +1,5 @@
 use crate::{
-    error::MapParseErr,
+    error::{MapParseErr, parse_err},
     iportal::{
         error::IPortalTokenExpired,
         term::{
@@ -13,6 +13,7 @@ use chrono::NaiveDateTime;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+#[expect(unused)]
 struct RawTermInfo {
     start_date: String,
     end_date: String,
@@ -37,13 +38,13 @@ pub fn term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalTokenEx
     Ok(TermInfo {
         start_date: parse_date(&raw.start_date)?,
         end_date: parse_date(&raw.end_date)?,
-        description: raw.dsc,
+        //description: raw.dsc,
         term: match raw.term.as_str() {
             "1" => TermType::Autumn,
             "2" => TermType::WinterVacation,
             "3" => TermType::Spring,
             "4" => TermType::SummerVacation,
-            _ => TermType::Other(raw.term.parse::<u8>().parse_err(json_str)?),
+            _ => return Err(parse_err("未知学期类型", json_str)),
         },
         year: raw.year,
         week: raw.week,
@@ -62,7 +63,6 @@ mod tests {
         assert_eq!(term.year, "2025-2026");
         assert_eq!(term.week, 9);
         assert_eq!(term.term, TermType::SummerVacation);
-        assert_eq!(term.description, "夏季");
         assert_eq!(
             term.start_date,
             chrono::NaiveDateTime::parse_from_str("2026-07-05 00:00:00", "%Y-%m-%d %H:%M:%S")?

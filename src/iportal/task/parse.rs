@@ -54,8 +54,9 @@ pub fn apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalToken
     let data = iportal_jsondata_precheck(json_str)?;
     let total = data
         .get("total")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| parse_err("无法解析 total 字段", json_str))?;
+        .cloned()
+        .ok_or_else(|| parse_err("无法解析 total 字段", json_str))
+        .and_then(|value| serde_json::from_value::<u32>(value).parse_err(json_str))?;
     let list = data
         .get("list")
         .and_then(|v| v.as_array())
@@ -82,7 +83,7 @@ pub fn apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalToken
                     0 => ApplyStatus::Pending,
                     1 => ApplyStatus::Processing,
                     2 => ApplyStatus::Completed,
-                    other => ApplyStatus::Other(other),
+                    _ => return Err(parse_err("未知申请状态代码", json_str)),
                 },
             })
         })

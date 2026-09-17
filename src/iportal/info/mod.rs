@@ -22,16 +22,17 @@ pub struct AccountInfo {
     /// 当前身份名称，例如: `本科生`
     pub identity: String,
     /// 当前身份在 iportal 中的内部 ID，例如：身份名称为 `本科生` 时可能为 `"2002"`
+    ///
+    /// TODO 需要进一步解析
     pub identity_id: u64,
-    /// 性别代码。具体代码含义由 iportal 服务端定义
+    /// 性别代码
     pub gender: Gender,
     /// 所属学院、部门或其他组织名称，例如：`"计算机学院"`
     pub depart: String,
-    /// 头像 URL；服务端未提供时可能为空字符串
+    /// 头像 URL
     pub avatar: String,
 }
 
-#[repr(u8)]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 /// 性别
 pub enum Gender {
@@ -39,8 +40,6 @@ pub enum Gender {
     Male = 1,
     /// 女性
     Female = 2,
-    /// 服务端返回的其他性别代码
-    Other(u8),
 }
 
 /// 获取当前登录账号的信息

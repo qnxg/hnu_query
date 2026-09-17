@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplyList {
     /// 总申请记录总数, **注意: 不是当前页的记录数**
-    pub total: i64,
+    pub total: u32,
     /// 当前页的申请记录
     pub list: Vec<ApplyItem>,
 }
@@ -39,7 +39,6 @@ pub struct ApplyItem {
     pub status: ApplyStatus,
 }
 
-#[repr(i8)]
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 /// 流程申请的处理状态
 pub enum ApplyStatus {
@@ -49,8 +48,6 @@ pub enum ApplyStatus {
     Processing = 1,
     /// 已完成
     Completed = 2,
-    /// 未知, 当服务端返回的状态码不在 0, 1, 2 范围内时使用
-    Other(i8),
 }
 
 /// 分页获取当前账号发起的全部流程申请
@@ -73,8 +70,8 @@ pub enum ApplyStatus {
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_apply_list(
     token: &crate::iportal::login::IPortalToken,
-    page: i32,
-    page_size: i32,
+    page: u32,
+    page_size: u32,
 ) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
     let json_str = fetch_time!(fetch::apply_list(token, page, page_size).await)?;
     let task_list = parse_time!(parse::apply_list(&json_str))?;

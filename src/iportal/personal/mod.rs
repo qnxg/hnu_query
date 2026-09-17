@@ -8,28 +8,21 @@ use crate::{
     utils::obs::{fetch_time, parse_time},
 };
 use hnu_query_macros::traced;
-use serde::{Deserialize, Deserializer};
 
 /// iportal 首页可查询的个人数据类型及其详情 ID
 ///
 /// **注意: 该枚举的值是动态的, 可能会随时间变化而变化, 不要将其硬编码在代码中**
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
-#[serde(tag = "key", content = "id")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PersonalDataTypeEnum {
     /// 图书馆借阅数量
-    #[serde(rename = "book.bookNum")]
     LibBorrow(String),
     /// 未读邮件数量
-    #[serde(rename = "mail.unread")]
     MailUnread(String),
     /// 校园卡余额
-    #[serde(rename = "card.balance")]
     Balance(String),
     /// 上次登录时间
-    #[serde(rename = "statistic.lastLoginTime")]
     LastLoginTime(String),
     /// 校园网已用流量
-    #[serde(rename = "net.used")]
     NetUsed(String),
 }
 
@@ -51,35 +44,28 @@ impl PersonalDataTypeEnum {
 }
 
 /// 一项个人数据的详情
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone)]
 pub struct PersonalDataItem {
     /// 数据值
-    #[serde(deserialize_with = "deserialize_string_or_float")]
     pub value: String,
     /// 数据单位；服务端未提供单位时为 `None`, 提供时可能为 `"元"`、`"GB"` 等
     pub unit: Option<String>,
     /// 数据项名称
-    #[serde(alias = "title")]
     pub name: String,
     /// 与该数据项相关的邮箱；不适用或服务端未提供时为 `None`
     pub email: Option<String>,
 }
 
-fn deserialize_string_or_float<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum StringOrFloat {
-        String(String),
-        Float(f64),
-    }
-
-    match StringOrFloat::deserialize(deserializer)? {
-        StringOrFloat::String(v) => Ok(v),
-        StringOrFloat::Float(v) => Ok(v.to_string()),
-    }
+/// 当前账号首页个人数据的聚合结果。
+///
+/// 服务端未返回的项目为 `None`。
+#[derive(Debug, Clone, Default)]
+pub struct PersonalData {
+    pub lib_borrow: Option<PersonalDataItem>,
+    pub mail_unread: Option<PersonalDataItem>,
+    pub balance: Option<PersonalDataItem>,
+    pub last_login_time: Option<PersonalDataItem>,
+    pub net_used: Option<PersonalDataItem>,
 }
 
 /// 获取当前账号可查询的个人数据类型及其详情 ID
@@ -126,6 +112,28 @@ pub async fn get_personal_data(
     let json_str = fetch_time!(fetch::personal_data(token, type_enum.clone()).await)?;
     let item = parse_time!(parse::personal_data(&json_str))?;
     Ok(item)
+}
+
+/// 获取当前账号全部可用的个人数据。
+///
+/// 该函数会先获取数据项列表，再逐项获取详情；服务端未提供的项目保留为 `None`。
+#[traced(subsystem = "iportal", skip(token))]
+pub async fn get_personal_data_summary(
+    token: &IPortalToken,
+) -> Result<PersonalData, crate::Error<IPortalTokenExpired>> {
+    let types = get_personal_data_lists(token).await?;
+    let mut result = PersonalData::default();
+    for type_enum in types {
+        let item = get_personal_data(token, type_enum.clone()).await?;
+        match type_enum {
+            PersonalDataTypeEnum::LibBorrow(_) => result.lib_borrow = Some(item),
+            PersonalDataTypeEnum::MailUnread(_) => result.mail_unread = Some(item),
+            PersonalDataTypeEnum::Balance(_) => result.balance = Some(item),
+            PersonalDataTypeEnum::LastLoginTime(_) => result.last_login_time = Some(item),
+            PersonalDataTypeEnum::NetUsed(_) => result.net_used = Some(item),
+        }
+    }
+    Ok(result)
 }
 
 #[cfg(test)]
