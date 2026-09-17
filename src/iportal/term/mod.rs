@@ -18,7 +18,7 @@ pub struct TermInfo {
     pub start_date: NaiveDateTime,
     /// 学期结束日期
     pub end_date: NaiveDateTime,
-    /// 学期编号
+    /// 学期类型
     pub term: TermType,
     /// 学年，例如: `2025-2026`
     pub year: String,
