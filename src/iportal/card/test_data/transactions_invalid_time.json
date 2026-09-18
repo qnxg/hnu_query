@@ -1,0 +1,17 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "rowcount": "1",
+        "nextpage": "0",
+        "total": [
+            {
+                "trancode": "15",
+                "mercacc": "1000006",
+                "mercname": "测试商户",
+                "sign_tranamt": "-200",
+                "occtime": "invalid"
+            }
+        ]
+    }
+}

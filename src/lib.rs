@@ -22,6 +22,7 @@ pub mod cas;
 pub mod cg;
 pub mod gym;
 pub mod hdjw;
+pub mod iportal;
 pub mod lab;
 pub mod netflow;
 pub mod pt;

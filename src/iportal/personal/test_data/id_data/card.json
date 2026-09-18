@@ -1,0 +1,13 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "data": {
+            "name": "一卡通余额",
+            "value": 81.810000000000002,
+            "url": "\/home\/school-card",
+            "unit": "元",
+            "mobile_url": "http:\/\/ecardwea.hnu.edu.cn\/wechat\/home\/index.html"
+        }
+    }
+}
