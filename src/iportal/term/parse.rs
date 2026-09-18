@@ -1,7 +1,8 @@
+use std::error::Error as StdError;
+
 use crate::{
     error::{MapParseErr, parse_err},
     iportal::{
-        error::IPortalTokenExpired,
         term::{
             TermInfo,
             TermType::{self},
@@ -28,7 +29,7 @@ struct RawTermInfo {
 /// # Arguments
 ///
 /// - `json_str`: [`super::fetch::term_info`] 返回的数据
-pub fn term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
+pub fn term_info<E: StdError>(json_str: &str) -> Result<TermInfo, crate::Error<E>> {
     let raw: RawTermInfo =
         serde_json::from_value(iportal_jsondata_precheck(json_str)?).parse_err(json_str)?;
     let parse_date = |value: &str| {
@@ -54,11 +55,11 @@ pub fn term_info(json_str: &str) -> Result<TermInfo, crate::Error<IPortalTokenEx
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::TestResult;
+    use crate::{ParseError, test::TestResult};
 
     #[test]
     fn test_parse_term_info() -> TestResult<()> {
-        let term = term_info(include_str!("test_data/term.json"))?;
+        let term = term_info::<ParseError>(include_str!("test_data/term.json"))?;
 
         assert_eq!(term.year, "2025-2026");
         assert_eq!(term.week, 9);
@@ -77,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_term_info_invalid_date() -> TestResult<()> {
-        let result = term_info(include_str!("test_data/term_invalid_date.json"));
+        let result = term_info::<ParseError>(include_str!("test_data/term_invalid_date.json"));
 
         assert!(result.is_err());
         Ok(())

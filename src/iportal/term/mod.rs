@@ -30,13 +30,13 @@ pub struct TermInfo {
 /// 学期类型
 pub enum TermType {
     /// 秋季学期
-    Autumn = 1,
+    Autumn,
     /// 春季学期
-    Spring = 3,
+    Spring,
     /// 寒假
-    WinterVacation = 2,
+    WinterVacation,
     /// 暑假
-    SummerVacation = 4,
+    SummerVacation,
 }
 
 /// 获取指定时间所在学期的信息
@@ -44,7 +44,7 @@ pub enum TermType {
 /// # Arguments
 ///
 /// - `token`: iportal令牌，可以通过 [`IPortalToken::acquire_by_cas_login`] 获取
-/// - `timestamp`: 指定的查询对应时间
+/// - `time`: 指定的查询对应时间
 ///
 /// # Returns
 ///
@@ -56,9 +56,9 @@ pub enum TermType {
 #[traced(subsystem = "iportal", skip(token))]
 pub async fn get_term_info(
     token: &IPortalToken,
-    timestamp: NaiveDateTime,
+    time: NaiveDateTime,
 ) -> Result<TermInfo, crate::Error<IPortalTokenExpired>> {
-    let timestamp = timestamp.and_utc().timestamp();
+    let timestamp = time.and_utc().timestamp();
     let json_str = fetch_time!(fetch::term_info(token, timestamp).await)?;
     let info = parse_time!(parse::term_info(&json_str))?;
     Ok(info)

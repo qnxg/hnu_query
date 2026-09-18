@@ -98,10 +98,6 @@ pub async fn get_card_info(
 
 /// 分页获取指定日期范围内的校园卡交易明细
 ///
-/// # Preconditions
-///
-/// 需要确保传入的 `account` 是使用同一个 `token` 调用 [`get_card_info`] 得到的，否则会出现未定义行为。
-///
 /// # Arguments
 ///
 /// - `token`: iportal 令牌, 可以通过
@@ -112,6 +108,10 @@ pub async fn get_card_info(
 /// - `end`: 查询结束日期
 /// - `page_size`: 每页记录数
 /// - `page`: 页码
+///
+/// # Preconditions
+///
+/// 需要确保传入的 `account` 是使用同一个 `token` 调用 [`get_card_info`] 得到的，否则会出现未定义行为。
 ///
 /// # Returns
 ///

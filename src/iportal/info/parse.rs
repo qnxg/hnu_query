@@ -1,7 +1,8 @@
+use std::error::Error as StdError;
+
 use crate::{
     error::{MapParseErr, parse_err},
     iportal::{
-        error::IPortalTokenExpired,
         info::{AccountInfo, Gender},
         util::iportal_jsondata_precheck,
     },
@@ -25,7 +26,7 @@ struct RawAccountInfo {
 /// # Arguments
 ///
 /// - `json_str`: [`super::fetch::info`] 返回的数据
-pub fn account_info(json_str: &str) -> Result<AccountInfo, crate::Error<IPortalTokenExpired>> {
+pub fn account_info<E: StdError>(json_str: &str) -> Result<AccountInfo, crate::Error<E>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let info = data
         .get("info")
@@ -51,11 +52,11 @@ pub fn account_info(json_str: &str) -> Result<AccountInfo, crate::Error<IPortalT
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::TestResult;
+    use crate::{ParseError, test::TestResult};
 
     #[test]
     fn test_parse_account_info() -> TestResult<()> {
-        let info = account_info(include_str!("test_data/info.json"))?;
+        let info = account_info::<ParseError>(include_str!("test_data/info.json"))?;
 
         assert_eq!(info.uid, "114514");
         assert_eq!(info.name, "电棍");
@@ -71,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_account_info_invalid_shape() -> TestResult<()> {
-        let result = account_info(include_str!("test_data/info_invalid_shape.json"));
+        let result = account_info::<ParseError>(include_str!("test_data/info_invalid_shape.json"));
 
         assert!(result.is_err());
         Ok(())

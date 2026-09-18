@@ -1,7 +1,8 @@
+use std::error::Error as StdError;
+
 use crate::{
     error::{MapParseErr, parse_err},
     iportal::{
-        error::IPortalTokenExpired,
         personal::{PersonalDataItem, PersonalDataTypeEnum},
         util::iportal_jsondata_precheck,
     },
@@ -37,9 +38,9 @@ struct RawPersonalDataItem {
 /// # Arguments
 ///
 /// - `json_str`: [`super::fetch::personal_data_query_ids`] 返回的数据
-pub fn personal_data_query_ids(
+pub fn personal_data_query_ids<E: StdError>(
     json_str: &str,
-) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<IPortalTokenExpired>> {
+) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<E>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     json_value
         .get("data")
@@ -65,9 +66,7 @@ pub fn personal_data_query_ids(
 /// # Arguments
 ///
 /// - `json_str`: [`super::fetch::personal_data`] 返回的数据
-pub fn personal_data(
-    json_str: &str,
-) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {
+pub fn personal_data<E: StdError>(json_str: &str) -> Result<PersonalDataItem, crate::Error<E>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     let data_item = json_value
         .get("data")
@@ -87,14 +86,23 @@ pub fn personal_data(
     })
 }
 
+pub fn net_convert_to_byte(value: f64, unit: Option<String>) -> u64 {
+    match unit.map(|s| s.to_uppercase().trim().to_string()).as_deref() {
+        Some("GB") | Some("G") => (value * 1024.0 * 1024.0 * 1024.0) as u64,
+        Some("MB") | Some("M") => (value * 1024.0 * 1024.0) as u64,
+        Some("KB") | Some("K") => (value * 1024.0) as u64,
+        _ => value as u64,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test::TestResult;
+    use crate::{ParseError, test::TestResult};
 
     #[test]
     fn test_parse_personal_data_query_ids() -> TestResult<()> {
-        let items = personal_data_query_ids(include_str!("test_data/ids.json"))?;
+        let items = personal_data_query_ids::<ParseError>(include_str!("test_data/ids.json"))?;
 
         assert_eq!(items.len(), 5);
         assert!(matches!(
@@ -112,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_card() -> TestResult<()> {
-        let card = personal_data(include_str!("test_data/id_data/card.json"))?;
+        let card = personal_data::<ParseError>(include_str!("test_data/id_data/card.json"))?;
         assert_eq!(card.name, "一卡通余额");
         assert_eq!(card.value, "81.81");
         assert_eq!(card.unit, Some("元".to_string()));
@@ -122,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_email() -> TestResult<()> {
-        let email = personal_data(include_str!("test_data/id_data/email.json"))?;
+        let email = personal_data::<ParseError>(include_str!("test_data/id_data/email.json"))?;
         assert_eq!(email.name, "未读邮件");
         assert_eq!(email.value, "1");
         assert_eq!(email.unit, None);
@@ -132,7 +140,8 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_last_login() -> TestResult<()> {
-        let last_login = personal_data(include_str!("test_data/id_data/lastlogin.json"))?;
+        let last_login =
+            personal_data::<ParseError>(include_str!("test_data/id_data/lastlogin.json"))?;
         assert_eq!(last_login.name, "最近一次登录时间");
         assert_eq!(last_login.value, "2077-06-15 16:04:00");
         assert_eq!(last_login.unit, None);
@@ -141,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_lib() -> TestResult<()> {
-        let lib = personal_data(include_str!("test_data/id_data/lib.json"))?;
+        let lib = personal_data::<ParseError>(include_str!("test_data/id_data/lib.json"))?;
         assert_eq!(lib.name, "待还图书");
         assert_eq!(lib.value, "0");
         assert_eq!(lib.unit, Some("".to_string()));
@@ -150,10 +159,27 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_net() -> TestResult<()> {
-        let net = personal_data(include_str!("test_data/id_data/net.json"))?;
+        let net = personal_data::<ParseError>(include_str!("test_data/id_data/net.json"))?;
         assert_eq!(net.name, "流量查询");
         assert_eq!(net.value, "114514");
         assert_eq!(net.unit, Some("G".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_net_convert_to_byte() -> TestResult<()> {
+        assert_eq!(
+            net_convert_to_byte(1.0, Some("GB".to_string())),
+            1024 * 1024 * 1024
+        );
+        assert_eq!(
+            net_convert_to_byte(1.0, Some("MB".to_string())),
+            1024 * 1024
+        );
+        assert_eq!(net_convert_to_byte(1.0, Some("KB".to_string())), 1024);
+        assert_eq!(net_convert_to_byte(1.0, Some("B".to_string())), 1);
+        assert_eq!(net_convert_to_byte(1.0, None), 1);
 
         Ok(())
     }

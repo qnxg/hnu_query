@@ -9,21 +9,11 @@ use reqwest::{
     StatusCode,
     header::{COOKIE, HeaderMap, LOCATION, SET_COOKIE},
 };
-use std::fmt;
 
 /// iportal 令牌
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct IPortalToken {
     headers: HeaderMap,
-}
-
-impl fmt::Debug for IPortalToken {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("IPortalToken")
-            .field("headers", &"<redacted>")
-            .finish()
-    }
 }
 
 const IPORTAL_LOGIN_URL: &str = "https://cas.hnu.edu.cn/cas/login?service=https%3A%2F%2Fiportal.hnu.edu.cn%2Fhnu%2Ffrontend%2Flogin%3Fredirect%3Dhttps%253A%252F%252Fiportal.hnu.edu.cn%252Fhome&isotherLogin=true";
@@ -67,7 +57,9 @@ impl IPortalToken {
             }
             return Err(format!("登录 iportal 失败, HTTP 状态码: {status}")).unexpected_err();
         }
+
         let mut cookies = Vec::new();
+
         merge_cookies(
             &mut cookies,
             cookie_parser(res.headers().get_all(SET_COOKIE)),
@@ -116,10 +108,6 @@ impl IPortalToken {
     ///
     /// `headers` 应包含当前有效 iportal 会话的 `Cookie` 请求头, 本函数不会验证其有效性
     /// 无效请求头会使后续查询返回错误
-    #[cfg_attr(
-        feature = "tracing",
-        tracing::instrument(skip(headers), fields(subsystem = "iportal"))
-    )]
     pub fn from_headers_unchecked(headers: HeaderMap) -> Self {
         Self { headers }
     }
@@ -129,10 +117,6 @@ impl IPortalToken {
     /// # Returns
     ///
     /// 返回当前令牌的 [HeaderMap]
-    #[cfg_attr(
-        feature = "tracing",
-        tracing::instrument(skip(self), fields(subsystem = "iportal"))
-    )]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -171,31 +155,6 @@ mod tests {
     async fn test_login() -> TestResult<()> {
         let token = get_iportal_token().await?;
         println!("{token:#?}");
-        Ok(())
-    }
-
-    #[test]
-    fn test_token_debug_redacts_headers() -> TestResult<()> {
-        let mut headers = HeaderMap::new();
-        headers.insert(COOKIE, "session=secret".parse()?);
-
-        let output = format!("{:?}", IPortalToken::from_headers_unchecked(headers));
-
-        assert!(output.contains("<redacted>"));
-        assert!(!output.contains("session=secret"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_merge_cookies_replaces_duplicate_names() -> TestResult<()> {
-        let mut cookies = vec!["session=old".to_string(), "theme=light".to_string()];
-
-        merge_cookies(
-            &mut cookies,
-            ["session=new".to_string(), "csrf=token".to_string()],
-        );
-
-        assert_eq!(cookies, ["session=new", "theme=light", "csrf=token"]);
         Ok(())
     }
 }

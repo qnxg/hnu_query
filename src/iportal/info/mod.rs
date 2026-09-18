@@ -20,6 +20,8 @@ pub struct AccountInfo {
     /// 学工号；学生通常为学号，教职工通常为工号，例如：`"191908100721"`
     pub id: String,
     /// 当前身份名称，例如: `本科生`
+    ///
+    /// TODO 需要进一步解析
     pub identity: String,
     /// 当前身份在 iportal 中的内部 ID，例如：身份名称为 `本科生` 时可能为 `"2002"`
     ///
@@ -37,9 +39,9 @@ pub struct AccountInfo {
 /// 性别
 pub enum Gender {
     /// 男性
-    Male = 1,
+    Male,
     /// 女性
-    Female = 2,
+    Female,
 }
 
 /// 获取当前登录账号的信息

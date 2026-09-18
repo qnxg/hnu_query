@@ -1,6 +1,10 @@
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
-    iportal::{error::IPortalTokenExpired, login::IPortalToken, personal::PersonalDataTypeEnum},
+    iportal::{
+        error::{CheckIPortalTokenExpired, IPortalTokenExpired},
+        login::IPortalToken,
+        personal::PersonalDataTypeEnum,
+    },
     utils::client,
 };
 
@@ -14,6 +18,7 @@ pub async fn personal_data_query_ids(
         .send()
         .await
         .network_err()?
+        .iportal_token_expired()?
         .status_code_err()
         .await?
         .text()

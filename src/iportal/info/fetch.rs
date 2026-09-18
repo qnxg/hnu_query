@@ -1,6 +1,9 @@
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
-    iportal::{error::IPortalTokenExpired, login::IPortalToken},
+    iportal::{
+        error::{CheckIPortalTokenExpired, IPortalTokenExpired},
+        login::IPortalToken,
+    },
     utils::client,
 };
 
@@ -12,6 +15,7 @@ pub async fn info(token: &IPortalToken) -> Result<String, crate::Error<IPortalTo
         .send()
         .await
         .network_err()?
+        .iportal_token_expired()?
         .status_code_err()
         .await?
         .text()

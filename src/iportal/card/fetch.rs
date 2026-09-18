@@ -1,6 +1,9 @@
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
-    iportal::{error::IPortalTokenExpired, login::IPortalToken},
+    iportal::{
+        error::{CheckIPortalTokenExpired, IPortalTokenExpired},
+        login::IPortalToken,
+    },
     utils::client,
 };
 use chrono::NaiveDate;
@@ -39,6 +42,7 @@ pub async fn transaction_records(
         .send()
         .await
         .network_err()?
+        .iportal_token_expired()?
         .status_code_err()
         .await?
         .text()

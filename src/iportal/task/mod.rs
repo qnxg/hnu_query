@@ -43,11 +43,11 @@ pub struct ApplyItem {
 /// 流程申请的处理状态
 pub enum ApplyStatus {
     /// 已提交，但尚未开始处理
-    Pending = 0,
+    Pending,
     /// 处理中
-    Processing = 1,
+    Processing,
     /// 已完成
-    Completed = 2,
+    Completed,
 }
 
 /// 分页获取当前账号发起的全部流程申请
