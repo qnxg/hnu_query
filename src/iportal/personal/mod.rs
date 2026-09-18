@@ -4,12 +4,14 @@ mod fetch;
 mod parse;
 
 use crate::{
+    error::MapUnexpectedErr,
     iportal::{error::IPortalTokenExpired, login::IPortalToken},
     utils::obs::{fetch_time, parse_time},
 };
 use chrono::NaiveDateTime;
 use hnu_query_macros::traced;
 use serde::{Deserialize, Serialize};
+use tokio::task::JoinSet;
 
 /// iportal 首页可查询的个人数据类型及其详情 ID
 ///
@@ -130,33 +132,57 @@ pub async fn get_personal_data(
 pub async fn get_personal_data_summary(
     token: &IPortalToken,
 ) -> Result<PersonalData, crate::Error<IPortalTokenExpired>> {
-    let types = get_personal_data_lists(token).await?;
+    let types_json = fetch_time!(fetch::personal_data_query_ids(token).await)?;
+    let types = parse_time!(parse::personal_data_query_ids(&types_json))?;
     let mut result = PersonalData::default();
-    for type_enum in types {
-        let item = get_personal_data(token, type_enum.clone()).await?;
-        match type_enum {
-            PersonalDataTypeEnum::LibBorrow(_) => {
-                result.lib_borrow = Some(item.value.parse::<u32>().unwrap_or(0))
+    let raw_items = fetch_time!(
+        async {
+            let mut tasks = JoinSet::new();
+            for type_enum in types {
+                let token = token.clone();
+                tasks.spawn(async move {
+                    let json = fetch::personal_data(&token, type_enum.clone()).await?;
+                    Ok::<_, crate::Error<IPortalTokenExpired>>((type_enum, json))
+                });
             }
-            PersonalDataTypeEnum::MailUnread(_) => {
-                result.email = item.email.clone();
-                result.mail_unread = Some(item.value.parse::<u32>().unwrap_or(0))
+
+            let mut raw_items = Vec::new();
+            while let Some(task) = tasks.join_next().await {
+                raw_items.push(task.unexpected_err()??);
             }
-            PersonalDataTypeEnum::Balance(_) => {
-                result.balance = Some(item.value.parse::<f64>().unwrap_or(0.0))
-            }
-            PersonalDataTypeEnum::LastLoginTime(_) => {
-                if let Ok(date) = NaiveDateTime::parse_from_str(&item.value, "%Y-%m-%d %H:%M:%S") {
-                    result.last_login_time = Some(date);
+            Ok::<_, crate::Error<IPortalTokenExpired>>(raw_items)
+        }
+        .await
+    )?;
+    parse_time!({
+        for (type_enum, json) in raw_items {
+            let item = parse::personal_data(&json)?;
+            match type_enum {
+                PersonalDataTypeEnum::LibBorrow(_) => {
+                    result.lib_borrow = Some(item.value.parse::<u32>().unwrap_or(0))
+                }
+                PersonalDataTypeEnum::MailUnread(_) => {
+                    result.email = item.email.clone();
+                    result.mail_unread = Some(item.value.parse::<u32>().unwrap_or(0))
+                }
+                PersonalDataTypeEnum::Balance(_) => {
+                    result.balance = Some(item.value.parse::<f64>().unwrap_or(0.0))
+                }
+                PersonalDataTypeEnum::LastLoginTime(_) => {
+                    if let Ok(date) =
+                        NaiveDateTime::parse_from_str(&item.value, "%Y-%m-%d %H:%M:%S")
+                    {
+                        result.last_login_time = Some(date);
+                    }
+                }
+                PersonalDataTypeEnum::NetUsed(_) => {
+                    let value = item.value.parse::<f64>().unwrap_or(0.0);
+                    let unit = item.unit.clone();
+                    result.net_used = Some(parse::net_convert_to_byte(value, unit));
                 }
             }
-            PersonalDataTypeEnum::NetUsed(_) => {
-                let value = item.value.parse::<f64>().unwrap_or(0.0);
-                let unit = item.unit.clone();
-                result.net_used = Some(parse::net_convert_to_byte(value, unit));
-            }
         }
-    }
+    });
     Ok(result)
 }
 
