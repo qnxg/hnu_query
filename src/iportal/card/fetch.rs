@@ -8,10 +8,12 @@ use crate::{
 };
 use chrono::NaiveDate;
 
+const CARD_BALANCE_URL: &str = "https://iportal.hnu.edu.cn/hnu/frontend/user/card-balance";
+const CARD_DETAILS_URL: &str = "https://iportal.hnu.edu.cn/hnu/frontend/user/card-details";
+
 pub async fn balance(token: &IPortalToken) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    let url = "https://iportal.hnu.edu.cn/hnu/frontend/user/card-balance";
     client
-        .get(url)
+        .get(CARD_BALANCE_URL)
         .headers(token.headers().clone())
         .send()
         .await
@@ -32,7 +34,7 @@ pub async fn transaction_records(
     page: u32,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
     let url = format!(
-        "https://iportal.hnu.edu.cn/hnu/frontend/user/card-details?query_start={}&query_end={}&page_size={page_size}&page={page}&account={account}",
+        "{CARD_DETAILS_URL}?query_start={}&query_end={}&page_size={page_size}&page={page}&account={account}",
         start.format("%Y-%m-%d"),
         end.format("%Y-%m-%d"),
     );

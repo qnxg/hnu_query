@@ -7,10 +7,11 @@ use crate::{
     utils::client,
 };
 
+const INFO_URL: &str = "https://iportal.hnu.edu.cn/personal/frontend/data/info";
+
 pub async fn info(token: &IPortalToken) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    let url = "https://iportal.hnu.edu.cn/personal/frontend/data/info";
     client
-        .get(url)
+        .get(INFO_URL)
         .headers(token.headers().clone())
         .send()
         .await

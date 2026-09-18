@@ -8,12 +8,15 @@ use crate::{
     utils::client,
 };
 
+const PERSONAL_DATA_ITEMS_URL: &str =
+    "https://iportal.hnu.edu.cn/personal/frontend/data/items?type=personal_data";
+const PERSONAL_DATA_DETAIL_URL: &str = "https://iportal.hnu.edu.cn/personal/frontend/data/detail";
+
 pub async fn personal_data_query_ids(
     token: &IPortalToken,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    let url = "https://iportal.hnu.edu.cn/personal/frontend/data/items?type=personal_data";
     client
-        .get(url)
+        .get(PERSONAL_DATA_ITEMS_URL)
         .headers(token.headers().clone())
         .send()
         .await
@@ -30,10 +33,7 @@ pub async fn personal_data(
     token: &IPortalToken,
     type_enum: PersonalDataTypeEnum,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    let url = format!(
-        "https://iportal.hnu.edu.cn/personal/frontend/data/detail?id={}",
-        type_enum.get_value()
-    );
+    let url = format!("{PERSONAL_DATA_DETAIL_URL}?id={}", type_enum.get_value());
     client
         .get(url)
         .headers(token.headers().clone())
