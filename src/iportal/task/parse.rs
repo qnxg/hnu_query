@@ -16,7 +16,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[expect(unused)]
 struct RawApplyItem {
-    id: i64,
+    id: u32,
     apps_id: i32,
     app_name: String,
     name: String,

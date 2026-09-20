@@ -40,6 +40,7 @@ pub async fn personal_data(
         .send()
         .await
         .network_err()?
+        .iportal_token_expired()?
         .status_code_err()
         .await?
         .text()

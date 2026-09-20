@@ -120,7 +120,7 @@ pub async fn get_personal_data(
     token: &IPortalToken,
     type_enum: PersonalDataTypeEnum,
 ) -> Result<PersonalDataItem, crate::Error<IPortalTokenExpired>> {
-    let json_str = fetch_time!(fetch::personal_data(token, type_enum.clone()).await)?;
+    let json_str = fetch_time!(fetch::personal_data(token, type_enum).await)?;
     let item = parse_time!(parse::personal_data(&json_str))?;
     Ok(item)
 }

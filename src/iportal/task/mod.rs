@@ -24,7 +24,7 @@ pub struct ApplyList {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplyItem {
     /// 申请记录ID, 用于区分不同申请记录
-    pub id: i64,
+    pub id: u32,
     /// 对应申请操作的名称, 如 `校园卡及个人门户照片自助更换`
     pub app_name: String,
     /// 发起人姓名

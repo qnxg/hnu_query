@@ -76,9 +76,7 @@ pub struct CardTransactionDetail {
 ///
 /// # Arguments
 ///
-/// - `token`: iportal 令牌, 可以通过
-///   [`IPortalToken::acquire_by_cas_login`](crate::iportal::login::IPortalToken::acquire_by_cas_login)
-///   获取
+/// - `token`: iportal 令牌, 可以通过 [`IPortalToken::acquire_by_cas_login`](crate::iportal::login::IPortalToken::acquire_by_cas_login) 获取
 ///
 /// # Returns
 ///

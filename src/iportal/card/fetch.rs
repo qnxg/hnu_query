@@ -18,6 +18,7 @@ pub async fn balance(token: &IPortalToken) -> Result<String, crate::Error<IPorta
         .send()
         .await
         .network_err()?
+        .iportal_token_expired()?
         .status_code_err()
         .await?
         .text()
