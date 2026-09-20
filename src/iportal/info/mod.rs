@@ -69,7 +69,7 @@ pub async fn get_account_info(
 #[cfg(test)]
 mod tests {
     use crate::{
-        iportal::{info::get_account_info, login::get_iportal_token},
+        iportal::{info::get_account_info, test::get_iportal_token},
         test::TestResult,
     };
 

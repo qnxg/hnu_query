@@ -81,7 +81,7 @@ pub async fn get_apply_list(
 #[cfg(test)]
 mod tests {
     use crate::{
-        iportal::{login::get_iportal_token, task::get_apply_list},
+        iportal::{task::get_apply_list, test::get_iportal_token},
         test::TestResult,
     };
 

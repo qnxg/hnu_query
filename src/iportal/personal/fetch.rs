@@ -3,7 +3,6 @@ use crate::{
     iportal::{
         error::{CheckIPortalTokenExpired, IPortalTokenExpired},
         login::IPortalToken,
-        personal::PersonalDataTypeEnum,
     },
     utils::client,
 };
@@ -29,11 +28,11 @@ pub async fn personal_data_query_ids(
         .unexpected_err()
 }
 
-pub async fn personal_data(
+pub async fn personal_data_single(
     token: &IPortalToken,
-    type_enum: PersonalDataTypeEnum,
+    id: &str,
 ) -> Result<String, crate::Error<IPortalTokenExpired>> {
-    let url = format!("{PERSONAL_DATA_DETAIL_URL}?id={}", type_enum.get_value());
+    let url = format!("{PERSONAL_DATA_DETAIL_URL}?id={id}");
     client
         .get(url)
         .headers(token.headers().clone())

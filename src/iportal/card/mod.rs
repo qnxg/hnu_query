@@ -140,7 +140,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_card_info() -> crate::test::TestResult<()> {
-        let token = crate::iportal::login::get_iportal_token().await?;
+        let token = crate::iportal::test::get_iportal_token().await?;
         let info = crate::iportal::card::get_card_info(&token).await?;
         println!("{info:#?}");
         Ok(())
@@ -149,7 +149,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_card_transaction_records() -> crate::test::TestResult<()> {
-        let token = crate::iportal::login::get_iportal_token().await?;
+        let token = crate::iportal::test::get_iportal_token().await?;
         let card = crate::iportal::card::get_card_info(&token).await?;
         let now = Utc::now().date_naive();
         let before_30d = now - Duration::days(30);

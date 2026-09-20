@@ -7,8 +7,11 @@ pub mod task;
 pub mod term;
 mod util;
 
+#[cfg(test)]
+mod test;
+
 pub use card::{get_card_info, get_card_transaction_records};
 pub use info::get_account_info;
-pub use personal::{get_personal_data, get_personal_data_lists, get_personal_data_summary};
+pub use personal::get_personal_data;
 pub use task::get_apply_list;
 pub use term::get_term_info;

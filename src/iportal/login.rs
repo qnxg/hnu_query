@@ -1,5 +1,3 @@
-#[cfg(test)]
-use crate::test::TestResult;
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
@@ -141,19 +139,13 @@ fn merge_cookies(cookies: &mut Vec<String>, new_cookies: impl IntoIterator<Item 
 }
 
 #[cfg(test)]
-pub async fn get_iportal_token() -> TestResult<IPortalToken> {
-    let cas_token = cas::test::get_cas_token().await?;
-    Ok(IPortalToken::acquire_by_cas_login(&cas_token).await?)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod tests {
+    use crate::{iportal::test, test::TestResult};
 
     #[tokio::test]
     #[ignore]
     async fn test_login() -> TestResult<()> {
-        let token = get_iportal_token().await?;
+        let token = test::get_iportal_token().await?;
         println!("{token:#?}");
         Ok(())
     }

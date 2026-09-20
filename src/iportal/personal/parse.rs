@@ -2,35 +2,36 @@ use std::error::Error as StdError;
 
 use crate::{
     error::{MapParseErr, parse_err},
-    iportal::{
-        personal::{PersonalDataItem, PersonalDataTypeEnum},
-        util::iportal_jsondata_precheck,
-    },
+    iportal::{personal::PersonalData, util::iportal_jsondata_precheck},
 };
+use chrono::NaiveDateTime;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "key", content = "id")]
-enum RawPersonalDataType {
-    #[serde(rename = "book.bookNum")]
-    LibBorrow(String),
-    #[serde(rename = "mail.unread")]
-    MailUnread(String),
-    #[serde(rename = "card.balance")]
-    Balance(String),
-    #[serde(rename = "statistic.lastLoginTime")]
-    LastLoginTime(String),
-    #[serde(rename = "net.used")]
-    NetUsed(String),
+struct RawPersonalDataType {
+    key: String,
+    id: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct RawPersonalDataItem {
-    value: serde_json::Value,
+    #[serde(deserialize_with = "deserialize_value")]
+    value: String,
     unit: Option<String>,
-    #[serde(alias = "title")]
-    name: String,
+    #[serde(rename = "name", alias = "title")]
+    _name: String,
     email: Option<String>,
+}
+
+fn deserialize_value<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match serde_json::Value::deserialize(deserializer)? {
+        serde_json::Value::String(value) => Ok(value),
+        serde_json::Value::Number(value) => Ok(value.to_string()),
+        _ => Err(serde::de::Error::custom("value 必须是字符串或数字")),
+    }
 }
 
 /// 解析当前账号可查询的个人数据类型响应
@@ -40,7 +41,7 @@ struct RawPersonalDataItem {
 /// - `json_str`: [`super::fetch::personal_data_query_ids`] 返回的数据
 pub fn personal_data_query_ids<E: StdError>(
     json_str: &str,
-) -> Result<Vec<PersonalDataTypeEnum>, crate::Error<E>> {
+) -> Result<Vec<(String, String)>, crate::Error<E>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     json_value
         .get("data")
@@ -50,13 +51,13 @@ pub fn personal_data_query_ids<E: StdError>(
         .cloned()
         .map(|item| {
             let raw: RawPersonalDataType = serde_json::from_value(item).parse_err(json_str)?;
-            Ok(match raw {
-                RawPersonalDataType::LibBorrow(v) => PersonalDataTypeEnum::LibBorrow(v),
-                RawPersonalDataType::MailUnread(v) => PersonalDataTypeEnum::MailUnread(v),
-                RawPersonalDataType::Balance(v) => PersonalDataTypeEnum::Balance(v),
-                RawPersonalDataType::LastLoginTime(v) => PersonalDataTypeEnum::LastLoginTime(v),
-                RawPersonalDataType::NetUsed(v) => PersonalDataTypeEnum::NetUsed(v),
-            })
+            if !is_supported_key(&raw.key) {
+                return Err(parse_err(
+                    &format!("未知个人数据类型: {}", raw.key),
+                    json_str,
+                ));
+            }
+            Ok((raw.key, raw.id))
         })
         .collect()
 }
@@ -65,28 +66,59 @@ pub fn personal_data_query_ids<E: StdError>(
 ///
 /// # Arguments
 ///
-/// - `json_str`: [`super::fetch::personal_data`] 返回的数据
-pub fn personal_data<E: StdError>(json_str: &str) -> Result<PersonalDataItem, crate::Error<E>> {
+/// - `json_str`: [`super::fetch::personal_data_single`] 返回的数据
+fn personal_data_single<E: StdError>(
+    json_str: &str,
+) -> Result<RawPersonalDataItem, crate::Error<E>> {
     let json_value = iportal_jsondata_precheck(json_str)?;
     let data_item = json_value
         .get("data")
         .ok_or_else(|| parse_err("无法解析 data 字段", json_str))?
         .clone();
-    let raw: RawPersonalDataItem = serde_json::from_value(data_item).parse_err(json_str)?;
-    let value = match raw.value {
-        serde_json::Value::String(v) => v,
-        serde_json::Value::Number(v) => v.to_string(),
-        _ => return Err(parse_err("无法解析 value 字段", json_str)),
-    };
-    Ok(PersonalDataItem {
-        value,
-        unit: raw.unit,
-        name: raw.name,
-        email: raw.email,
-    })
+    serde_json::from_value(data_item).parse_err(json_str)
 }
 
-pub fn net_convert_to_byte(value: f64, unit: Option<String>) -> u64 {
+/// 解析并聚合所有个人数据详情响应。
+///
+/// `items` 中的 key 和 id 来自 [`personal_data_query_ids`]，详情 JSON 来自
+/// [`super::fetch::personal_data_single`]。
+pub fn personal_data<E: StdError>(
+    items: impl IntoIterator<Item = (String, String)>,
+) -> Result<PersonalData, crate::Error<E>> {
+    let mut result = PersonalData::default();
+    for (key, json_str) in items {
+        let item = personal_data_single(&json_str)?;
+        let value = item.value;
+        match key.as_str() {
+            "book.bookNum" => result.lib_borrow = Some(value.parse::<u32>().parse_err(&json_str)?),
+            "mail.unread" => {
+                result.email = item.email;
+                result.mail_unread = Some(value.parse::<u32>().parse_err(&json_str)?);
+            }
+            "card.balance" => result.balance = Some(value.parse::<f64>().parse_err(&json_str)?),
+            "statistic.lastLoginTime" => {
+                if let Ok(date) = NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S") {
+                    result.last_login_time = Some(date);
+                }
+            }
+            "net.used" => {
+                let value = value.parse::<f64>().unwrap_or(0.0);
+                result.net_used = Some(net_convert_to_byte(value, item.unit));
+            }
+            _ => return Err(parse_err(&format!("未知个人数据类型: {key}"), &json_str)),
+        }
+    }
+    Ok(result)
+}
+
+fn is_supported_key(key: &str) -> bool {
+    matches!(
+        key,
+        "book.bookNum" | "mail.unread" | "card.balance" | "statistic.lastLoginTime" | "net.used"
+    )
+}
+
+fn net_convert_to_byte(value: f64, unit: Option<String>) -> u64 {
     match unit.map(|s| s.to_uppercase().trim().to_string()).as_deref() {
         Some("GB") | Some("G") => (value * 1024.0 * 1024.0 * 1024.0) as u64,
         Some("MB") | Some("M") => (value * 1024.0 * 1024.0) as u64,
@@ -105,23 +137,28 @@ mod tests {
         let items = personal_data_query_ids::<ParseError>(include_str!("test_data/ids.json"))?;
 
         assert_eq!(items.len(), 5);
-        assert!(matches!(
-            &items[0],
-            PersonalDataTypeEnum::LibBorrow(id)
-                if id == "00c7f05e1561d58c0948743b459a248e582a99ff8e07f782e53b1c9feda8208388bc1c82afbabcb8ced7f359778f47a8da48d793effc8f440e9f0bf56f164fa318befcf401062f25a64a11e0b56eaaadf21b57ddc1ea476b15daa3cc4a66cc6117f9d375720c3b32bca811393e52fe32add9dfc61e243a3d6d90fa02da8d6eb1"
-        ));
-        assert!(matches!(&items[1], PersonalDataTypeEnum::MailUnread(id) if id == "1919810"));
-        assert!(matches!(&items[2], PersonalDataTypeEnum::Balance(id) if id == "114514"));
-        assert!(matches!(&items[3], PersonalDataTypeEnum::LastLoginTime(id) if id == "168"));
-        assert!(matches!(&items[4], PersonalDataTypeEnum::NetUsed(id) if id == "0d000721"));
+        assert_eq!(
+            items[0],
+            (
+                "book.bookNum".to_string(),
+                "00c7f05e1561d58c0948743b459a248e582a99ff8e07f782e53b1c9feda8208388bc1c82afbabcb8ced7f359778f47a8da48d793effc8f440e9f0bf56f164fa318befcf401062f25a64a11e0b56eaaadf21b57ddc1ea476b15daa3cc4a66cc6117f9d375720c3b32bca811393e52fe32add9dfc61e243a3d6d90fa02da8d6eb1".to_string(),
+            )
+        );
+        assert_eq!(items[1], ("mail.unread".to_string(), "1919810".to_string()));
+        assert_eq!(items[2], ("card.balance".to_string(), "114514".to_string()));
+        assert_eq!(
+            items[3],
+            ("statistic.lastLoginTime".to_string(), "168".to_string())
+        );
+        assert_eq!(items[4], ("net.used".to_string(), "0d000721".to_string()));
 
         Ok(())
     }
 
     #[test]
     fn test_parse_personal_data_card() -> TestResult<()> {
-        let card = personal_data::<ParseError>(include_str!("test_data/id_data/card.json"))?;
-        assert_eq!(card.name, "一卡通余额");
+        let card = personal_data_single::<ParseError>(include_str!("test_data/id_data/card.json"))?;
+        assert_eq!(card._name, "一卡通余额");
         assert_eq!(card.value, "81.81");
         assert_eq!(card.unit, Some("元".to_string()));
         assert_eq!(card.email, None);
@@ -130,8 +167,9 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_email() -> TestResult<()> {
-        let email = personal_data::<ParseError>(include_str!("test_data/id_data/email.json"))?;
-        assert_eq!(email.name, "未读邮件");
+        let email =
+            personal_data_single::<ParseError>(include_str!("test_data/id_data/email.json"))?;
+        assert_eq!(email._name, "未读邮件");
         assert_eq!(email.value, "1");
         assert_eq!(email.unit, None);
         assert_eq!(email.email, Some("admin@hnu.edu.cn".to_string()));
@@ -141,8 +179,8 @@ mod tests {
     #[test]
     fn test_parse_personal_data_last_login() -> TestResult<()> {
         let last_login =
-            personal_data::<ParseError>(include_str!("test_data/id_data/lastlogin.json"))?;
-        assert_eq!(last_login.name, "最近一次登录时间");
+            personal_data_single::<ParseError>(include_str!("test_data/id_data/lastlogin.json"))?;
+        assert_eq!(last_login._name, "最近一次登录时间");
         assert_eq!(last_login.value, "2077-06-15 16:04:00");
         assert_eq!(last_login.unit, None);
         Ok(())
@@ -150,8 +188,8 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_lib() -> TestResult<()> {
-        let lib = personal_data::<ParseError>(include_str!("test_data/id_data/lib.json"))?;
-        assert_eq!(lib.name, "待还图书");
+        let lib = personal_data_single::<ParseError>(include_str!("test_data/id_data/lib.json"))?;
+        assert_eq!(lib._name, "待还图书");
         assert_eq!(lib.value, "0");
         assert_eq!(lib.unit, Some("".to_string()));
         Ok(())
@@ -159,8 +197,8 @@ mod tests {
 
     #[test]
     fn test_parse_personal_data_net() -> TestResult<()> {
-        let net = personal_data::<ParseError>(include_str!("test_data/id_data/net.json"))?;
-        assert_eq!(net.name, "流量查询");
+        let net = personal_data_single::<ParseError>(include_str!("test_data/id_data/net.json"))?;
+        assert_eq!(net._name, "流量查询");
         assert_eq!(net.value, "114514");
         assert_eq!(net.unit, Some("G".to_string()));
 
@@ -180,6 +218,47 @@ mod tests {
         assert_eq!(net_convert_to_byte(1.0, Some("KB".to_string())), 1024);
         assert_eq!(net_convert_to_byte(1.0, Some("B".to_string())), 1);
         assert_eq!(net_convert_to_byte(1.0, None), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_personal_data() -> TestResult<()> {
+        let summary = personal_data::<ParseError>([
+            (
+                "book.bookNum".to_string(),
+                include_str!("test_data/id_data/lib.json").to_string(),
+            ),
+            (
+                "mail.unread".to_string(),
+                include_str!("test_data/id_data/email.json").to_string(),
+            ),
+            (
+                "card.balance".to_string(),
+                include_str!("test_data/id_data/card.json").to_string(),
+            ),
+            (
+                "statistic.lastLoginTime".to_string(),
+                include_str!("test_data/id_data/lastlogin.json").to_string(),
+            ),
+            (
+                "net.used".to_string(),
+                include_str!("test_data/id_data/net.json").to_string(),
+            ),
+        ])?;
+
+        assert_eq!(summary.lib_borrow, Some(0));
+        assert_eq!(summary.email.as_deref(), Some("admin@hnu.edu.cn"));
+        assert_eq!(summary.mail_unread, Some(1));
+        assert_eq!(summary.balance, Some(81.81));
+        assert_eq!(
+            summary.last_login_time,
+            Some(NaiveDateTime::parse_from_str(
+                "2077-06-15 16:04:00",
+                "%Y-%m-%d %H:%M:%S",
+            )?)
+        );
+        assert_eq!(summary.net_used, Some(114514 * 1024 * 1024 * 1024));
 
         Ok(())
     }

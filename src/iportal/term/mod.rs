@@ -67,7 +67,7 @@ pub async fn get_term_info(
 #[cfg(test)]
 mod tests {
     use crate::{
-        iportal::{login::get_iportal_token, term::get_term_info},
+        iportal::{term::get_term_info, test::get_iportal_token},
         test::TestResult,
     };
 
