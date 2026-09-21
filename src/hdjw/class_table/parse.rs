@@ -102,14 +102,31 @@ fn extract_week_list(s: &str, context: &str) -> Result<HashSet<u8>, crate::Error
     Ok(week_set)
 }
 
+/// 按周次后缀（单周/双周/全周）过滤周次
+fn filter_by_week_suffix(
+    weeks: HashSet<u8>,
+    suffix: &str,
+    context: &str,
+) -> Result<HashSet<u8>, crate::Error<TokenExpired>> {
+    match suffix.trim() {
+        // 无后缀时按全周处理
+        "" | "(全周)" => Ok(weeks),
+        "(单周)" => Ok(weeks.into_iter().filter(|w| w % 2 == 1).collect()),
+        "(双周)" => Ok(weeks.into_iter().filter(|w| w % 2 == 0).collect()),
+        s => Err(parse_err("未知的周次后缀", &format!("{context}: {s}"))),
+    }
+}
+
 /// 解析上课时间地点
 /// 调用方需保证 `sktime` 存在（无课表课程已过滤），`skddmc` 与之成对出现
 fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Error<TokenExpired>> {
     let sktime = raw.sktime.as_deref().expect("sktime 应存在");
     let skddmc = raw.skddmc.as_deref().expect("skddmc 应存在");
     // sktime 格式：`星期五3、4节{ 7-8周}(全周)`（周次可能带前导空格）
-    static SKTIME_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"星期(.)(.*)节.*\{\s*(.*)周\}").expect("创建正则表达式失败"));
+    // 尾部后缀可能为 全周/单周/双周，单双周需按奇偶过滤周次
+    static SKTIME_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"星期(.)(.*)节.*\{\s*(.*)周\}(.*)").expect("创建正则表达式失败")
+    });
     let places: Vec<_> = skddmc.split(';').collect();
     let detail_times = sktime.split(';');
     // 第几周+周几+地点作为 key，节次作为 value，进行去重
@@ -133,6 +150,11 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
             caps.get(3)
                 .ok_or(parse_err("找不到上课周次", sktime))?
                 .as_str(),
+            sktime,
+        )?;
+        let week_list = filter_by_week_suffix(
+            week_list,
+            caps.get(4).map(|m| m.as_str()).unwrap_or_default(),
             sktime,
         )?;
         let place = places.get(i).ok_or(parse_err("找不到上课地点", skddmc))?;
@@ -253,6 +275,61 @@ mod tests {
             extract_week_list("1-2,5-6", "test")?,
             HashSet::from([1, 2, 5, 6])
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_week_suffix() -> TestResult<()> {
+        let all: HashSet<u8> = (1..=16).collect();
+        assert_eq!(filter_by_week_suffix(all.clone(), "(全周)", "test")?, all);
+        assert_eq!(filter_by_week_suffix(all.clone(), "", "test")?, all);
+        assert_eq!(
+            filter_by_week_suffix(all.clone(), "(单周)", "test")?,
+            (1..=15).step_by(2).collect()
+        );
+        assert_eq!(
+            filter_by_week_suffix(all.clone(), "(双周)", "test")?,
+            (2..=16).step_by(2).collect()
+        );
+        assert!(filter_by_week_suffix(all.clone(), "(前三周)", "test").is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_course_schedule_odd_weeks_range() -> TestResult<()> {
+        // 连续区间带单双周后缀：`{ 1-16周}(单周)` 应只保留奇数周
+        let schedule = course_schedule(&RawCourseInfo {
+            kch: String::new(),
+            kc_mc: String::new(),
+            jg0101mc: None,
+            jsgh: None,
+            kt_mc: String::new(),
+            pkrs: 0,
+            xkrs: 0,
+            kcxz: String::new(),
+            kclb: String::new(),
+            jx0404id: String::new(),
+            fz_mc: None,
+            sktime: Some("星期一3、4节{ 1-16周}(单周)".to_string()),
+            skddmc: Some("复309".to_string()),
+            skxqmc: String::new(),
+            kkyx: String::new(),
+            zhouxs: String::new(),
+            xf: 0.0,
+            zxs: 0,
+            khfs: String::new(),
+        })?;
+
+        assert_eq!(schedule.len(), 8);
+        let weeks: HashSet<u8> = schedule.iter().map(|s| s.week).collect();
+        assert_eq!(weeks, (1..=15).step_by(2).collect());
+        for s in &schedule {
+            assert_eq!(s.day, 1);
+            assert_eq!(s.place, "复309");
+            assert_eq!(sorted(s.time.clone()), vec![3, 4]);
+        }
 
         Ok(())
     }
