@@ -1,8 +1,7 @@
-use std::error::Error as StdError;
-
 use crate::{
     error::{MapParseErr, parse_err},
     iportal::{
+        error::IPortalTokenExpired,
         task::{ApplyItem, ApplyList, ApplyStatus},
         util::iportal_jsondata_precheck,
     },
@@ -51,7 +50,7 @@ struct RawApplyItem {
 /// # Arguments
 ///
 /// - `json_str`: [`super::fetch::apply_list`] 返回的数据
-pub fn apply_list<E: StdError>(json_str: &str) -> Result<ApplyList, crate::Error<E>> {
+pub fn apply_list(json_str: &str) -> Result<ApplyList, crate::Error<IPortalTokenExpired>> {
     let data = iportal_jsondata_precheck(json_str)?;
     let total = data
         .get("total")
@@ -95,11 +94,11 @@ pub fn apply_list<E: StdError>(json_str: &str) -> Result<ApplyList, crate::Error
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ParseError, test::TestResult};
+    use crate::test::TestResult;
 
     #[test]
     fn test_parse_apply_list() -> TestResult<()> {
-        let apply_list = apply_list::<ParseError>(include_str!("test_data/apply_list.json"))?;
+        let apply_list = apply_list(include_str!("test_data/apply_list.json"))?;
 
         assert_eq!(apply_list.total, 1);
         assert_eq!(apply_list.list.len(), 1);

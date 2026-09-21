@@ -1,9 +1,11 @@
-use crate::error::{MapParseErr, parse_err};
-use std::error::Error as StdError;
+use crate::{
+    error::{MapParseErr, parse_err},
+    iportal::error::IPortalTokenExpired,
+};
 
-pub(super) fn iportal_jsondata_precheck<E: StdError>(
+pub(super) fn iportal_jsondata_precheck(
     json_str: &str,
-) -> Result<serde_json::Value, crate::Error<E>> {
+) -> Result<serde_json::Value, crate::Error<IPortalTokenExpired>> {
     let json_value: serde_json::Value = serde_json::from_str(json_str).parse_err(json_str)?;
     let error_code = json_value
         .get("e")
@@ -29,12 +31,11 @@ pub(super) fn iportal_jsondata_precheck<E: StdError>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ParseError;
 
     #[test]
     fn test_iportal_jsondata_precheck_error_response() -> crate::test::TestResult<()> {
         let json_str = include_str!("test_data/error.json");
-        let result: Result<serde_json::Value, crate::Error<ParseError>> =
+        let result: Result<serde_json::Value, crate::Error<IPortalTokenExpired>> =
             iportal_jsondata_precheck(json_str);
 
         match result {
@@ -47,7 +48,7 @@ mod tests {
     #[test]
     fn test_iportal_jsondata_precheck_malformed_json() -> crate::test::TestResult<()> {
         let json_str = include_str!("test_data/malformed.json");
-        let result: Result<serde_json::Value, crate::Error<ParseError>> =
+        let result: Result<serde_json::Value, crate::Error<IPortalTokenExpired>> =
             iportal_jsondata_precheck(json_str);
 
         match result {
