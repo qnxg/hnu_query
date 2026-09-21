@@ -172,4 +172,29 @@ mod tests {
         assert_eq!(res, "283.75度".to_string());
         Ok(())
     }
+
+    #[test]
+    fn test_convert_dormitory() -> TestResult<()> {
+        let dormitory = Dormitory::from_parsed_value("财院校区", "12", "101");
+        let (park_id, build_id, room_id) = convert_dormitory(dormitory)?;
+        assert_eq!(
+            (park_id, build_id.as_str(), room_id.as_str()),
+            (2, "05", "101")
+        );
+
+        let dormitory = Dormitory::from_parsed_value("南校区", "10舍", "101");
+        let (park_id, build_id, room_id) = convert_dormitory(dormitory)?;
+        assert_eq!(
+            (park_id, build_id.as_str(), room_id.as_str()),
+            (1, "21", "101")
+        );
+
+        let dormitory = Dormitory::from_parsed_value("牛头山学生公寓", "3栋", "101");
+        let (park_id, build_id, room_id) = convert_dormitory(dormitory)?;
+        assert_eq!(
+            (park_id, build_id.as_str(), room_id.as_str()),
+            (7, "61", "101")
+        );
+        Ok(())
+    }
 }
