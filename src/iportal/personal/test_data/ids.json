@@ -1,0 +1,73 @@
+{
+  "e": 0,
+  "m": "操作成功",
+  "d": {
+    "data": [
+      {
+        "class": "envs\\hnu\\Service\\Book",
+        "key": "book.bookNum",
+        "method": "bookNum",
+        "name": "待还图书",
+        "restrict_inschool": "0",
+        "status": "1",
+        "tooltip": "",
+        "type": "tooltip",
+        "unit": "",
+        "url": "https://lib.hnu.edu.cn/page/258015/show",
+        "id": "00c7f05e1561d58c0948743b459a248e582a99ff8e07f782e53b1c9feda8208388bc1c82afbabcb8ced7f359778f47a8da48d793effc8f440e9f0bf56f164fa318befcf401062f25a64a11e0b56eaaadf21b57ddc1ea476b15daa3cc4a66cc6117f9d375720c3b32bca811393e52fe32add9dfc61e243a3d6d90fa02da8d6eb1"
+      },
+      {
+        "class": "envs\\hnu\\Service\\Mail",
+        "key": "mail.unread",
+        "method": "unread",
+        "name": "未读邮件",
+        "restrict_inschool": "0",
+        "status": "1",
+        "tooltip": "",
+        "type": "tooltip",
+        "unit": "",
+        "url": "",
+        "id": "1919810"
+      },
+      {
+        "class": "envs\\hnu\\Service\\Card",
+        "key": "card.balance",
+        "method": "balance",
+        "name": "一卡通余额",
+        "restrict_inschool": "0",
+        "status": "1",
+        "tooltip": "",
+        "type": "tooltip",
+        "unit": "",
+        "url": "",
+        "id": "114514"
+      },
+      {
+        "class": "envs\\hnu\\Service\\Statistic",
+        "key": "statistic.lastLoginTime",
+        "method": "lastLoginTime",
+        "name": "最近一次登录时间",
+        "restrict_inschool": "0",
+        "status": "1",
+        "tooltip": "",
+        "type": "tooltip",
+        "unit": "",
+        "url": "",
+        "id": "168"
+      },
+      {
+        "class": "envs\\hnu\\Service\\Net",
+        "key": "net.used",
+        "method": "used",
+        "name": "上网流量",
+        "restrict_inschool": "0",
+        "status": "1",
+        "tooltip": "",
+        "type": "tooltip",
+        "unit": "",
+        "url": "http://ll.hnu.edu.cn/pc/#/meal",
+        "id": "0d000721"
+      }
+    ]
+  }
+}
