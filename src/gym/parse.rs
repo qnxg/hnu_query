@@ -24,8 +24,12 @@ pub fn gym_response(json_str: &str) -> Result<Value, crate::Error<TokenExpired>>
     {
         return Err(crate::Error::Other(TokenExpired));
     }
-    if json.get("status").and_then(|v| v.as_i64()) != Some(1) {
-        return Err(parse_err("响应状态错误", json_str));
+    if let Some(status) = json.get("status").and_then(|v| v.as_i64()) {
+        if status == -3 {
+            return Err(parse_err("您已通过该学年的免测申请，无需参与测试", json_str));
+        } else if status != -1 {
+            return Err(parse_err("响应状态错误", json_str));
+        }
     }
     let Some(data) = json.get("data") else {
         return Err(parse_err("无法解析响应数据", json_str));
