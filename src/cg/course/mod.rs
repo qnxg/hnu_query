@@ -37,6 +37,18 @@ pub struct CgProblem {
     pub title: String,
     /// 分值
     pub score: f64,
+    /// 题目页面链接
+    pub url: String,
+}
+
+/// CG 题目详情页
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CgProblemPage {
+    /// 题型标识：最终 URL（跟随重定向后）的文件名主干，
+    /// 如 `programList_ce`、`programFillGapList`；不同题型对应不同 JSP
+    pub page_type: String,
+    /// 页面完整 HTML，调用者自行解析题目描述、提交表单等
+    pub html: String,
 }
 
 /// 获取当前账号的课程列表
@@ -119,17 +131,18 @@ pub async fn get_problem_list(
     Ok(parse_time!(parse::problems(&body)))
 }
 
-/// 获取题目详情页的原始 HTML
+/// 获取题目详情页
+///
+/// 按 [CgProblem] 的 `url` 字段抓取，跟随重定向，适用于任意题型
 ///
 /// # Arguments
 ///
 /// - `token`: CG 系统的登录令牌，可以通过 [CgSession::login](crate::cg::login::CgSession::login) 获取
-/// - `assign_id`: 作业 ID
-/// - `index`: 题目序号（1-based），可通过 [get_problem_list] 获取
+/// - `problem`: 题目，可通过 [get_problem_list] 获取
 ///
 /// # Returns
 ///
-/// 返回题目详情页的完整 HTML 字符串，调用者自行解析题目描述、提交表单等
+/// 返回 [CgProblemPage]
 ///
 /// # Errors
 ///
@@ -137,11 +150,11 @@ pub async fn get_problem_list(
 #[traced(subsystem = "cg", skip(token))]
 pub async fn get_problem_page(
     token: &CgToken,
-    assign_id: u32,
-    index: u32,
-) -> Result<String, crate::Error<TokenExpired>> {
+    problem: &CgProblem,
+) -> Result<CgProblemPage, crate::Error<TokenExpired>> {
     // 访问 `assignment/programList.jsp` 后跟随 302 重定向到 `programList_ce.jsp` 才能拿到完整页面
-    fetch_time!(fetch::problem_page(token, assign_id, index).await)
+    let (page_type, html) = fetch_time!(fetch::problem_page(token, &problem.url).await)?;
+    Ok(CgProblemPage { page_type, html })
 }
 
 #[cfg(test)]
@@ -243,11 +256,16 @@ mod tests {
         };
 
         println!("获取题目页面: #{}/{}", problem.index, problem.id);
-        let html = get_problem_page(&token, assign.id, problem.index).await?;
-        println!("页面大小: {} bytes", html.len());
-        assert!(!html.is_empty(), "题目页面不应为空");
+        let page = get_problem_page(&token, problem).await?;
+        println!(
+            "题型: {}, 页面大小: {} bytes",
+            page.page_type,
+            page.html.len()
+        );
+        assert!(!page.page_type.is_empty(), "题型标识不应为空");
+        assert!(!page.html.is_empty(), "题目页面不应为空");
         assert!(
-            html.contains("cgProblemContentClass") || html.contains("problemID"),
+            page.html.contains("cgProblemContentClass") || page.html.contains("problemID"),
             "页面应包含题目内容"
         );
         Ok(())

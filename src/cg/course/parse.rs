@@ -20,6 +20,8 @@ static PROBLEM_ROW_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("table.table-striped tr").expect("题目表格行 CSS 选择器"));
 static PROBLEM_LINK_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("a[href]").expect("链接 CSS 选择器"));
+static PROBLEM_TH_SEL: LazyLock<Selector> =
+    LazyLock::new(|| Selector::parse("th").expect("th CSS 选择器"));
 static PROBLEM_TD_SEL: LazyLock<Selector> =
     LazyLock::new(|| Selector::parse("td").expect("td CSS 选择器"));
 
@@ -111,6 +113,9 @@ pub fn assignments(html: &str) -> Option<Vec<CgAssignment>> {
 /// 从 `assignment/index.jsp` 的题目列表页解析题目元数据，没有题目时返回 `None`
 ///
 /// `html` 为 [`super::fetch::problem_list_page`] 返回的 HTML 数据
+///
+/// 题目页链接不区分题型，`/assignment/*.jsp` 均接受
+/// 序号优先取行首 `<th>`（形如 `1.`），缺失时退回 href 的 `proNum`，两者都拿不到则跳过该行
 pub fn problems(html: &str) -> Option<Vec<CgProblem>> {
     let document = Html::parse_document(html);
 
@@ -119,20 +124,33 @@ pub fn problems(html: &str) -> Option<Vec<CgProblem>> {
         .filter_map(|row| {
             let links: Vec<_> = row.select(&PROBLEM_LINK_SEL).collect();
 
-            // 找 programList.jsp 链接 → index + title
+            // 找题目页链接：.jsp 链接中排除批阅详情链接 judgeDetailsRedirect.jsp
             let pro_link = links.iter().find(|el| {
                 el.value()
                     .attr("href")
-                    .is_some_and(|h| h.contains("programList.jsp"))
+                    .is_some_and(|h| h.contains(".jsp") && !h.contains("judgeDetailsRedirect"))
             })?;
             let href = pro_link.value().attr("href")?;
-            let index: u32 = href
-                .split("proNum=")
-                .nth(1)?
-                .split('&')
-                .next()?
-                .parse()
-                .ok()?;
+
+            let index: u32 = row
+                .select(&PROBLEM_TH_SEL)
+                .next()
+                .and_then(|th| {
+                    th.text()
+                        .collect::<String>()
+                        .trim()
+                        .trim_end_matches('.')
+                        .parse()
+                        .ok()
+                })
+                .or_else(|| {
+                    href.split("proNum=")
+                        .nth(1)?
+                        .split('&')
+                        .next()?
+                        .parse()
+                        .ok()
+                })?;
             let title: String = pro_link.text().collect();
             let title = title.trim().to_string();
             if title.is_empty() {
@@ -163,6 +181,7 @@ pub fn problems(html: &str) -> Option<Vec<CgProblem>> {
                 id,
                 title,
                 score,
+                url: href.to_string(),
             })
         })
         .collect();
@@ -254,13 +273,17 @@ mod tests {
     fn test_parse_problems() -> TestResult<()> {
         let html = include_str!("test_data/problem_list.html");
         let problems = problems(html).expect("应解析出题目");
-        assert_eq!(problems.len(), 3, "应解析出 3 道题");
+        assert_eq!(problems.len(), 4, "应解析出 4 道题");
 
         // 第一题
         let first = &problems[0];
         assert_eq!(first.index, 1);
         assert_eq!(first.id, 20001);
         assert_eq!(first.title, "第一题");
+        assert_eq!(
+            first.url,
+            "/assignment/programList.jsp?proNum=1&assignID=1001"
+        );
         assert!(
             (first.score - 100.0).abs() < f64::EPSILON,
             "分数应为 100.00"
@@ -279,6 +302,17 @@ mod tests {
         assert_eq!(third.id, 20003);
         assert_eq!(third.title, "第三题");
         assert!((third.score - 75.50).abs() < f64::EPSILON, "分数应为 75.50");
+
+        // 第四题：程序填空题
+        let fourth = &problems[3];
+        assert_eq!(fourth.index, 4);
+        assert_eq!(fourth.id, 20004);
+        assert_eq!(fourth.title, "第四题（填空）");
+        assert_eq!(
+            fourth.url,
+            "/assignment/programFillGapList.jsp?proNum=4&assignID=1001"
+        );
+        assert!((fourth.score - 60.0).abs() < f64::EPSILON, "分数应为 60.00");
 
         Ok(())
     }
