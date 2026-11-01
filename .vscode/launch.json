@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug iportal info test",
+      "cargo": {
+        "args": [
+          "test",
+          "iportal::card::tests::test_get_card_details",
+          "--",
+          "--ignored",
+          "--nocapture",
+          "--test-threads",
+          "1"
+        ],
+        "filter": {
+          "name": "hnu_query",
+          "kind": "lib"
+        }
+      },
+      "env": {
+        "ALL_PROXY": "",
+        "all_proxy": "",
+        "HTTP_PROXY": "",
+        "HTTPS_PROXY": "",
+        "http_proxy": "",
+        "https_proxy": ""
+      }
+    }
+  ]
+}

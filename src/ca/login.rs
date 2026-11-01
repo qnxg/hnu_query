@@ -2,6 +2,7 @@ use crate::cas;
 use crate::cas::login::CasToken;
 use crate::error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err};
 use crate::utils::client;
+use crate::utils::request::ObservedResponseExt;
 use reqwest::header::HeaderMap;
 use serde_json::Value;
 
@@ -53,7 +54,7 @@ impl CaToken {
         .network_err()?
         .status_code_err()
         .await?
-        .text().await
+        .observed_text().await
         .unexpected_err()?;
 
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;

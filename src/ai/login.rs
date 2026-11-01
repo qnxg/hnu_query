@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
@@ -139,7 +140,7 @@ impl AiToken {
             } else {
                 #[cfg(feature = "tracing")]
                 {
-                    let body = res.text().await.unwrap_or_default();
+                    let body = res.observed_text().await.unwrap_or_default();
                     obs::error!(status = %status, %current_url, body = %body, "unexpected_status");
                 }
                 Err(format!(
@@ -180,7 +181,7 @@ impl AiToken {
             all_cookies.push_str(&session_cookies);
         }
 
-        let oauth_text = oauth_res.text().await.unexpected_err()?;
+        let oauth_text = oauth_res.observed_text().await.unexpected_err()?;
         let oauth_json: Value = serde_json::from_str(&oauth_text).parse_err(&oauth_text)?;
         let bearer_token = oauth_json["data"]["token"]
             .as_str()

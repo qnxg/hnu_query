@@ -32,6 +32,7 @@ use syn::{
 /// - `subsystem = "..."`：必填
 /// - `skip(...)`：可选，敏感参数
 /// - `record(...)`：可选，额外的 `Empty` 占位字段（`fetch_ms` / `parse_ms` 已自动包含）
+/// - `format = "..."`：可选，解析器预期格式；默认为 `mixed`
 /// - `err` / `no_err`：默认 `err`
 /// - `level = "..."`：可选
 #[proc_macro_attribute]
@@ -52,6 +53,7 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
     let skip = args.skip;
     let record_fields = args.record_fields;
     let level = args.level;
+    let format = args.format;
     let err = args.err;
 
     let skip_tokens = if skip.is_empty() {
@@ -99,6 +101,13 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
                     subsystem = #subsystem,
                     fetch_ms = ::tracing::field::Empty,
                     parse_ms = ::tracing::field::Empty,
+                    failure_origin = ::tracing::field::Empty,
+                    failure_stage = ::tracing::field::Empty,
+                    failure_code = ::tracing::field::Empty,
+                    upstream_http_status_code = ::tracing::field::Empty,
+                    upstream_outcome = ::tracing::field::Empty,
+                    parser_expected_format = #format,
+                    parser_actual_format = ::tracing::field::Empty,
                     #(#extra_empty_fields)*
                 ),
                 #err_tokens
@@ -115,6 +124,7 @@ struct TracedArgs {
     skip: Vec<Ident>,
     record_fields: Vec<Ident>,
     level: Option<LitStr>,
+    format: LitStr,
     err: bool,
 }
 
@@ -124,6 +134,7 @@ impl Parse for TracedArgs {
         let mut skip = Vec::new();
         let mut record_fields = Vec::new();
         let mut level = None;
+        let mut format = None;
         let mut err = true;
 
         while !input.is_empty() {
@@ -136,6 +147,10 @@ impl Parse for TracedArgs {
                 "level" => {
                     input.parse::<Token![=]>()?;
                     level = Some(input.parse()?);
+                }
+                "format" => {
+                    input.parse::<Token![=]>()?;
+                    format = Some(input.parse()?);
                 }
                 "skip" => {
                     let content;
@@ -178,12 +193,14 @@ impl Parse for TracedArgs {
                 "traced requires `subsystem = \"...\"`",
             )
         })?;
+        let format = format.unwrap_or_else(|| LitStr::new("mixed", proc_macro2::Span::call_site()));
 
         Ok(Self {
             subsystem,
             skip,
             record_fields,
             level,
+            format,
             err,
         })
     }

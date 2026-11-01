@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 mod captcha;
 mod utils;
 
@@ -96,7 +97,7 @@ impl LabToken {
             if !cookies.is_empty() {
                 all_cookies.push_str(&format!("; {}", cookies.join("; ")));
             }
-            let data_str = res.text().await.unexpected_err()?;
+            let data_str = res.observed_text().await.unexpected_err()?;
             let data: Value = serde_json::from_str(&data_str).parse_err(&data_str)?;
             let Some(code) = data["RTNCode"].as_i64() else {
                 return Err(parse_err("无法解析登录结果", &data_str));
@@ -112,7 +113,7 @@ impl LabToken {
                     .network_err()?
                     .status_code_err()
                     .await?;
-                let img_bytes = res.bytes().await.unexpected_err()?;
+                let img_bytes = res.observed_bytes().await.unexpected_err()?;
                 checkcode = captcha_resolver
                     .resolve(img_bytes.as_ref())
                     .await

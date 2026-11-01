@@ -73,7 +73,7 @@ pub struct CardHistoryItem {
 /// # Returns
 ///
 /// 校园卡信息
-#[traced(subsystem = "pt", skip(pt_token))]
+#[traced(subsystem = "pt", skip(pt_token), format = "json")]
 pub async fn get_card_info(pt_token: &PtToken) -> Result<CardInfo, crate::Error<Infallible>> {
     let json_str = fetch_time!(fetch::card_info(pt_token).await)?;
     parse_time!(parse::card_info(&json_str))

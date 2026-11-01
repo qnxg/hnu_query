@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
@@ -58,7 +59,7 @@ impl GymToken {
             .status_code_err()
             .await?;
         let cookie = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
-        let json_str = res.text().await.unexpected_err()?;
+        let json_str = res.observed_text().await.unexpected_err()?;
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
         if json["info"] != "登录成功" {
             return Err(format!("登录失败: {}", json["info"])).unexpected_err();
@@ -94,7 +95,7 @@ impl GymToken {
             .status_code_err()
             .await?;
         let cookies = cookie_parser(res.headers().get_all(SET_COOKIE)).join("; ");
-        let json_str = res.text().await.unexpected_err()?;
+        let json_str = res.observed_text().await.unexpected_err()?;
         let json: Value = serde_json::from_str(&json_str).parse_err(&json_str)?;
         if json["info"] != "登录成功" {
             return Err(format!("登录失败: {}", json["info"])).unexpected_err();

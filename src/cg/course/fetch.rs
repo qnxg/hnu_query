@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     cg::{error::TokenExpired, login::CgToken},
     error::{MapNetworkErr, MapUnexpectedErr},
@@ -50,7 +51,9 @@ pub async fn course_list(token: &CgToken) -> Result<CourseListPage, crate::Error
 
     match res.status() {
         StatusCode::FOUND => Ok(CourseListPage::Main(main_page(token).await?)),
-        StatusCode::OK => Ok(CourseListPage::List(res.text().await.unexpected_err()?)),
+        StatusCode::OK => Ok(CourseListPage::List(
+            res.observed_text().await.unexpected_err()?,
+        )),
         _ => Err(format!("获取课程列表失败: HTTP {}", res.status())).unexpected_err(),
     }
 }
@@ -101,7 +104,7 @@ pub async fn main_page(token: &CgToken) -> Result<String, crate::Error<TokenExpi
         .await
         .network_err()?;
     check_token_expired(&res)?;
-    res.text().await.unexpected_err()
+    res.observed_text().await.unexpected_err()
 }
 
 /// 获取作业列表页 HTML
@@ -113,7 +116,7 @@ pub async fn assignment_list_page(token: &CgToken) -> Result<String, crate::Erro
         .await
         .network_err()?;
     check_token_expired(&res)?;
-    res.text().await.unexpected_err()
+    res.observed_text().await.unexpected_err()
 }
 
 /// 获取题目列表页 HTML
@@ -129,7 +132,7 @@ pub async fn problem_list_page(
         .await
         .network_err()?;
     check_token_expired(&res)?;
-    res.text().await.unexpected_err()
+    res.observed_text().await.unexpected_err()
 }
 
 /// 获取题目详情页 HTML，跟随 302 重定向

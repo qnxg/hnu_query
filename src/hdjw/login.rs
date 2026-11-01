@@ -1,3 +1,5 @@
+#[cfg(feature = "tracing")]
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
@@ -78,7 +80,7 @@ impl HdjwToken {
             #[cfg(feature = "tracing")]
             {
                 use crate::utils::obs;
-                let body = res.text().await.unwrap_or_default();
+                let body = res.observed_text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "unexpected_status");
             }
             return Err(format!("获取教务系统失败，HTTP代码 {}", status)).unexpected_err();

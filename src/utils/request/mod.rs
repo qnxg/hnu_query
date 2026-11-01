@@ -2,12 +2,120 @@
 mod http_tracing;
 
 use reqwest::{
-    Client,
+    Client, Response,
     header::{GetAll, HeaderValue},
     redirect::Policy,
 };
 use reqwest_middleware::ClientBuilder;
 use std::{sync::LazyLock, time::Duration};
+
+#[cfg(feature = "tracing")]
+/// Supported response body formats used by the observability layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyFormat {
+    Json,
+    Html,
+    Pdf,
+    Text,
+    Binary,
+    Empty,
+}
+
+#[cfg(feature = "tracing")]
+impl BodyFormat {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+            Self::Html => "html",
+            Self::Pdf => "pdf",
+            Self::Text => "text",
+            Self::Binary => "binary",
+            Self::Empty => "empty",
+        }
+    }
+}
+
+#[cfg(feature = "tracing")]
+fn detect_body_format(body: &[u8]) -> BodyFormat {
+    let body = body.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(body);
+    let start = body
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or(body.len());
+    let body = &body[start..];
+    let first = body.first().copied();
+    match first {
+        None => return BodyFormat::Empty,
+        Some(b'%') if body.starts_with(b"%PDF") => return BodyFormat::Pdf,
+        Some(b'{') | Some(b'[') => return BodyFormat::Json,
+        Some(b'<') => return BodyFormat::Html,
+        Some(_) => {}
+    }
+    if std::str::from_utf8(body).is_ok() {
+        BodyFormat::Text
+    } else {
+        BodyFormat::Binary
+    }
+}
+
+/// Reads response bodies while recording non-sensitive format metadata.
+pub trait ObservedResponseExt {
+    /// Reads a response as text and records its detected format when tracing is enabled.
+    async fn observed_text(self) -> Result<String, reqwest::Error>;
+
+    /// Reads a response as bytes and records its detected format when tracing is enabled.
+    async fn observed_bytes(self) -> Result<bytes::Bytes, reqwest::Error>;
+}
+
+impl ObservedResponseExt for Response {
+    async fn observed_text(self) -> Result<String, reqwest::Error> {
+        #[cfg(not(feature = "tracing"))]
+        {
+            return self.text().await;
+        }
+
+        #[cfg(feature = "tracing")]
+        {
+            let content_type = self
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let body = self.text().await?;
+            let format = detect_body_format(body.as_bytes());
+            crate::utils::obs::record_body_metadata(
+                content_type.as_deref(),
+                body.len(),
+                format.as_str(),
+            );
+            Ok(body)
+        }
+    }
+
+    async fn observed_bytes(self) -> Result<bytes::Bytes, reqwest::Error> {
+        #[cfg(not(feature = "tracing"))]
+        {
+            return self.bytes().await;
+        }
+
+        #[cfg(feature = "tracing")]
+        {
+            let content_type = self
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let body = self.bytes().await?;
+            let format = detect_body_format(&body);
+            crate::utils::obs::record_body_metadata(
+                content_type.as_deref(),
+                body.len(),
+                format.as_str(),
+            );
+            Ok(body)
+        }
+    }
+}
 
 pub static CLIENT: LazyLock<reqwest_middleware::ClientWithMiddleware> = LazyLock::new(|| {
     let inner = Client::builder()
@@ -62,9 +170,21 @@ mod tests {
     use crate::test::TestResult;
 
     #[tokio::test]
+    #[ignore]
     async fn test_init_request() -> TestResult<()> {
         let res = CLIENT.get("https://www.baidu.com").send().await?;
         assert!(res.status().is_success());
         Ok(())
+    }
+
+    #[cfg(feature = "tracing")]
+    #[test]
+    fn detects_supported_response_formats() {
+        assert_eq!(detect_body_format(b" \n{\"ok\":true}"), BodyFormat::Json);
+        assert_eq!(detect_body_format(b"<html></html>"), BodyFormat::Html);
+        assert_eq!(detect_body_format(b"%PDF-1.7"), BodyFormat::Pdf);
+        assert_eq!(detect_body_format(b"plain text"), BodyFormat::Text);
+        assert_eq!(detect_body_format(&[0xff, 0xfe]), BodyFormat::Binary);
+        assert_eq!(detect_body_format(b" \n"), BodyFormat::Empty);
     }
 }

@@ -52,7 +52,7 @@ pub struct Grade {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
-#[traced(subsystem = "hdjw", skip(hdjw_token))]
+#[traced(subsystem = "hdjw", skip(hdjw_token), format = "json")]
 pub async fn get_grade(
     hdjw_token: &HdjwToken,
     xn: u16,
@@ -89,7 +89,7 @@ pub struct GradeDetailItem {
 /// # Errors
 ///
 /// 如果提供的 `hdjw_token` 过期了，那么会返回 [TokenExpired] 错误，需要重新获取一个新的 [HdjwToken]
-#[traced(subsystem = "hdjw", skip(hdjw_token))]
+#[traced(subsystem = "hdjw", skip(hdjw_token), format = "html")]
 pub async fn get_grade_detail(
     hdjw_token: &HdjwToken,
     jx0404id: &str,
