@@ -27,5 +27,5 @@ hnu_query = { version = "...", features = ["tracing"] }
 
 `backend` 对客户端返回的状态码属于调用方服务的观测范围，不应与
 `upstream_http_status_code` 混用。HTTP middleware 会为每次外部请求创建
-`upstream.http` 子 span，只记录脱敏后的路径、状态、响应类型、响应大小和耗时，
-不会记录 query、Cookie、Token 或响应正文。
+`upstream.http` 子 span，记录原始 URL、状态、响应类型、重定向位置和耗时；
+响应正文和 `body_bytes` 不写入 trace 或指标。

@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
@@ -27,7 +28,7 @@ async fn get_with_url(
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

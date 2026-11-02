@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     pt::login::PtToken,
@@ -18,7 +19,7 @@ pub async fn csrf_token(pt_token: &PtToken) -> Result<String, crate::Error<Infal
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -32,7 +33,7 @@ pub async fn card_info(pt_token: &PtToken) -> Result<String, crate::Error<Infall
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -66,7 +67,7 @@ pub async fn card_history(
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

@@ -176,7 +176,7 @@ pub async fn problem_page(
         .send()
         .await
         .network_err()?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

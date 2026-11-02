@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     netflow::login::NetflowToken,
@@ -16,7 +17,7 @@ pub async fn order(netflow_token: &NetflowToken) -> Result<String, crate::Error<
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

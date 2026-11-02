@@ -245,7 +245,8 @@ impl CheckStatusCodeErr for reqwest::Response {
                 );
                 #[cfg(feature = "tracing")]
                 {
-                    let _ = self.text().await;
+                    use crate::utils::request::ObservedResponseExt;
+                    let _ = self.observed_text().await;
                 }
                 Err(Error::Unexpected(UnexpectedError {
                     error: format!("status code error: {status}").into(),

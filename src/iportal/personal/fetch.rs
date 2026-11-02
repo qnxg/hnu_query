@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     iportal::{
@@ -23,7 +24,7 @@ pub async fn personal_data_query_ids(
         .iportal_token_expired()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -42,7 +43,7 @@ pub async fn personal_data_single(
         .iportal_token_expired()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     ca::login::CaToken,
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
@@ -23,7 +24,7 @@ pub async fn preview_file(
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -44,7 +45,7 @@ pub async fn file(ca_token: &CaToken, file_name: &str) -> Result<Bytes, crate::E
         .network_err()?
         .status_code_err()
         .await?
-        .bytes()
+        .observed_bytes()
         .await
         .unexpected_err()
 }

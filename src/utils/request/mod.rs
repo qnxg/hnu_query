@@ -83,11 +83,7 @@ impl ObservedResponseExt for Response {
                 .map(str::to_owned);
             let body = self.text().await?;
             let format = detect_body_format(body.as_bytes());
-            crate::utils::obs::record_body_metadata(
-                content_type.as_deref(),
-                body.len(),
-                format.as_str(),
-            );
+            crate::utils::obs::record_body_metadata(content_type.as_deref(), format.as_str());
             Ok(body)
         }
     }
@@ -107,11 +103,7 @@ impl ObservedResponseExt for Response {
                 .map(str::to_owned);
             let body = self.bytes().await?;
             let format = detect_body_format(&body);
-            crate::utils::obs::record_body_metadata(
-                content_type.as_deref(),
-                body.len(),
-                format.as_str(),
-            );
+            crate::utils::obs::record_body_metadata(content_type.as_deref(), format.as_str());
             Ok(body)
         }
     }

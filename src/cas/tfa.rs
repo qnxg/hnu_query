@@ -93,7 +93,24 @@ impl TFAToken {
     /// 发送短信验证码
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty), err)
+        tracing::instrument(
+            skip(self),
+            fields(
+                failure_origin = tracing::field::Empty,
+                failure_stage = tracing::field::Empty,
+                failure_code = tracing::field::Empty,
+                upstream_http_status_code = tracing::field::Empty,
+                upstream_outcome = tracing::field::Empty,
+                upstream_content_type = tracing::field::Empty,
+                upstream_body_format = tracing::field::Empty,
+                parser_expected_format = "mixed",
+                parser_actual_format = tracing::field::Empty,
+                fetch_ms = tracing::field::Empty,
+                parse_ms = tracing::field::Empty,
+                subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty
+            ),
+            err
+        )
     )]
     pub async fn send_sms(&self) -> Result<SMSResult, crate::Error<AccountIssue>> {
         let res = client
@@ -104,7 +121,7 @@ impl TFAToken {
             .network_err()?
             .status_code_err()
             .await?
-            .text()
+            .observed_text()
             .await
             .unexpected_err()?;
         match res.as_str() {
@@ -138,7 +155,24 @@ impl TFAToken {
     /// [TFAToken] 再次调用 [TFAToken::send_sms] 和 [TFAToken::verify]
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(skip(self, code), fields(subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty), err)
+        tracing::instrument(
+            skip(self, code),
+            fields(
+                failure_origin = tracing::field::Empty,
+                failure_stage = tracing::field::Empty,
+                failure_code = tracing::field::Empty,
+                upstream_http_status_code = tracing::field::Empty,
+                upstream_outcome = tracing::field::Empty,
+                upstream_content_type = tracing::field::Empty,
+                upstream_body_format = tracing::field::Empty,
+                parser_expected_format = "mixed",
+                parser_actual_format = tracing::field::Empty,
+                fetch_ms = tracing::field::Empty,
+                parse_ms = tracing::field::Empty,
+                subsystem = "cas", stu_id = %self.stu_id, result = tracing::field::Empty
+            ),
+            err
+        )
     )]
     pub async fn verify(self, code: &str) -> Result<VerifyResult, crate::Error<AccountIssue>> {
         let res = client

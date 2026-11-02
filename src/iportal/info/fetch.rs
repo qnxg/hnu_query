@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     iportal::{
@@ -19,7 +20,7 @@ pub async fn info(token: &IPortalToken) -> Result<String, crate::Error<IPortalTo
         .iportal_token_expired()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

@@ -2,25 +2,21 @@
 //!
 //! 为每个经过 [`crate::utils::client`] 的 HTTP 请求创建 `DEBUG` 级 span，
 //! 并在响应返回后发射 `DEBUG` 事件，记录：
-//! - 请求方法与脱敏路径（span 字段，请求开始时即记录）
-//! - 上游响应状态、类型、大小和耗时（span 字段）
+//! - 请求方法与完整 URL（span 字段，请求开始时即记录）
+//! - 上游响应状态、类型、重定向位置和耗时（span 字段）
 //! - 传输错误的低基数分类
 use crate::utils::obs;
 use async_trait::async_trait;
 use http::Extensions;
 use reqwest::{
     Request, Response,
-    header::{CONTENT_LENGTH, CONTENT_TYPE, LOCATION},
+    header::{CONTENT_TYPE, LOCATION},
 };
 use reqwest_middleware::{Middleware, Next};
 use std::time::Instant;
 use tracing::{Instrument, field::Empty};
 
 pub struct HttpTracing;
-
-fn request_path(url: &reqwest::Url) -> &str {
-    url.path()
-}
 
 #[async_trait]
 impl Middleware for HttpTracing {
@@ -33,19 +29,17 @@ impl Middleware for HttpTracing {
         let method = req.method().clone();
         let url = req.url().clone();
         let host = url.host_str().unwrap_or("unknown").to_owned();
-        let path = request_path(&url).to_owned();
         let timer = Instant::now();
         let span = tracing::debug_span!(
             "upstream.http",
             upstream_name = %host,
-            url_path = %path,
+            url = %url,
             http_method = %method,
             upstream_http_status_code = Empty,
             upstream_content_type = Empty,
-            upstream_body_bytes = Empty,
             upstream_duration_ms = Empty,
             upstream_transport_error = Empty,
-            redirect_present = Empty,
+            redirect_location = Empty,
         );
         let result = next.run(req, extensions).instrument(span.clone()).await;
         let duration = timer.elapsed().as_millis();
@@ -61,15 +55,22 @@ impl Middleware for HttpTracing {
                 {
                     span.record("upstream_content_type", content_type);
                 }
-                if let Some(body_bytes) = res
-                    .headers()
-                    .get(CONTENT_LENGTH)
-                    .and_then(|v| v.to_str().ok())
-                {
-                    span.record("upstream_body_bytes", body_bytes);
+                match res.headers().get(LOCATION).and_then(|v| v.to_str().ok()) {
+                    Some(location) => {
+                        span.record("redirect_location", location);
+                        obs::debug!(
+                            %method,
+                            %url,
+                            %status,
+                            duration_ms = %duration,
+                            location = %location,
+                            "upstream response"
+                        );
+                    }
+                    None => {
+                        obs::debug!(%method, %url, %status, duration_ms = %duration, "upstream response");
+                    }
                 }
-                span.record("redirect_present", res.headers().contains_key(LOCATION));
-                obs::debug!(%method, %host, %path, %status, duration_ms = %duration, "upstream response");
             }
             Err(e) => {
                 let error_kind = match e {
@@ -80,24 +81,16 @@ impl Middleware for HttpTracing {
                 };
                 span.record("upstream_duration_ms", duration as u64);
                 span.record("upstream_transport_error", error_kind);
-                obs::debug!(%method, %host, %path, duration_ms = %duration, error_kind, "upstream request failed");
+                obs::debug!(
+                    %method,
+                    %url,
+                    duration_ms = %duration,
+                    error = ?e,
+                    error_kind,
+                    "upstream request failed"
+                );
             }
         }
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::request_path;
-
-    #[test]
-    fn request_path_does_not_include_query_or_fragment() {
-        let url = reqwest::Url::parse(
-            "https://school.example/query?student_id=secret&token=secret#fragment",
-        )
-        .expect("test URL should be valid");
-
-        assert_eq!(request_path(&url), "/query");
     }
 }

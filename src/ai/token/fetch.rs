@@ -1,3 +1,4 @@
+use crate::utils::request::ObservedResponseExt;
 use crate::{
     ai::login::AiToken,
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
@@ -18,7 +19,7 @@ pub async fn token_list(token: &AiToken) -> Result<String, crate::Error<Infallib
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -32,7 +33,7 @@ pub async fn token_key(token: &AiToken, id: u64) -> Result<String, crate::Error<
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -46,7 +47,7 @@ pub async fn delete_token(token: &AiToken, id: u64) -> Result<String, crate::Err
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }
@@ -62,7 +63,7 @@ pub async fn create_token(token: &AiToken, name: &str) -> Result<String, crate::
         .network_err()?
         .status_code_err()
         .await?
-        .text()
+        .observed_text()
         .await
         .unexpected_err()
 }

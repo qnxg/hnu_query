@@ -142,24 +142,18 @@ pub fn record_upstream_status(_status: u16) {}
 
 /// Records metadata about a response body without recording its contents.
 #[cfg(feature = "tracing")]
-pub fn record_body_metadata(content_type: Option<&str>, body_bytes: usize, format: &'static str) {
+pub fn record_body_metadata(content_type: Option<&str>, format: &'static str) {
     let span = ::tracing::Span::current();
     if let Some(content_type) = content_type {
         span.record("upstream_content_type", content_type);
     }
-    span.record("upstream_body_bytes", body_bytes as u64);
     span.record("upstream_body_format", format);
     span.record("parser_actual_format", format);
 }
 
 #[cfg(not(feature = "tracing"))]
 #[allow(dead_code)]
-pub fn record_body_metadata(
-    _content_type: Option<&str>,
-    _body_bytes: usize,
-    _format: &'static str,
-) {
-}
+pub fn record_body_metadata(_content_type: Option<&str>, _format: &'static str) {}
 
 /// 将表达式的耗时累加到当前 span 的 `fetch_ms` 属性上。
 ///
