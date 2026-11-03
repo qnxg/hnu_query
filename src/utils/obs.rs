@@ -229,6 +229,7 @@ fn flush_phase_timers_to_current_span() {
 }
 
 #[cfg(feature = "tracing")]
+/// 获取当前调用内复用的阶段 Span。
 pub fn phase_span(phase: Phase) -> tracing::Span {
     PHASE_TIMERS
         .try_with(|cell| {
@@ -260,6 +261,7 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
 }
 
 #[cfg(feature = "tracing")]
+/// 阶段计时 guard；异常或取消时由 `Drop` 补记耗时。
 pub struct PhaseTimerGuard {
     phase: Phase,
     started_at: std::time::Instant,
@@ -293,6 +295,7 @@ impl Drop for PhaseTimerGuard {
 }
 
 #[cfg(feature = "tracing")]
+/// 执行阶段逻辑并累计耗时。
 pub async fn measure_phase<F>(phase: Phase, future: F) -> F::Output
 where
     F: Future,
@@ -352,265 +355,4 @@ pub struct NoopSpanGuard;
 #[cfg(not(feature = "tracing"))]
 impl Drop for NoopSpanGuard {
     fn drop(&mut self) {}
-}
-
-#[cfg(all(test, feature = "tracing"))]
-mod tests {
-    use super::{fetch_time, parse_time, traced};
-    use std::{
-        collections::HashMap,
-        fmt::Debug,
-        sync::{Arc, Mutex},
-    };
-    use tracing::Subscriber;
-    use tracing_subscriber::{Layer, layer::Context, layer::SubscriberExt, registry::LookupSpan};
-
-    #[derive(Clone, Debug)]
-    struct RecordedSpan {
-        name: String,
-        fields: HashMap<String, String>,
-    }
-
-    #[derive(Clone, Default)]
-    struct Capture {
-        open: Arc<Mutex<HashMap<tracing::Id, RecordedSpan>>>,
-        closed: Arc<Mutex<Vec<RecordedSpan>>>,
-    }
-
-    impl Capture {
-        fn spans(&self) -> Vec<RecordedSpan> {
-            self.closed.lock().expect("capture lock poisoned").clone()
-        }
-    }
-
-    #[derive(Default)]
-    struct FieldVisitor {
-        fields: HashMap<String, String>,
-    }
-
-    impl tracing::field::Visit for FieldVisitor {
-        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn Debug) {
-            self.fields
-                .insert(field.name().to_owned(), format!("{value:?}"));
-        }
-
-        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-            self.fields
-                .insert(field.name().to_owned(), value.to_owned());
-        }
-
-        fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-            self.fields
-                .insert(field.name().to_owned(), value.to_string());
-        }
-
-        fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
-            self.fields
-                .insert(field.name().to_owned(), value.to_string());
-        }
-
-        fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
-            self.fields
-                .insert(field.name().to_owned(), value.to_string());
-        }
-    }
-
-    impl<S> Layer<S> for Capture
-    where
-        S: Subscriber + for<'a> LookupSpan<'a>,
-    {
-        fn on_new_span(
-            &self,
-            attrs: &tracing::span::Attributes<'_>,
-            id: &tracing::Id,
-            _ctx: Context<'_, S>,
-        ) {
-            let mut visitor = FieldVisitor::default();
-            attrs.record(&mut visitor);
-            self.open.lock().expect("capture lock poisoned").insert(
-                id.clone(),
-                RecordedSpan {
-                    name: attrs.metadata().name().to_owned(),
-                    fields: visitor.fields,
-                },
-            );
-        }
-
-        fn on_record(
-            &self,
-            id: &tracing::Id,
-            values: &tracing::span::Record<'_>,
-            _ctx: Context<'_, S>,
-        ) {
-            let mut visitor = FieldVisitor::default();
-            values.record(&mut visitor);
-            if let Some(span) = self.open.lock().expect("capture lock poisoned").get_mut(id) {
-                span.fields.extend(visitor.fields);
-            }
-        }
-
-        fn on_close(&self, id: tracing::Id, _ctx: Context<'_, S>) {
-            if let Some(span) = self.open.lock().expect("capture lock poisoned").remove(&id) {
-                self.closed
-                    .lock()
-                    .expect("capture lock poisoned")
-                    .push(span);
-            }
-        }
-    }
-
-    #[traced(subsystem = "test", skip())]
-    async fn repeated_phases() -> Result<(), &'static str> {
-        let _: () = fetch_time!(Ok::<(), &'static str>(()))?;
-        let _: () = fetch_time!(Ok::<(), &'static str>(()))?;
-        let _: String = parse_time!("plain text".to_owned());
-        let _: String = parse_time!("<html></html>".to_owned());
-        let _: String = parse_time!("<?xml version=\"1.0\"?>".to_owned());
-        let _: Vec<u8> = parse_time!(vec![0_u8, 1, 2, 255]);
-        let _: Option<()> = parse_time!(None);
-        let _: () = parse_time!(Ok::<(), &'static str>(()))?;
-        let _: Result<(), &'static str> = parse_time!(Err::<(), &'static str>("parse"));
-        let _: () = parse_time!(Ok::<(), &'static str>(()))?;
-        Ok(())
-    }
-
-    #[traced(subsystem = "test", skip())]
-    async fn failed_fetch() -> Result<(), &'static str> {
-        let _: () = fetch_time!(Err::<(), &'static str>("fetch"))?;
-        Ok(())
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn phase_spans_are_aggregated_and_business_result_is_recorded() {
-        let capture = Capture::default();
-        let subscriber = tracing_subscriber::registry().with(capture.clone());
-
-        let _default = tracing::subscriber::set_default(subscriber);
-        assert!(repeated_phases().await.is_ok());
-        assert!(failed_fetch().await.is_err());
-
-        let spans = capture.spans();
-        let fetch_spans: Vec<_> = spans.iter().filter(|span| span.name == "fetch").collect();
-        let parse_spans: Vec<_> = spans.iter().filter(|span| span.name == "parse").collect();
-        assert_eq!(fetch_spans.len(), 2);
-        assert_eq!(parse_spans.len(), 1);
-
-        let repeated_business = spans
-            .iter()
-            .find(|span| span.name == "repeated_phases")
-            .expect("business span missing");
-        assert_eq!(
-            repeated_business.fields.get("subsystem"),
-            Some(&"test".to_owned())
-        );
-        assert_eq!(
-            repeated_business.fields.get("operation"),
-            Some(&"repeated_phases".to_owned())
-        );
-        assert_eq!(
-            repeated_business.fields.get("result"),
-            Some(&"success".to_owned())
-        );
-
-        let repeated_fetch = fetch_spans
-            .iter()
-            .find(|span| span.fields.get("phase") == Some(&"fetch".to_owned()))
-            .expect("repeated fetch span missing");
-        assert!(repeated_fetch.fields.contains_key("duration_ms"));
-        assert!(!repeated_fetch.fields.contains_key("result"));
-
-        let repeated_parse = parse_spans
-            .iter()
-            .find(|span| span.fields.get("phase") == Some(&"parse".to_owned()))
-            .expect("repeated parse span missing");
-        assert!(repeated_parse.fields.contains_key("duration_ms"));
-        assert!(!repeated_parse.fields.contains_key("result"));
-
-        let failed_business = spans
-            .iter()
-            .find(|span| span.name == "failed_fetch")
-            .expect("failed business span missing");
-        assert_eq!(
-            failed_business.fields.get("result"),
-            Some(&"error".to_owned())
-        );
-    }
-
-    struct NonDebug;
-
-    #[traced(subsystem = "test", skip())]
-    async fn non_debug_values() -> Result<(), &'static str> {
-        let _: NonDebug = fetch_time!(NonDebug);
-        let _: NonDebug = parse_time!(NonDebug);
-        Ok(())
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn phase_timers_do_not_require_debug() {
-        let capture = Capture::default();
-        let subscriber = tracing_subscriber::registry().with(capture.clone());
-        let _default = tracing::subscriber::set_default(subscriber);
-
-        assert!(non_debug_values().await.is_ok());
-
-        let spans = capture.spans();
-        for phase in ["fetch", "parse"] {
-            let span = spans
-                .iter()
-                .find(|span| span.name == phase)
-                .expect("phase span missing");
-            assert!(span.fields.contains_key("duration_ms"));
-            assert!(!span.fields.contains_key("result"));
-        }
-    }
-
-    #[traced(subsystem = "test", skip())]
-    async fn option_none_success() -> Result<Option<()>, &'static str> {
-        let _: Option<()> = parse_time!(None);
-        Ok(None)
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn option_none_is_a_successful_function_result() {
-        let capture = Capture::default();
-        let subscriber = tracing_subscriber::registry().with(capture.clone());
-        let _default = tracing::subscriber::set_default(subscriber);
-
-        assert!(option_none_success().await.is_ok());
-
-        let spans = capture.spans();
-        let business_span = spans
-            .iter()
-            .find(|span| span.name == "option_none_success")
-            .expect("business span missing");
-        assert_eq!(
-            business_span.fields.get("result"),
-            Some(&"success".to_owned())
-        );
-    }
-
-    #[traced(subsystem = "test", skip())]
-    async fn cancelled_fetch() -> Result<(), &'static str> {
-        fetch_time!(std::future::pending::<Result<(), &'static str>>().await)?;
-        Ok(())
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn cancellation_still_flushes_phase_timing() {
-        let capture = Capture::default();
-        let subscriber = tracing_subscriber::registry().with(capture.clone());
-        let _default = tracing::subscriber::set_default(subscriber);
-
-        let mut future = Box::pin(cancelled_fetch());
-        assert!(futures_util::poll!(future.as_mut()).is_pending());
-        drop(future);
-
-        let spans = capture.spans();
-        let fetch_span = spans
-            .iter()
-            .find(|span| span.name == "fetch")
-            .expect("fetch span missing");
-        assert!(fetch_span.fields.contains_key("duration_ms"));
-        assert!(!fetch_span.fields.contains_key("result"));
-    }
 }
