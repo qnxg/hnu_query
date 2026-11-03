@@ -272,11 +272,9 @@ fn flush_phase_timers_to_current_span() {
     span.record("parse_ms", state.1);
 
     if let (Some(fetch_span), Some(result)) = (state.2, state.4.as_str()) {
-        fetch_span.record("duration_ms", state.0);
         fetch_span.record("result", result);
     }
     if let (Some(parse_span), Some(result)) = (state.3, state.5.as_str()) {
-        parse_span.record("duration_ms", state.1);
         parse_span.record("result", result);
     }
 }
@@ -294,7 +292,6 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                             "fetch",
                             phase = "fetch",
                             result = tracing::field::Empty,
-                            duration_ms = tracing::field::Empty,
                         )
                     })
                     .clone(),
@@ -305,7 +302,6 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                             "parse",
                             phase = "parse",
                             result = tracing::field::Empty,
-                            duration_ms = tracing::field::Empty,
                         )
                     })
                     .clone(),
@@ -587,7 +583,6 @@ mod tests {
             repeated_fetch.fields.get("result"),
             Some(&"success".to_owned())
         );
-        assert!(repeated_fetch.fields.contains_key("duration_ms"));
 
         let repeated_parse = parse_spans
             .iter()
@@ -597,7 +592,6 @@ mod tests {
             repeated_parse.fields.get("result"),
             Some(&"error".to_owned())
         );
-        assert!(repeated_parse.fields.contains_key("duration_ms"));
 
         let failed_business = spans
             .iter()
