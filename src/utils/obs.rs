@@ -571,10 +571,6 @@ mod tests {
             Some(&"test".to_owned())
         );
         assert_eq!(
-            repeated_business.fields.get("source"),
-            Some(&"test".to_owned())
-        );
-        assert_eq!(
             repeated_business.fields.get("operation"),
             Some(&"repeated_phases".to_owned())
         );

@@ -23,7 +23,7 @@ use syn::{
 /// ```
 ///
 /// 宏会：
-/// 1. 生成 `#[instrument]`，保留 `subsystem` 并增加 `source`、`operation`、`result` 字段
+/// 1. 生成 `#[instrument]`，保留 `subsystem` 并增加 `operation`、`result` 字段
 /// 2. 为 `fetch_ms` / `parse_ms` 加上 `Empty` 占位（单位：毫秒）
 /// 3. 用 task-local 计时器包住函数体；函数结束（含 `?` 失败）时回填业务和阶段结果
 /// 4. 函数体内用 [`fetch_time!`] / [`parse_time!`] 把各阶段耗时累加到该计时器
@@ -50,7 +50,6 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let subsystem = args.subsystem;
-    let source = subsystem.clone();
     let operation = LitStr::new(&input.sig.ident.to_string(), input.sig.ident.span());
     let skip = args.skip;
     let record_fields = args.record_fields;
@@ -102,7 +101,6 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
                 #skip_tokens
                 fields(
                     subsystem = #subsystem,
-                    source = #source,
                     operation = #operation,
                     result = ::tracing::field::Empty,
                     fetch_ms = ::tracing::field::Empty,
