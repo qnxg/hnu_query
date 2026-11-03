@@ -23,9 +23,10 @@ use syn::{
 /// ```
 ///
 /// 宏会：
-/// 1. 生成 `#[instrument]`，并自动为 `fetch_ms` / `parse_ms` 加上 `Empty` 占位（单位：毫秒）
-/// 2. 用 task-local 计时器包住函数体；函数结束（含 `?` 失败）时把累计耗时写入上述字段
-/// 3. 函数体内用 [`fetch_time!`] / [`parse_time!`] 把各阶段耗时累加到该计时器
+/// 1. 生成 `#[instrument]`，保留 `subsystem` 并增加 `source`、`operation`、`result` 字段
+/// 2. 为 `fetch_ms` / `parse_ms` 加上 `Empty` 占位（单位：毫秒）
+/// 3. 用 task-local 计时器包住函数体；函数结束（含 `?` 失败）时回填业务和阶段结果
+/// 4. 函数体内用 [`fetch_time!`] / [`parse_time!`] 把各阶段耗时累加到该计时器
 ///
 /// # 参数
 ///
@@ -49,6 +50,8 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let subsystem = args.subsystem;
+    let source = subsystem.clone();
+    let operation = LitStr::new(&input.sig.ident.to_string(), input.sig.ident.span());
     let skip = args.skip;
     let record_fields = args.record_fields;
     let level = args.level;
@@ -80,7 +83,9 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
     let new_block = syn::parse2(quote! {{
         crate::utils::obs::with_phase_timers(async {
             let _obs_flush = crate::utils::obs::FlushPhaseTimersOnDrop;
-            #(#stmts)*
+            let __obs_result = async { #(#stmts)* }.await;
+            crate::utils::obs::record_business_result(&__obs_result);
+            __obs_result
         }).await
     }});
     let new_block = match new_block {
@@ -97,6 +102,9 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
                 #skip_tokens
                 fields(
                     subsystem = #subsystem,
+                    source = #source,
+                    operation = #operation,
+                    result = ::tracing::field::Empty,
                     fetch_ms = ::tracing::field::Empty,
                     parse_ms = ::tracing::field::Empty,
                     #(#extra_empty_fields)*
