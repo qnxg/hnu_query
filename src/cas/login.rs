@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::{error::TokenExpired, tfa::TFAToken, utils},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr, parse_err},
@@ -115,14 +114,14 @@ impl CasToken {
         if status != StatusCode::OK {
             #[cfg(feature = "tracing")]
             {
-                let body = res.observed_text().await.unwrap_or_default();
+                let body = res.text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "unexpected_status");
             }
             return Err("响应的状态码异常，应为OK").unexpected_err();
         }
         let mut cookies = cookie_parser(res.headers().get_all(SET_COOKIE));
         // 拿到登录表单的execution和_eventId
-        let login_text = res.observed_text().await.unexpected_err()?;
+        let login_text = res.text().await.unexpected_err()?;
         static EXECUTION_RE: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r#"name="execution" value="(.*?)""#)
                 .unwrap_or_else(|e| panic!("invalid EXECUTION_RE regex: {:?}", e))
@@ -152,7 +151,7 @@ impl CasToken {
             .await?;
         // 获取pubkey的cookies
         cookies.extend(cookie_parser(pubkey_res.headers().get_all(SET_COOKIE)));
-        let pubkey_str = pubkey_res.observed_text().await.unexpected_err()?;
+        let pubkey_str = pubkey_res.text().await.unexpected_err()?;
         let pubkey: Value = serde_json::from_str(&pubkey_str).parse_err(&pubkey_str)?;
         let modulus = pubkey["modulus"]
             .as_str()
@@ -194,7 +193,7 @@ impl CasToken {
         cookies.extend(addition);
         // 先获取 location，不然后面的 .text() 会消耗掉 login
         let location = login.headers().get(LOCATION).cloned();
-        let login_result = login.observed_text().await.unexpected_err()?;
+        let login_result = login.text().await.unexpected_err()?;
         if login_result.contains("用户名或密码错误") {
             return Err(crate::Error::Other(AccountIssue::PasswordError));
         }
@@ -255,7 +254,7 @@ impl CasToken {
         if status.is_client_error() || status.is_server_error() || status == StatusCode::OK {
             #[cfg(feature = "tracing")]
             {
-                let body = res.observed_text().await.unwrap_or_default();
+                let body = res.text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "token_expired");
             }
             return Err(crate::Error::Other(TokenExpired));
@@ -263,7 +262,7 @@ impl CasToken {
         if status != StatusCode::FOUND {
             #[cfg(feature = "tracing")]
             {
-                let body = res.observed_text().await.unwrap_or_default();
+                let body = res.text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "unexpected_status");
             }
             return Err(format!("获取ticket_url时失败，HTTP代码 {}", status)).unexpected_err();
@@ -340,7 +339,7 @@ impl CasToken {
             if status == StatusCode::OK {
                 #[cfg(feature = "tracing")]
                 {
-                    let body = res.observed_text().await.unwrap_or_default();
+                    let body = res.text().await.unwrap_or_default();
                     obs::error!(body = %body, "token_expired_by_status_ok");
                 }
                 return Err(crate::Error::Other(TokenExpired));
@@ -348,7 +347,7 @@ impl CasToken {
             if status != StatusCode::FOUND {
                 #[cfg(feature = "tracing")]
                 {
-                    let body = res.observed_text().await.unwrap_or_default();
+                    let body = res.text().await.unwrap_or_default();
                     obs::error!(status = %status, body = %body, "unexpected_status");
                 }
                 return Err(format!(

@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::login::{AccountIssue, CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr, parse_err},
@@ -170,7 +169,7 @@ impl TFAToken {
             // 除非明确提示验证码错误，否则就认为是令牌过期
             // 双因子认证的界面可能出现这样的情况：如果当前 TFAToken 对应的 cookie 本身
             // 就过期了，那么后面无论怎么输入验证码，都会回到双因子认证界面
-            let html = res.observed_text().await.unexpected_err()?;
+            let html = res.text().await.unexpected_err()?;
             if html.contains("验证码错误，请重新输入！") {
                 obs::record!(result = "code_error");
                 Ok(VerifyResult::CodeError(TFAToken::new(

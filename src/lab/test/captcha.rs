@@ -2,7 +2,6 @@
 //!
 //! 该解析器依赖于 <https://github.com/qnxg/captcha_service>，
 //! 你可以按照仓库的 README 进行部署
-use crate::utils::request::ObservedResponseExt;
 use crate::{lab::login::CaptchaResolver, utils::client};
 use serde::Deserialize;
 
@@ -28,7 +27,7 @@ impl CaptchaResolver for TestCaptchaResolver {
         );
         let res = client.post(&url).multipart(form).send().await?;
         let res = res.error_for_status()?;
-        let body = res.observed_text().await?;
+        let body = res.text().await?;
         let res: CaptchaResponse = serde_json::from_str(&body)?;
         if let Some(result) = res.result {
             Ok(result)

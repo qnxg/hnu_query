@@ -1,5 +1,3 @@
-#[cfg(feature = "tracing")]
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
     utils::{client, request::cookie_parser},
@@ -193,7 +191,7 @@ impl CgSession {
         #[cfg(feature = "tracing")]
         {
             use crate::utils::obs;
-            let body = res.observed_text().await.unwrap_or_default();
+            let body = res.text().await.unwrap_or_default();
             obs::error!(status = %status, body = %body, "unexpected_status");
         }
         Err(format!("登录失败，HTTP {status}")).unexpected_err()

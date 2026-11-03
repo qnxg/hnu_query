@@ -78,7 +78,6 @@ where
     fn unexpected_err(self) -> Result<T, Error<E>> {
         let loc = std::panic::Location::caller();
         self.map_err(|e| {
-            crate::utils::obs::record_failure("internal", "response", "unexpected");
             Error::Unexpected(UnexpectedError {
                 error: e.into(),
                 file: loc.file().to_string(),
@@ -110,26 +109,13 @@ where
     fn network_err(self) -> Result<T, Error<E>> {
         let loc = std::panic::Location::caller();
         self.map_err(|e| match e {
-            reqwest_middleware::Error::Reqwest(r) => {
-                let code = if r.is_timeout() {
-                    "timeout"
-                } else if r.is_connect() {
-                    "connect"
-                } else {
-                    "request"
-                };
-                crate::utils::obs::record_failure("upstream_transport", "request", code);
-                Error::Network(r)
-            }
-            reqwest_middleware::Error::Middleware(m) => {
-                crate::utils::obs::record_failure("internal", "request", "middleware");
-                Error::Unexpected(UnexpectedError {
-                    error: m.into(),
-                    file: loc.file().to_string(),
-                    line: loc.line(),
-                    column: loc.column(),
-                })
-            }
+            reqwest_middleware::Error::Reqwest(r) => Error::Network(r),
+            reqwest_middleware::Error::Middleware(m) => Error::Unexpected(UnexpectedError {
+                error: m.into(),
+                file: loc.file().to_string(),
+                line: loc.line(),
+                column: loc.column(),
+            }),
         })
     }
 }
@@ -168,7 +154,6 @@ impl ParseError {
 #[track_caller]
 pub fn parse_err<E: StdError>(reason: &str, data: &str) -> Error<E> {
     let loc = std::panic::Location::caller();
-    crate::utils::obs::record_failure("parser", "parse", "parse_error");
     Error::Parse(ParseError {
         error: reason.into(),
         file: loc.file().to_string(),
@@ -197,7 +182,6 @@ where
     fn parse_err(self, data: &str) -> Result<T, Error<E>> {
         let loc = std::panic::Location::caller();
         self.map_err(|e| {
-            crate::utils::obs::record_failure("parser", "parse", "parse_error");
             Error::Parse(ParseError {
                 error: e.into(),
                 file: loc.file().to_string(),
@@ -212,7 +196,7 @@ where
 pub trait CheckStatusCodeErr {
     /// 检查响应状态码是否为错误状态码（4xx 或是 5xx），如果是则抛出 [Error::Unexpected]
     ///
-    /// 如果开启了 tracing feature，只记录状态和低基数归因，不记录响应正文
+    /// 如果开启了 tracing feature，还会将响应体打印到错误日志中
     fn status_code_err<T: StdError>(self) -> impl Future<Output = Result<Self, Error<T>>>
     where
         Self: Sized;
@@ -232,20 +216,12 @@ impl CheckStatusCodeErr for reqwest::Response {
         let column = loc.column();
         async move {
             let status = self.status();
-            crate::utils::obs::record_upstream_status(status.as_u16());
             if status.is_client_error() || status.is_server_error() {
-                crate::utils::obs::record_failure(
-                    "upstream_http",
-                    "response",
-                    if status.is_server_error() {
-                        "http_5xx"
-                    } else {
-                        "http_4xx"
-                    },
-                );
                 #[cfg(feature = "tracing")]
                 {
-                    let _ = self.text().await;
+                    use crate::utils::obs;
+                    let body = self.text().await.unwrap_or_default();
+                    obs::error!(status = %status, body = %body, "status code error");
                 }
                 Err(Error::Unexpected(UnexpectedError {
                     error: format!("status code error: {status}").into(),

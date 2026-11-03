@@ -110,57 +110,6 @@ macro_rules! record {
     };
 }
 
-/// Records a bounded failure classification on the current span.
-#[cfg(feature = "tracing")]
-pub fn record_failure(origin: &'static str, stage: &'static str, code: &'static str) {
-    let span = ::tracing::Span::current();
-    span.record("failure_origin", origin);
-    span.record("failure_stage", stage);
-    span.record("failure_code", code);
-}
-
-#[cfg(not(feature = "tracing"))]
-pub fn record_failure(_origin: &'static str, _stage: &'static str, _code: &'static str) {}
-
-/// Records the status returned by an external system on the current span.
-#[cfg(feature = "tracing")]
-pub fn record_upstream_status(status: u16) {
-    let span = ::tracing::Span::current();
-    span.record("upstream_http_status_code", status as i64);
-    span.record(
-        "upstream_outcome",
-        if status < 400 {
-            "success"
-        } else {
-            "http_error"
-        },
-    );
-}
-
-#[cfg(not(feature = "tracing"))]
-pub fn record_upstream_status(_status: u16) {}
-
-/// Records metadata about a response body without recording its contents.
-#[cfg(feature = "tracing")]
-pub fn record_body_metadata(content_type: Option<&str>, body_bytes: usize, format: &'static str) {
-    let span = ::tracing::Span::current();
-    if let Some(content_type) = content_type {
-        span.record("upstream_content_type", content_type);
-    }
-    span.record("upstream_body_bytes", body_bytes as u64);
-    span.record("upstream_body_format", format);
-    span.record("parser_actual_format", format);
-}
-
-#[cfg(not(feature = "tracing"))]
-#[allow(dead_code)]
-pub fn record_body_metadata(
-    _content_type: Option<&str>,
-    _body_bytes: usize,
-    _format: &'static str,
-) {
-}
-
 /// 将表达式的耗时累加到当前 span 的 `fetch_ms` 属性上。
 ///
 /// 须在 [`traced`] 函数内使用；可配合 `?`

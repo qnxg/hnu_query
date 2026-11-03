@@ -1,5 +1,3 @@
-#[cfg(feature = "tracing")]
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     cas::{self, login::CasToken},
     error::{CheckStatusCodeErr, MapNetworkErr, MapParseErr, MapUnexpectedErr},
@@ -52,7 +50,7 @@ impl IPortalToken {
             #[cfg(feature = "tracing")]
             {
                 use crate::utils::obs;
-                let body = res.observed_text().await.unwrap_or_default();
+                let body = res.text().await.unwrap_or_default();
                 obs::error!(status = %status, body = %body, "unexpected_status");
             }
             return Err(format!("登录 iportal 失败, HTTP 状态码: {status}")).unexpected_err();
