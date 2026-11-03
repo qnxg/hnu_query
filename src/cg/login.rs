@@ -1,3 +1,4 @@
+#[cfg(feature = "tracing")]
 use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{MapNetworkErr, MapParseErr, MapUnexpectedErr},
@@ -56,23 +57,7 @@ impl CgSession {
     /// 返回 [CgSession]，其中包含验证码图片的字节数据。
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "cg"
-            ),
-            err
-        )
+        tracing::instrument(fields(subsystem = "cg"), err)
     )]
     pub async fn new() -> Result<Self, crate::Error<Infallible>> {
         // 1. 访问登录页面，获取 JSESSIONID
@@ -92,7 +77,7 @@ impl CgSession {
             .send()
             .await
             .network_err()?
-            .observed_bytes()
+            .bytes()
             .await
             .unexpected_err()?
             .to_vec();
@@ -134,24 +119,7 @@ impl CgSession {
     /// - [LoginError::LoginFailed] — 其他未知登录失败
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(self, password),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "cg"
-            ),
-            err
-        )
+        tracing::instrument(skip(self, password), fields(subsystem = "cg"), err)
     )]
     pub async fn login(
         self,

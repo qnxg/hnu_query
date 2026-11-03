@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
@@ -27,7 +26,7 @@ pub async fn class_table(
         .status_code_err()
         .await?
         .check_token_expired()?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

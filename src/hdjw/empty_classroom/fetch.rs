@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     hdjw::{error::TokenExpired, login::HdjwToken},
@@ -44,7 +43,7 @@ pub async fn empty_classroom(
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

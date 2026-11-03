@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     lab::login::LabToken,
@@ -24,7 +23,7 @@ pub async fn lab_schedule(lab_token: &LabToken) -> Result<String, crate::Error<I
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

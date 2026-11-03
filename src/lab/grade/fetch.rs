@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     lab::login::LabToken,
@@ -36,7 +35,7 @@ pub async fn lab_grade(
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }
@@ -56,7 +55,7 @@ pub async fn lab_grade_structure(
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }
@@ -78,7 +77,7 @@ pub async fn lab_grade_detail(
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }
@@ -104,7 +103,7 @@ pub async fn virtual_lab_grade(lab_token: &LabToken) -> Result<String, crate::Er
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

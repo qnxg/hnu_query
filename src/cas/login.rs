@@ -97,24 +97,7 @@ impl CasToken {
     /// 可能由于用户的账号问题导致登录失败，此时会返回 [AccountIssue] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(password),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "cas"
-            ),
-            err
-        )
+        tracing::instrument(skip(password), fields(subsystem = "cas"), err)
     )]
     #[expect(clippy::too_many_lines)]
     pub async fn acquire_by_login(
@@ -254,24 +237,7 @@ impl CasToken {
     /// 可能由于当前 [CasToken] 过期，此时会返回 [TokenExpired] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(self),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "cas", stu_id = %self.stu_id
-            ),
-            err
-        )
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id), err)
     )]
     pub(crate) async fn get_ticket_url(
         &self,
@@ -332,24 +298,7 @@ impl CasToken {
     /// 函数本身的实际意义并不明显
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(self),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "cas", stu_id = %self.stu_id, redirect_count = tracing::field::Empty
-            ),
-            err
-        )
+        tracing::instrument(skip(self), fields(subsystem = "cas", stu_id = %self.stu_id, redirect_count = tracing::field::Empty), err)
     )]
     pub(crate) async fn get_sticket(
         &self,

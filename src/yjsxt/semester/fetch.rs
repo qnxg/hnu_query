@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     utils::client,
@@ -18,7 +17,7 @@ pub async fn semester(yjsxt_token: &YjsxtToken) -> Result<String, crate::Error<T
         .status_code_err()
         .await?
         .check_token_expired()?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

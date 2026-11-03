@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
     gym::{error::TokenExpired, login::GymToken},
@@ -17,7 +16,7 @@ pub async fn appointment_list(gym_token: &GymToken) -> Result<String, crate::Err
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }
@@ -43,7 +42,7 @@ pub async fn appointment_detail(
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }

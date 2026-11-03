@@ -35,24 +35,7 @@ impl GymToken {
     /// 可能由于 [CasToken] 过期导致返回 [cas::error::TokenExpired] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(cas_token),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "gym"
-            ),
-            err
-        )
+        tracing::instrument(skip(cas_token), fields(subsystem = "gym"), err)
     )]
     pub async fn acquire_by_cas_login(
         cas_token: &CasToken,
@@ -97,24 +80,7 @@ impl GymToken {
     /// 返回一个 [GymToken] 实例
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(password),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "gym"
-            ),
-            err
-        )
+        tracing::instrument(skip(password), fields(subsystem = "gym"), err)
     )]
     pub async fn acquire_by_direct_login(
         stu_id: &str,

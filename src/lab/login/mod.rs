@@ -64,24 +64,7 @@ impl LabToken {
     /// 可能由于用户的账号问题或是验证码识别失败导致登录失败，此时会返回 [LoginIssue] 错误
     #[cfg_attr(
         feature = "tracing",
-        tracing::instrument(
-            skip(password, captcha_resolver),
-            fields(
-                failure_origin = tracing::field::Empty,
-                failure_stage = tracing::field::Empty,
-                failure_code = tracing::field::Empty,
-                upstream_http_status_code = tracing::field::Empty,
-                upstream_outcome = tracing::field::Empty,
-                upstream_content_type = tracing::field::Empty,
-                upstream_body_format = tracing::field::Empty,
-                parser_expected_format = "mixed",
-                parser_actual_format = tracing::field::Empty,
-                fetch_ms = tracing::field::Empty,
-                parse_ms = tracing::field::Empty,
-                subsystem = "lab", tried = tracing::field::Empty
-            ),
-            err
-        )
+        tracing::instrument(skip(password, captcha_resolver), fields(subsystem = "lab", tried = tracing::field::Empty), err)
     )]
     #[expect(clippy::future_not_send)]
     pub async fn acquire_by_login(

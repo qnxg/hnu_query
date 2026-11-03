@@ -106,8 +106,6 @@ pub fn traced(attr: TokenStream, item: TokenStream) -> TokenStream {
                     failure_code = ::tracing::field::Empty,
                     upstream_http_status_code = ::tracing::field::Empty,
                     upstream_outcome = ::tracing::field::Empty,
-                    upstream_content_type = ::tracing::field::Empty,
-                    upstream_body_format = ::tracing::field::Empty,
                     parser_expected_format = #format,
                     parser_actual_format = ::tracing::field::Empty,
                     #(#extra_empty_fields)*

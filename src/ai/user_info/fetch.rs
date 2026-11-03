@@ -1,4 +1,3 @@
-use crate::utils::request::ObservedResponseExt;
 use crate::{
     ai::login::AiToken,
     error::{CheckStatusCodeErr, MapNetworkErr, MapUnexpectedErr},
@@ -18,7 +17,7 @@ pub async fn user_info_data(token: &AiToken) -> Result<String, crate::Error<Infa
         .network_err()?
         .status_code_err()
         .await?
-        .observed_text()
+        .text()
         .await
         .unexpected_err()
 }
