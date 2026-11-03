@@ -25,7 +25,7 @@ use syn::{
 /// 宏会：
 /// 1. 生成 `#[instrument]`，保留 `subsystem` 并增加 `operation`、`result` 字段
 /// 2. 为 `fetch_ms` / `parse_ms` 加上 `Empty` 占位（单位：毫秒）
-/// 3. 用 task-local 计时器包住函数体；函数结束（含 `?` 失败）时回填业务和阶段结果
+/// 3. 用 task-local 计时器包住函数体；函数结束时回填耗时和业务结果
 /// 4. 函数体内用 [`fetch_time!`] / [`parse_time!`] 把各阶段耗时累加到该计时器
 ///
 /// # 参数

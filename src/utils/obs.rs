@@ -121,15 +121,8 @@ macro_rules! fetch_time {
     ($expr:expr) => {{
         #[cfg(feature = "tracing")]
         {
-            let __obs_span = $crate::utils::obs::phase_span($crate::utils::obs::Phase::Fetch);
-            let mut __obs_guard =
-                $crate::utils::obs::PhaseTimerGuard::new($crate::utils::obs::Phase::Fetch);
-            let __obs_result = {
-                use ::tracing::Instrument;
-                (async { $expr }).instrument(__obs_span.clone()).await
-            };
-            __obs_guard.finish($crate::utils::obs::phase_value_succeeded(&__obs_result));
-            __obs_result
+            $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Fetch, async { $expr })
+                .await
         }
         #[cfg(not(feature = "tracing"))]
         {
@@ -149,15 +142,8 @@ macro_rules! parse_time {
     ($expr:expr) => {{
         #[cfg(feature = "tracing")]
         {
-            let __obs_span = $crate::utils::obs::phase_span($crate::utils::obs::Phase::Parse);
-            let mut __obs_guard =
-                $crate::utils::obs::PhaseTimerGuard::new($crate::utils::obs::Phase::Parse);
-            let __obs_result = {
-                use ::tracing::Instrument;
-                (async { $expr }).instrument(__obs_span.clone()).await
-            };
-            __obs_guard.finish($crate::utils::obs::phase_value_succeeded(&__obs_result));
-            __obs_result
+            $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Parse, async { $expr })
+                .await
         }
         #[cfg(not(feature = "tracing"))]
         {
@@ -172,26 +158,6 @@ pub(crate) use {
 };
 
 #[cfg(feature = "tracing")]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum ResultState {
-    #[default]
-    Pending,
-    Success,
-    Error,
-}
-
-#[cfg(feature = "tracing")]
-impl ResultState {
-    fn as_str(self) -> Option<&'static str> {
-        match self {
-            Self::Pending => None,
-            Self::Success => Some("success"),
-            Self::Error => Some("error"),
-        }
-    }
-}
-
-#[cfg(feature = "tracing")]
 #[derive(Clone, Copy, Debug)]
 pub enum Phase {
     Fetch,
@@ -199,27 +165,12 @@ pub enum Phase {
 }
 
 #[cfg(feature = "tracing")]
+#[derive(Default)]
 struct PhaseState {
     fetch_span: Option<tracing::Span>,
     parse_span: Option<tracing::Span>,
     fetch_ms: u64,
     parse_ms: u64,
-    fetch_result: ResultState,
-    parse_result: ResultState,
-}
-
-#[cfg(feature = "tracing")]
-impl Default for PhaseState {
-    fn default() -> Self {
-        Self {
-            fetch_span: None,
-            parse_span: None,
-            fetch_ms: 0,
-            parse_ms: 0,
-            fetch_result: ResultState::Pending,
-            parse_result: ResultState::Pending,
-        }
-    }
 }
 
 #[cfg(feature = "tracing")]
@@ -253,29 +204,27 @@ impl Drop for FlushPhaseTimersOnDrop {
 
 #[cfg(feature = "tracing")]
 fn flush_phase_timers_to_current_span() {
-    let Ok(state) = PHASE_TIMERS.try_with(|c| {
+    let Ok((fetch_ms, parse_ms, fetch_span, parse_span)) = PHASE_TIMERS.try_with(|c| {
         let c = c.borrow();
         (
             c.fetch_ms,
             c.parse_ms,
             c.fetch_span.clone(),
             c.parse_span.clone(),
-            c.fetch_result,
-            c.parse_result,
         )
     }) else {
         return;
     };
 
     let span = tracing::Span::current();
-    span.record("fetch_ms", state.0);
-    span.record("parse_ms", state.1);
+    span.record("fetch_ms", fetch_ms);
+    span.record("parse_ms", parse_ms);
 
-    if let (Some(fetch_span), Some(result)) = (state.2, state.4.as_str()) {
-        fetch_span.record("result", result);
+    if let Some(fetch_span) = fetch_span {
+        fetch_span.record("duration_ms", fetch_ms);
     }
-    if let (Some(parse_span), Some(result)) = (state.3, state.5.as_str()) {
-        parse_span.record("result", result);
+    if let Some(parse_span) = parse_span {
+        parse_span.record("duration_ms", parse_ms);
     }
 }
 
@@ -291,7 +240,7 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                         tracing::debug_span!(
                             "fetch",
                             phase = "fetch",
-                            result = tracing::field::Empty,
+                            duration_ms = tracing::field::Empty,
                         )
                     })
                     .clone(),
@@ -301,30 +250,13 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                         tracing::debug_span!(
                             "parse",
                             phase = "parse",
-                            result = tracing::field::Empty,
+                            duration_ms = tracing::field::Empty,
                         )
                     })
                     .clone(),
             }
         })
         .unwrap_or_else(|_| tracing::Span::none())
-}
-
-#[cfg(feature = "tracing")]
-pub fn record_phase_result(phase: Phase, success: bool) {
-    let _ = PHASE_TIMERS.try_with(|cell| {
-        let mut state = cell.borrow_mut();
-        let result = match phase {
-            Phase::Fetch => &mut state.fetch_result,
-            Phase::Parse => &mut state.parse_result,
-        };
-
-        if !success {
-            *result = ResultState::Error;
-        } else if *result != ResultState::Error {
-            *result = ResultState::Success;
-        }
-    });
 }
 
 #[cfg(feature = "tracing")]
@@ -344,30 +276,34 @@ impl PhaseTimerGuard {
         }
     }
 
-    pub fn finish(&mut self, success: bool) {
+    pub fn finish(&mut self) {
         if self.finished {
             return;
         }
         self.finished = true;
         add_phase_ms(self.phase, self.started_at.elapsed().as_millis() as u64);
-        record_phase_result(self.phase, success);
     }
 }
 
 #[cfg(feature = "tracing")]
 impl Drop for PhaseTimerGuard {
     fn drop(&mut self) {
-        if !self.finished {
-            add_phase_ms(self.phase, self.started_at.elapsed().as_millis() as u64);
-            record_phase_result(self.phase, false);
-        }
+        self.finish();
     }
 }
 
 #[cfg(feature = "tracing")]
-pub fn phase_value_succeeded<T: std::fmt::Debug>(value: &T) -> bool {
-    let debug = format!("{value:?}");
-    !debug.starts_with("Err(") && debug != "None"
+pub async fn measure_phase<F>(phase: Phase, future: F) -> F::Output
+where
+    F: Future,
+{
+    use tracing::Instrument;
+
+    let span = phase_span(phase);
+    let mut guard = PhaseTimerGuard::new(phase);
+    let result = future.instrument(span).await;
+    guard.finish();
+    result
 }
 
 #[cfg(feature = "tracing")]
@@ -531,6 +467,7 @@ mod tests {
         let _: String = parse_time!("<html></html>".to_owned());
         let _: String = parse_time!("<?xml version=\"1.0\"?>".to_owned());
         let _: Vec<u8> = parse_time!(vec![0_u8, 1, 2, 255]);
+        let _: Option<()> = parse_time!(None);
         let _: () = parse_time!(Ok::<(), &'static str>(()))?;
         let _: Result<(), &'static str> = parse_time!(Err::<(), &'static str>("parse"));
         let _: () = parse_time!(Ok::<(), &'static str>(()))?;
@@ -544,7 +481,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn phase_spans_are_aggregated_and_failures_are_sticky() {
+    async fn phase_spans_are_aggregated_and_business_result_is_recorded() {
         let capture = Capture::default();
         let subscriber = tracing_subscriber::registry().with(capture.clone());
 
@@ -579,19 +516,15 @@ mod tests {
             .iter()
             .find(|span| span.fields.get("phase") == Some(&"fetch".to_owned()))
             .expect("repeated fetch span missing");
-        assert_eq!(
-            repeated_fetch.fields.get("result"),
-            Some(&"success".to_owned())
-        );
+        assert!(repeated_fetch.fields.contains_key("duration_ms"));
+        assert!(!repeated_fetch.fields.contains_key("result"));
 
         let repeated_parse = parse_spans
             .iter()
             .find(|span| span.fields.get("phase") == Some(&"parse".to_owned()))
             .expect("repeated parse span missing");
-        assert_eq!(
-            repeated_parse.fields.get("result"),
-            Some(&"error".to_owned())
-        );
+        assert!(repeated_parse.fields.contains_key("duration_ms"));
+        assert!(!repeated_parse.fields.contains_key("result"));
 
         let failed_business = spans
             .iter()
@@ -601,5 +534,83 @@ mod tests {
             failed_business.fields.get("result"),
             Some(&"error".to_owned())
         );
+    }
+
+    struct NonDebug;
+
+    #[traced(subsystem = "test", skip())]
+    async fn non_debug_values() -> Result<(), &'static str> {
+        let _: NonDebug = fetch_time!(NonDebug);
+        let _: NonDebug = parse_time!(NonDebug);
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn phase_timers_do_not_require_debug() {
+        let capture = Capture::default();
+        let subscriber = tracing_subscriber::registry().with(capture.clone());
+        let _default = tracing::subscriber::set_default(subscriber);
+
+        assert!(non_debug_values().await.is_ok());
+
+        let spans = capture.spans();
+        for phase in ["fetch", "parse"] {
+            let span = spans
+                .iter()
+                .find(|span| span.name == phase)
+                .expect("phase span missing");
+            assert!(span.fields.contains_key("duration_ms"));
+            assert!(!span.fields.contains_key("result"));
+        }
+    }
+
+    #[traced(subsystem = "test", skip())]
+    async fn option_none_success() -> Result<Option<()>, &'static str> {
+        let _: Option<()> = parse_time!(None);
+        Ok(None)
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn option_none_is_a_successful_function_result() {
+        let capture = Capture::default();
+        let subscriber = tracing_subscriber::registry().with(capture.clone());
+        let _default = tracing::subscriber::set_default(subscriber);
+
+        assert!(option_none_success().await.is_ok());
+
+        let spans = capture.spans();
+        let business_span = spans
+            .iter()
+            .find(|span| span.name == "option_none_success")
+            .expect("business span missing");
+        assert_eq!(
+            business_span.fields.get("result"),
+            Some(&"success".to_owned())
+        );
+    }
+
+    #[traced(subsystem = "test", skip())]
+    async fn cancelled_fetch() -> Result<(), &'static str> {
+        fetch_time!(std::future::pending::<Result<(), &'static str>>().await)?;
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cancellation_still_flushes_phase_timing() {
+        let capture = Capture::default();
+        let subscriber = tracing_subscriber::registry().with(capture.clone());
+        let _default = tracing::subscriber::set_default(subscriber);
+
+        let mut future = Box::pin(cancelled_fetch());
+        assert!(futures_util::poll!(future.as_mut()).is_pending());
+        drop(future);
+
+        let spans = capture.spans();
+        let fetch_span = spans
+            .iter()
+            .find(|span| span.name == "fetch")
+            .expect("fetch span missing");
+        assert!(fetch_span.fields.contains_key("duration_ms"));
+        assert!(!fetch_span.fields.contains_key("result"));
     }
 }
