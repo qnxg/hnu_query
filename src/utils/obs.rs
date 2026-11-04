@@ -121,8 +121,16 @@ macro_rules! fetch_time {
     ($expr:expr) => {{
         #[cfg(feature = "tracing")]
         {
-            $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Fetch, async { $expr })
-                .await
+            let __obs_result =
+                $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Fetch, async {
+                    $expr
+                })
+                .await;
+            $crate::utils::obs::record_phase_result($crate::utils::obs::Phase::Fetch, {
+                use $crate::utils::obs::PhaseOutcome as _;
+                (&__obs_result).phase_failed()
+            });
+            __obs_result
         }
         #[cfg(not(feature = "tracing"))]
         {
@@ -142,8 +150,16 @@ macro_rules! parse_time {
     ($expr:expr) => {{
         #[cfg(feature = "tracing")]
         {
-            $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Parse, async { $expr })
-                .await
+            let __obs_result =
+                $crate::utils::obs::measure_phase($crate::utils::obs::Phase::Parse, async {
+                    $expr
+                })
+                .await;
+            $crate::utils::obs::record_phase_result($crate::utils::obs::Phase::Parse, {
+                use $crate::utils::obs::PhaseOutcome as _;
+                (&__obs_result).phase_failed()
+            });
+            __obs_result
         }
         #[cfg(not(feature = "tracing"))]
         {
@@ -171,6 +187,8 @@ struct PhaseState {
     parse_span: Option<tracing::Span>,
     fetch_ms: u64,
     parse_ms: u64,
+    fetch_failed: bool,
+    parse_failed: bool,
 }
 
 #[cfg(feature = "tracing")]
@@ -192,7 +210,7 @@ pub async fn with_phase_timers<F: Future>(f: F) -> F::Output {
     }
 }
 
-/// 由 [`traced`] 注入：函数结束（含 `?` 提前返回）时把累计耗时写入当前 span。
+/// 由 [`traced`] 注入：函数结束（含 `?` 提前返回）时把累计耗时和阶段状态写入 span。
 pub struct FlushPhaseTimersOnDrop;
 
 impl Drop for FlushPhaseTimersOnDrop {
@@ -204,15 +222,19 @@ impl Drop for FlushPhaseTimersOnDrop {
 
 #[cfg(feature = "tracing")]
 fn flush_phase_timers_to_current_span() {
-    let Ok((fetch_ms, parse_ms, fetch_span, parse_span)) = PHASE_TIMERS.try_with(|c| {
-        let c = c.borrow();
-        (
-            c.fetch_ms,
-            c.parse_ms,
-            c.fetch_span.clone(),
-            c.parse_span.clone(),
-        )
-    }) else {
+    let Ok((fetch_ms, parse_ms, fetch_span, parse_span, fetch_failed, parse_failed)) = PHASE_TIMERS
+        .try_with(|c| {
+            let c = c.borrow();
+            (
+                c.fetch_ms,
+                c.parse_ms,
+                c.fetch_span.clone(),
+                c.parse_span.clone(),
+                c.fetch_failed,
+                c.parse_failed,
+            )
+        })
+    else {
         return;
     };
 
@@ -220,11 +242,21 @@ fn flush_phase_timers_to_current_span() {
     span.record("fetch_ms", fetch_ms);
     span.record("parse_ms", parse_ms);
 
-    if let Some(fetch_span) = fetch_span {
-        fetch_span.record("duration_ms", fetch_ms);
+    if let Some(span) = fetch_span {
+        finish_phase_span(&span, fetch_ms, fetch_failed);
     }
-    if let Some(parse_span) = parse_span {
-        parse_span.record("duration_ms", parse_ms);
+    if let Some(span) = parse_span {
+        finish_phase_span(&span, parse_ms, parse_failed);
+    }
+}
+
+#[cfg(feature = "tracing")]
+fn finish_phase_span(span: &tracing::Span, duration_ms: u64, failed: bool) {
+    span.record("duration_ms", duration_ms);
+    span.record("err", failed);
+    span.record("result", if failed { "error" } else { "success" });
+    if failed {
+        span.in_scope(|| tracing::error!("phase_error"));
     }
 }
 
@@ -242,6 +274,8 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                             "fetch",
                             phase = "fetch",
                             duration_ms = tracing::field::Empty,
+                            err = tracing::field::Empty,
+                            result = tracing::field::Empty,
                         )
                     })
                     .clone(),
@@ -252,6 +286,8 @@ pub fn phase_span(phase: Phase) -> tracing::Span {
                             "parse",
                             phase = "parse",
                             duration_ms = tracing::field::Empty,
+                            err = tracing::field::Empty,
+                            result = tracing::field::Empty,
                         )
                     })
                     .clone(),
@@ -295,7 +331,7 @@ impl Drop for PhaseTimerGuard {
 }
 
 #[cfg(feature = "tracing")]
-/// 执行阶段逻辑并累计耗时。
+/// 执行阶段逻辑并累计耗时；调用方通过 [`record_phase_result`] 回填失败状态。
 pub async fn measure_phase<F>(phase: Phase, future: F) -> F::Output
 where
     F: Future,
@@ -307,6 +343,40 @@ where
     let result = future.instrument(span).await;
     guard.finish();
     result
+}
+
+/// 判断阶段表达式的输出是否代表失败。
+///
+/// [`Result`] 使用错误状态；其他值视为成功。这里通过接收者自动引用区分两类输出，
+/// 使 [`fetch_time!`] / [`parse_time!`] 不要求输出实现 `Debug`。
+#[cfg(feature = "tracing")]
+pub trait PhaseOutcome {
+    fn phase_failed(self) -> bool;
+}
+
+#[cfg(feature = "tracing")]
+impl<T, E> PhaseOutcome for &Result<T, E> {
+    fn phase_failed(self) -> bool {
+        self.is_err()
+    }
+}
+
+#[cfg(feature = "tracing")]
+impl<T> PhaseOutcome for &&T {
+    fn phase_failed(self) -> bool {
+        false
+    }
+}
+
+#[cfg(feature = "tracing")]
+pub fn record_phase_result(phase: Phase, failed: bool) {
+    let _ = PHASE_TIMERS.try_with(|c| {
+        let mut c = c.borrow_mut();
+        match phase {
+            Phase::Fetch => c.fetch_failed |= failed,
+            Phase::Parse => c.parse_failed |= failed,
+        }
+    });
 }
 
 #[cfg(feature = "tracing")]
