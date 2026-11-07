@@ -10,6 +10,8 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 struct RawTransactionRecord {
+    // 原始交易名称
+    tranname: String,
     // 商户名称
     mercname: String,
     // 商户账号
@@ -18,6 +20,8 @@ struct RawTransactionRecord {
     occtime: String,
     // 带收支方向的交易金额, 单位为分
     sign_tranamt: String,
+    // 卡余额快照, 注意单位为分
+    cardbal: String,
     // 交易类型代码
     trancode: String,
 }
@@ -64,11 +68,13 @@ pub fn card_transaction_records(
                 serde_json::from_value(item.clone()).parse_err(json_str)?;
             let code = raw_item.trancode.parse::<u32>().parse_err(json_str)?;
             Ok(TransactionRecord {
+                transaction_name: raw_item.tranname,
                 merchant_name: raw_item.mercname,
                 merchant_account: raw_item.mercacc.parse::<u64>().parse_err(json_str)?,
                 pay_time: chrono::NaiveDateTime::parse_from_str(&raw_item.occtime, "%Y%m%d%H%M%S")
                     .parse_err(json_str)?,
                 transaction_amount: raw_item.sign_tranamt.parse::<i64>().parse_err(json_str)?,
+                card_balance: raw_item.cardbal.parse::<i64>().parse_err(json_str)?,
                 transaction_type: match code {
                     15 => TransactionType::Consumption,
                     16 => TransactionType::Recharge,
@@ -112,6 +118,8 @@ mod tests {
         assert_eq!(result.total_count, 11);
         assert_eq!(result.records.len(), 10);
         assert_eq!(result.records[0].merchant_name, "天马二食堂二楼");
+        assert_eq!(result.records[0].transaction_name, "持卡人消费");
+        assert_eq!(result.records[0].card_balance, 8181);
         assert_eq!(
             result.records[0].transaction_type,
             TransactionType::Consumption

@@ -23,6 +23,8 @@ pub struct CardInfo {
 /// 一条校园卡交易记录
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TransactionRecord {
+    /// 原始交易名称
+    pub transaction_name: String,
     /// 商户名称
     pub merchant_name: String,
     /// 商户账号
@@ -31,6 +33,8 @@ pub struct TransactionRecord {
     pub pay_time: NaiveDateTime,
     /// 交易金额, 正值为收入, 负值为支出, 单位为分
     pub transaction_amount: i64,
+    /// 交易记录中的卡余额快照, 单位为分（但在代扣时似乎不会变化。之后还要再研究一下）
+    pub card_balance: i64,
     /// 交易类型
     pub transaction_type: TransactionType,
 }
