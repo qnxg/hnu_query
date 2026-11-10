@@ -63,7 +63,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() -> TestResult<()> {
-        let res = CLIENT.get("https://www.baidu.com").send().await?;
+        let res = CLIENT.get("https://www.microsoft.com").send().await?;
         assert!(res.status().is_success());
         Ok(())
     }
