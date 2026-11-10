@@ -1,0 +1,96 @@
+{
+    "e": 0,
+    "m": "操作成功",
+    "d": {
+        "retcode": "0",
+        "errmsg": "操作成功",
+        "rowcount": "7",
+        "nextpage": "0",
+        "pagesize": "50",
+        "total": [
+            {
+                "account": "114514",
+                "trancode": "03",
+                "tranname": "持卡人信息变更",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "occtime": "20260917033844",
+                "remark": "原有效期=20260918,新有效期=20270317"
+            },
+            {
+                "account": "114514",
+                "trancode": "41",
+                "tranname": "持卡人换卡",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "cardbal": "9041",
+                "occtime": "20261030082907",
+                "remark": ""
+            },
+            {
+                "account": "114514",
+                "trancode": "42",
+                "tranname": "挂失",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "cardbal": "10798",
+                "occtime": "20261109104958",
+                "remark": "###"
+            },
+            {
+                "account": "114514",
+                "trancode": "43",
+                "tranname": "解挂",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "cardbal": "5828",
+                "occtime": "20261104090150",
+                "remark": "###"
+            },
+            {
+                "account": "114514",
+                "trancode": "44",
+                "tranname": "冻结",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "cardbal": "160",
+                "occtime": "20261105033004",
+                "remark": "余额小于-0.01，自动冻结!"
+            },
+            {
+                "account": "114514",
+                "trancode": "5K",
+                "tranname": "卡片校正（身份和有效期）",
+                "mercacc": "0",
+                "mercname": "",
+                "tranamt": "0",
+                "sign_tranamt": "0",
+                "cardbal": "7559",
+                "occtime": "20260918114014",
+                "remark": ""
+            },
+            {
+                "account": "114514",
+                "trancode": "15",
+                "tranname": "持卡人消费",
+                "mercacc": "1000006",
+                "mercname": "天马二食堂二楼",
+                "tranamt": "200",
+                "sign_tranamt": "-200",
+                "cardbal": "8181",
+                "occtime": "20260913114730",
+                "remark": ""
+            }
+        ]
+    }
+}
