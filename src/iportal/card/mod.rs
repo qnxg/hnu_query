@@ -128,6 +128,8 @@ pub async fn get_card_info(
 ///
 /// 返回一页 [`CardTransactionDetail`]
 ///
+/// 挂失、换卡、冻结等卡片管理操作不会包含在交易记录中。
+///
 /// # Errors
 ///
 /// `token` 失效时返回 [`IPortalTokenExpired`]
