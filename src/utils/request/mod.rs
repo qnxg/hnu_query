@@ -63,8 +63,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() -> TestResult<()> {
-        let res = CLIENT.get("https://www.microsoft.com").send().await?;
-        assert!(res.status().is_success());
+        let res = CLIENT.get("https://rust-lang.org").send().await?;
+        assert!(
+            res.status().is_success(),
+            "unexpected status: {}",
+            res.status()
+        );
         Ok(())
     }
 }
