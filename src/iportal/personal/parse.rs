@@ -51,7 +51,7 @@ pub fn personal_data_query_ids(
         .cloned()
         .map(|item| {
             let raw: RawPersonalDataType = serde_json::from_value(item).parse_err(json_str)?;
-            if !is_supported_key(&raw.key) {
+            if !is_supported_key(&raw.key) && !is_ignored_key(&raw.key) {
                 return Err(parse_err(
                     &format!("未知个人数据类型: {}", raw.key),
                     json_str,
@@ -105,7 +105,11 @@ pub fn personal_data(
                 let value = value.parse::<f64>().unwrap_or(0.0);
                 result.net_used = Some(net_convert_to_byte(value, item.unit));
             }
-            _ => return Err(parse_err(&format!("未知个人数据类型: {key}"), &json_str)),
+            _ => {
+                if !is_ignored_key(&key) {
+                    return Err(parse_err(&format!("未知个人数据类型: {key}"), &json_str));
+                }
+            }
         }
     }
     Ok(result)
@@ -115,6 +119,14 @@ fn is_supported_key(key: &str) -> bool {
     matches!(
         key,
         "book.bookNum" | "mail.unread" | "card.balance" | "statistic.lastLoginTime" | "net.used"
+    )
+}
+
+fn is_ignored_key(key: &str) -> bool {
+    matches!(
+        key,
+        // 不存在任何有效数据的邮件类型, 跳过解析, 防止报错
+        "mailNew.unread"
     )
 }
 
