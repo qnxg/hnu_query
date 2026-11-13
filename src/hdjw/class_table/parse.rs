@@ -154,7 +154,7 @@ fn course_schedule(raw: &RawCourseInfo) -> Result<Vec<CourseSchedule>, crate::Er
         )?;
         let week_list = filter_by_week_suffix(
             week_list,
-            caps.get(4).map(|m| m.as_str()).unwrap_or_default(),
+            caps.get(4).map_or_default(|m| m.as_str()),
             sktime,
         )?;
         let place = places.get(i).ok_or(parse_err("找不到上课地点", skddmc))?;
@@ -227,10 +227,7 @@ pub fn class_table_extra(json_str: &str) -> Result<Vec<ExtraCourse>, crate::Erro
             class_name: item.kt_mc,
             area: item.skxqmc,
             // 教务系统可能会返回空格开头或结尾
-            teacher: item
-                .jg0101mc
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default(),
+            teacher: item.jg0101mc.map_or_default(|s| s.trim().to_string()),
             credit: item.xf,
             extra: item.fz_mc,
             people: item.xkrs,
