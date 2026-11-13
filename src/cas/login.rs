@@ -37,6 +37,9 @@ pub enum AccountIssue {
     /// 账号因多次输错密码被锁定
     #[error("账号因多次输错密码被锁定")]
     AccountLocked,
+    /// 手机号未绑定，无法进行双因子认证
+    #[error("手机号未绑定，无法进行双因子认证")]
+    PhoneNotBound,
     /// 需要双因子认证，输入手机号后获取验证码
     #[error("需要双因子认证")]
     TFARequired(TFAToken),
@@ -196,6 +199,9 @@ impl CasToken {
         let login_result = login.text().await.unexpected_err()?;
         if login_result.contains("用户名或密码错误") {
             return Err(crate::Error::Other(AccountIssue::PasswordError));
+        }
+        if login_result.contains("手机号未绑定") {
+            return Err(crate::Error::Other(AccountIssue::PhoneNotBound));
         }
         if login_result.contains("双因子认证") {
             obs::debug!("tfa_required");
